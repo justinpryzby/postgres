@@ -175,6 +175,7 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 	bool		summary_set = false;
 	bool		costs_set = false;
 	bool		buffers_set = false;
+	bool		machine_set = false;
 
 	/* Parse options list. */
 	foreach(lc, stmt->options)
@@ -209,6 +210,11 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 		{
 			summary_set = true;
 			es->summary = defGetBoolean(opt);
+		}
+		else if (strcmp(opt->defname, "machine") == 0)
+		{
+			machine_set = true;
+			es->machine = defGetBoolean(opt);
 		}
 		else if (strcmp(opt->defname, "format") == 0)
 		{
@@ -259,6 +265,9 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 
 	/* if the buffers option was not set explicitly, set default value */
 	es->buffers = (buffers_set) ? es->buffers : !explain_regress;
+
+	/* if the machine option was not set explicitly, set default value */
+	es->machine = (machine_set) ? es->machine : !explain_regress;
 
 	query = castNode(Query, stmt->query);
 	if (IsQueryIdEnabled())
@@ -621,7 +630,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	/* Create textual dump of plan tree */
 	ExplainPrintPlan(es, queryDesc);
 
-	if (es->verbose && plannedstmt->queryId != UINT64CONST(0))
+	if (es->verbose && plannedstmt->queryId != UINT64CONST(0) && es->machine)
 	{
 		/*
 		 * Output the queryid as an int64 rather than a uint64 so we match
@@ -632,7 +641,7 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 	}
 
 	/* Show buffer usage in planning */
-	if (bufusage)
+	if (bufusage && es->buffers)
 	{
 		ExplainOpenGroup("Planning", "Planning", true, es);
 		show_buffer_usage(es, bufusage, true);
@@ -1772,7 +1781,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			if (plan->qual)
 				show_instrumentation_count("Rows Removed by Filter", 1,
 										   planstate, es);
-			if (es->analyze)
+			if (es->analyze && es->machine)
 				ExplainPropertyFloat("Heap Fetches", NULL,
 									 planstate->instrument->ntuples2, 0, es);
 			break;
@@ -2746,8 +2755,12 @@ show_sort_info(SortState *sortstate, ExplainState *es)
 		if (es->format == EXPLAIN_FORMAT_TEXT)
 		{
 			ExplainIndentText(es);
-			appendStringInfo(es->str, "Sort Method: %s  %s: " INT64_FORMAT "kB\n",
-							 sortMethod, spaceType, spaceUsed);
+			appendStringInfo(es->str, "Sort Method: %s",
+							 sortMethod);
+			if (es->machine)
+				appendStringInfo(es->str, "  %s: " INT64_FORMAT "kB",
+							 spaceType, spaceUsed);
+			appendStringInfoString(es->str, "\n");
 		}
 		else
 		{
@@ -2791,8 +2804,12 @@ show_sort_info(SortState *sortstate, ExplainState *es)
 			{
 				ExplainIndentText(es);
 				appendStringInfo(es->str,
-								 "Sort Method: %s  %s: " INT64_FORMAT "kB\n",
-								 sortMethod, spaceType, spaceUsed);
+								 "Sort Method: %s",
+								 sortMethod);
+				if (es->machine)
+					appendStringInfo(es->str, "  %s: " INT64_FORMAT "kB", spaceType, spaceUsed);
+
+				appendStringInfoString(es->str, "\n");
 			}
 			else
 			{
@@ -3080,25 +3097,26 @@ show_hash_info(HashState *hashstate, ExplainState *es)
 			ExplainPropertyInteger("Peak Memory Usage", "kB",
 								   spacePeakKb, es);
 		}
-		else if (hinstrument.nbatch_original != hinstrument.nbatch ||
-				 hinstrument.nbuckets_original != hinstrument.nbuckets)
-		{
-			ExplainIndentText(es);
-			appendStringInfo(es->str,
-							 "Buckets: %d (originally %d)  Batches: %d (originally %d)  Memory Usage: %ldkB\n",
-							 hinstrument.nbuckets,
-							 hinstrument.nbuckets_original,
-							 hinstrument.nbatch,
-							 hinstrument.nbatch_original,
-							 spacePeakKb);
-		}
 		else
 		{
 			ExplainIndentText(es);
-			appendStringInfo(es->str,
-							 "Buckets: %d  Batches: %d  Memory Usage: %ldkB\n",
-							 hinstrument.nbuckets, hinstrument.nbatch,
-							 spacePeakKb);
+			if (hinstrument.nbatch_original != hinstrument.nbatch ||
+				 hinstrument.nbuckets_original != hinstrument.nbuckets)
+				appendStringInfo(es->str,
+							 "Buckets: %d (originally %d)  Batches: %d (originally %d)",
+							 hinstrument.nbuckets,
+							 hinstrument.nbuckets_original,
+							 hinstrument.nbatch,
+							 hinstrument.nbatch_original);
+			else
+				appendStringInfo(es->str,
+							 "Buckets: %d  Batches: %d",
+							 hinstrument.nbuckets, hinstrument.nbatch);
+
+			if (es->machine)
+				appendStringInfo(es->str, "  Memory Usage: %ldkB", spacePeakKb);
+
+			appendStringInfoChar(es->str, '\n');
 		}
 	}
 }
@@ -3182,12 +3200,16 @@ show_memoize_info(MemoizeState *mstate, List *ancestors, ExplainState *es)
 		{
 			ExplainIndentText(es);
 			appendStringInfo(es->str,
-							 "Hits: " UINT64_FORMAT "  Misses: " UINT64_FORMAT "  Evictions: " UINT64_FORMAT "  Overflows: " UINT64_FORMAT "  Memory Usage: " INT64_FORMAT "kB\n",
+							 "Hits: " UINT64_FORMAT "  Misses: " UINT64_FORMAT "  Evictions: " UINT64_FORMAT "  Overflows: " UINT64_FORMAT,
 							 mstate->stats.cache_hits,
 							 mstate->stats.cache_misses,
 							 mstate->stats.cache_evictions,
-							 mstate->stats.cache_overflows,
+							 mstate->stats.cache_overflows);
+			if (es->machine)
+				appendStringInfo(es->str, "  Memory Usage: " INT64_FORMAT "kB",
 							 memPeakKb);
+
+			appendStringInfoChar(es->str, '\n');
 		}
 	}
 
@@ -3256,13 +3278,16 @@ show_hashagg_info(AggState *aggstate, ExplainState *es)
 	Agg		   *agg = (Agg *) aggstate->ss.ps.plan;
 	int64		memPeakKb = (aggstate->hash_mem_peak + 1023) / 1024;
 
+	/* XXX: there's nothing portable we can show here ? */
+	if (!es->machine)
+		return;
+
 	if (agg->aggstrategy != AGG_HASHED &&
 		agg->aggstrategy != AGG_MIXED)
 		return;
 
 	if (es->format != EXPLAIN_FORMAT_TEXT)
 	{
-
 		if (es->costs)
 			ExplainPropertyInteger("Planned Partitions", NULL,
 								   aggstate->hash_planned_partitions, es);
@@ -3375,6 +3400,10 @@ show_hashagg_info(AggState *aggstate, ExplainState *es)
 static void
 show_tidbitmap_info(BitmapHeapScanState *planstate, ExplainState *es)
 {
+	/* XXX: there's nothing portable we can show here ? */
+	if (!es->machine)
+		return;
+
 	if (es->format != EXPLAIN_FORMAT_TEXT)
 	{
 		ExplainPropertyInteger("Exact Heap Blocks", NULL,

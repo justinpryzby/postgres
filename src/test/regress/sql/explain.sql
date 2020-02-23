@@ -72,6 +72,23 @@ select explain_filter('explain (analyze, buffers, format yaml) select * from int
 select explain_filter('explain (buffers, format text) select * from int8_tbl i8');
 select explain_filter('explain (buffers, format json) select * from int8_tbl i8');
 
+-- HashAgg
+begin;
+SET work_mem='64kB';
+select explain_filter('explain (analyze) SELECT a, COUNT(1) FROM generate_series(1,9999)a GROUP BY 1');
+select explain_filter('explain (analyze, machine off) SELECT a, COUNT(1) FROM generate_series(1,9999)a GROUP BY 1');
+rollback;
+
+-- Bitmap scan
+begin;
+SET enable_indexscan=no;
+CREATE TABLE explainbitmap AS SELECT i AS a FROM generate_series(1,999) AS i;
+ANALYZE explainbitmap;
+CREATE INDEX ON explainbitmap(a);
+select explain_filter('explain (analyze) SELECT * FROM explainbitmap WHERE a<9');
+select explain_filter('explain (analyze, machine off) SELECT * FROM explainbitmap WHERE a<9');
+rollback;
+
 -- SETTINGS option
 -- We have to ignore other settings that might be imposed by the environment,
 -- so printing the whole Settings field unfortunately won't do.
