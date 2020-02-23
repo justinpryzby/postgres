@@ -154,6 +154,7 @@ static void ExplainJSONLineEnding(ExplainState *es);
 static void ExplainYAMLLineStarting(ExplainState *es);
 static void escape_yaml(StringInfo buf, const char *str);
 
+bool explain_regress = false; /* GUC */
 
 
 /*
@@ -172,6 +173,7 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 	ListCell   *lc;
 	bool		timing_set = false;
 	bool		summary_set = false;
+	bool		costs_set = false;
 
 	/* Parse options list. */
 	foreach(lc, stmt->options)
@@ -183,7 +185,11 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 		else if (strcmp(opt->defname, "verbose") == 0)
 			es->verbose = defGetBoolean(opt);
 		else if (strcmp(opt->defname, "costs") == 0)
+		{
+			/* Need to keep track if it was explicitly set to ON */
+			costs_set = true;
 			es->costs = defGetBoolean(opt);
+		}
 		else if (strcmp(opt->defname, "buffers") == 0)
 			es->buffers = defGetBoolean(opt);
 		else if (strcmp(opt->defname, "wal") == 0)
@@ -227,13 +233,16 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 					 parser_errposition(pstate, opt->location)));
 	}
 
+	/* if the costs option was not set explicitly, set default value */
+	es->costs = (costs_set) ? es->costs : es->costs && !explain_regress;
+
 	if (es->wal && !es->analyze)
 		ereport(ERROR,
 				(errcode(ERRCODE_INVALID_PARAMETER_VALUE),
 				 errmsg("EXPLAIN option WAL requires ANALYZE")));
 
 	/* if the timing was not set explicitly, set default value */
-	es->timing = (timing_set) ? es->timing : es->analyze;
+	es->timing = (timing_set) ? es->timing : es->analyze && !explain_regress;
 
 	/* check that timing is used with EXPLAIN ANALYZE */
 	if (es->timing && !es->analyze)
@@ -242,7 +251,7 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 				 errmsg("EXPLAIN option TIMING requires ANALYZE")));
 
 	/* if the summary was not set explicitly, set default value */
-	es->summary = (summary_set) ? es->summary : es->analyze;
+	es->summary = (summary_set) ? es->summary : es->analyze && !explain_regress;
 
 	query = castNode(Query, stmt->query);
 	if (IsQueryIdEnabled())

@@ -10,6 +10,10 @@
 -- ignore details such as exact costs or row counts.  These filter
 -- functions replace changeable output details with fixed strings.
 
+-- Output normal, user-facing details, not the sanitized version used for the
+-- rest of the regression tests
+set explain_regress = off;
+
 create function explain_filter(text) returns setof text
 language plpgsql as
 $$
