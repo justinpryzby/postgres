@@ -2628,7 +2628,7 @@ describeOneTableDetails(const char *schemaname,
 							  "stxstattarget\n"
 							  "FROM pg_catalog.pg_statistic_ext\n"
 							  "WHERE stxrelid = '%s'\n"
-							  "ORDER BY nsp, stxname;",
+							  "ORDER BY nsp, stxname",
 							  oid);
 
 			result = PSQLexec(buf.data);
