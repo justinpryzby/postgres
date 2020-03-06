@@ -675,7 +675,7 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 Datum
 pg_ls_logdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, Log_directory, LS_DIR_COMMON);
+	return pg_ls_dir_files(fcinfo, Log_directory, LS_DIR_COMMON | LS_DIR_MISSING_OK);
 }
 
 /* Function to return the list of files in the WAL directory */
