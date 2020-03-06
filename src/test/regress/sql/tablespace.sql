@@ -28,6 +28,10 @@ CREATE TABLESPACE regress_tblspace LOCATION '';
 -- The query is written to ERROR if the tablespace doesn't exist, rather than silently failing to call pg_ls_tmpdir()
 SELECT c.* FROM (SELECT oid FROM pg_tablespace b WHERE b.spcname='regress_tblspace' UNION SELECT 0 ORDER BY 1 DESC LIMIT 1) AS b , pg_ls_tmpdir(oid) AS c WHERE c.name='Does not exist';
 
+-- This tests the missing_ok parameter.  If that's not functioning, this would ERROR if the logdir doesn't exist yet.
+-- The name='' condition is never true, so the function runs to completion but returns zero rows.
+SELECT * FROM pg_ls_logdir() WHERE name='Does not exist';
+
 -- try setting and resetting some properties for the new tablespace
 ALTER TABLESPACE regress_tblspace SET (random_page_cost = 1.0, seq_page_cost = 1.1);
 ALTER TABLESPACE regress_tblspace SET (some_nonexistent_parameter = true);  -- fail
