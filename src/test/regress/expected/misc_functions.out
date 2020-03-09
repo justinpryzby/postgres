@@ -206,8 +206,8 @@ select count(*) > 0 as ok from (select pg_ls_waldir()) ss;
 
 -- Test not-run-to-completion cases.
 select * from pg_ls_waldir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select count(*) > 0 as ok from (select * from pg_ls_waldir() limit 1) ss;
@@ -270,28 +270,28 @@ select pg_ls_dir('does not exist'); -- fails with missingok=false
 ERROR:  could not open directory "does not exist": No such file or directory
 -- Check that expected columns are present
 select * from pg_ls_archive_statusdir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_ls_logdir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_ls_logicalmapdir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_ls_logicalsnapdir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_ls_replslotdir('') limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_ls_tmpdir() limit 0;
@@ -300,8 +300,8 @@ select * from pg_ls_tmpdir() limit 0;
 (0 rows)
 
 select * from pg_ls_waldir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select * from pg_stat_file('.') limit 0;
