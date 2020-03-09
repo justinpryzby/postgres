@@ -704,7 +704,7 @@ pg_ls_tmpdir(FunctionCallInfo fcinfo, Oid tblspc)
 
 	TempTablespacePath(path, tblspc);
 	return pg_ls_dir_files(fcinfo, path,
-			LS_DIR_HISTORIC | LS_DIR_MISSING_OK);
+			LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR | LS_DIR_METADATA | LS_DIR_MISSING_OK);
 }
 
 /*
