@@ -206,8 +206,8 @@ select count(*) > 0 as ok from (select pg_ls_waldir()) ss;
 
 -- Test not-run-to-completion cases.
 select * from pg_ls_waldir() limit 0;
- name | size | modification 
-------+------+--------------
+ name | size | modification | isdir 
+------+------+--------------+-------
 (0 rows)
 
 select count(*) > 0 as ok from (select * from pg_ls_waldir() limit 1) ss;
