@@ -25952,7 +25952,8 @@ postgres=# SELECT * FROM pg_walfile_name_offset(pg_stop_backup());
         </indexterm>
         <function>pg_ls_dir_metadata</function> ( <parameter>dirname</parameter> <type>text</type>
         <optional>, <parameter>missing_ok</parameter> <type>boolean</type>,
-        <parameter>include_dot_dirs</parameter> <type>boolean</type> </optional> )
+        <parameter>include_dot_dirs</parameter> <type>boolean</type>,
+        <parameter>recurse</parameter> <type>boolean</type> </optional> )
         <returnvalue>setof record</returnvalue>
         ( <parameter>filename</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
@@ -25960,7 +25961,8 @@ postgres=# SELECT * FROM pg_walfile_name_offset(pg_stop_backup());
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>type</parameter> <type>char</type> )
+        <parameter>type</parameter> <type>char</type>,
+        <parameter>path</parameter> <type>text</type> )
        </para>
        <para>
         For each file in the specified directory, list the file and its
