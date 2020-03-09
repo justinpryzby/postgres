@@ -41,6 +41,8 @@ static char get_file_type(mode_t mode, const char *path);
 static void values_from_stat(struct stat *fst, const char *path, Datum *values,
 		bool *nulls);
 static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags);
+void pg_ls_dir_files_internal(const char *dirname, ReturnSetInfo *rsinfo,
+							  DIR *dirdesc, int flags);
 
 #define	LS_DIR_TYPE					(1<<0) /* Show column: type */
 #define	LS_DIR_METADATA				(1<<1) /* Show columns: mtime, size */
@@ -49,6 +51,7 @@ static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags
 #define	LS_DIR_SKIP_HIDDEN			(1<<4) /* Do not show anything beginning with . */
 #define	LS_DIR_SKIP_DIRS			(1<<5) /* Do not show directories */
 #define	LS_DIR_SKIP_SPECIAL			(1<<6) /* Do not show special file types */
+#define	LS_DIR_RECURSE				(1<<7) /* Recurse into subdirs */
 
 /* Shortcut for common behavior */
 #define LS_DIR_COMMON				(LS_DIR_SKIP_HIDDEN | LS_DIR_METADATA)
@@ -574,7 +577,6 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 {
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
 	DIR		   *dirdesc;
-	struct dirent *de;
 
 	/* type depends on metadata */
 	Assert(!(flags&LS_DIR_TYPE) || (flags&LS_DIR_METADATA));
@@ -582,9 +584,8 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 	Assert(!(flags&LS_DIR_TYPE) || !(flags&LS_DIR_SKIP_DIRS));
 
 	/* check the optional arguments */
-	if (PG_NARGS() == 3)
-	{
-		if (!PG_ARGISNULL(1))
+	if (PG_NARGS() > 1 &&
+		!PG_ARGISNULL(1))
 		{
 			if (PG_GETARG_BOOL(1))
 				flags |= LS_DIR_MISSING_OK;
@@ -592,14 +593,30 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 				flags &= ~LS_DIR_MISSING_OK;
 		}
 
-		if (!PG_ARGISNULL(2))
+	if (PG_NARGS() > 2 &&
+		!PG_ARGISNULL(2))
 		{
 			if (PG_GETARG_BOOL(2))
 				flags &= ~LS_DIR_SKIP_DOT_DIRS;
 			else
 				flags |= LS_DIR_SKIP_DOT_DIRS;
 		}
-	}
+
+	if (PG_NARGS() > 3 &&
+		!PG_ARGISNULL(3))
+		{
+			if (PG_GETARG_BOOL(3))
+				flags |= LS_DIR_RECURSE;
+			else
+				flags &= ~LS_DIR_RECURSE;
+		}
+
+	if ((flags & LS_DIR_RECURSE) != 0 &&
+			(flags & LS_DIR_SKIP_DOT_DIRS) == 0)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_RECURSION), // ??
+				 errmsg("recursion requires skipping dot dirs")));
+
 
 	if (flags & LS_DIR_METADATA)
 		SetSingleFuncCall(fcinfo, 0);
@@ -620,10 +637,19 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 		/* Otherwise, we can let ReadDir() throw the error */
 	}
 
-	while ((de = ReadDir(dirdesc, dir)) != NULL)
+	pg_ls_dir_files_internal(dir, rsinfo, dirdesc, flags);
+	FreeDir(dirdesc);
+	return (Datum) 0;
+}
+
+void pg_ls_dir_files_internal(const char *dirname, ReturnSetInfo *rsinfo, DIR *dirdesc, int flags)
+{
+	struct dirent *de;
+
+	while ((de = ReadDir(dirdesc, dirname)) != NULL)
 	{
-		Datum		values[7];
-		bool		nulls[7];
+		Datum		values[8];
+		bool		nulls[8];
 		char		path[MAXPGPATH * 2];
 		struct stat attrib;
 
@@ -639,7 +665,11 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 			continue;
 
 		/* Get the file info */
-		snprintf(path, sizeof(path), "%s/%s", dir, de->d_name);
+		if (strcmp(dirname, ".") != 0)
+			snprintf(path, sizeof(path), "%s/%s", dirname, de->d_name);
+		else
+			snprintf(path, sizeof(path), "%s", de->d_name);
+
 		if (lstat(path, &attrib) < 0)
 		{
 			/* Ignore concurrently-deleted files, else complain */
@@ -664,14 +694,38 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 
 		memset(nulls, false, sizeof(nulls));
 		values[0] = CStringGetTextDatum(de->d_name);
-		if (flags & LS_DIR_METADATA)
+		if ((flags & (LS_DIR_RECURSE|LS_DIR_METADATA)) != 0)
+		{
 			values_from_stat(&attrib, path, 1+values, 1+nulls);
 
-		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
-	}
+			/*
+			 * path is only really useful for recursion, but this function
+			 * can't return different fields when recursing
+			 * XXX: return dirname (which is nice since it's the original,
+			 * unprocessed input to this recursion) or path (which is nice
+			 * since it's a "cooked" value without leading/duplicate slashes)
+			 */
+			values[7] = CStringGetTextDatum(path);
+		}
 
-	FreeDir(dirdesc);
-	return (Datum) 0;
+		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
+
+		/* Recurse? */
+		if ((flags & LS_DIR_RECURSE) != 0 &&
+			S_ISDIR(attrib.st_mode))
+		{
+			DIR *newdir = AllocateDir(path);
+			if (newdir == NULL && errno == ENOENT)
+				; /* Do nothing: silently ignore a transiently removed dir */
+			else
+			{
+				/* Any failure will be handled by ReadDir */
+				pg_ls_dir_files_internal(path, rsinfo, newdir, flags);
+				Assert(newdir != NULL);
+				FreeDir(newdir);
+			}
+		}
+	}
 }
 
 /* Function to return the list of files in the log directory */
