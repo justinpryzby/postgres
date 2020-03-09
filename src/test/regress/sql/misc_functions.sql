@@ -108,10 +108,16 @@ select * from pg_ls_tmpdir() where name='Does not exist';
 
 select filename, type from pg_ls_dir_metadata('.') where filename='.';
 
-select filename, type from pg_ls_dir_metadata('.', false, false) where filename='.'; -- include_dot_dirs=false
+select filename, type from pg_ls_dir_metadata('.', false, false, false) where filename='.'; -- include_dot_dirs=false
 
 -- Check that expected columns are present
 select * from pg_ls_dir_metadata('.') limit 0;
+
+-- Exercise recursion
+select path, filename, type from pg_ls_dir_metadata('.', true, false, true) where
+path in ('base', 'base/pgsql_tmp', 'global', 'global/pg_control', 'global/pg_filenode.map', 'PG_VERSION', 'pg_multixact', 'pg_multixact/members', 'pg_multixact/offsets', 'pg_wal', 'pg_wal/archive_status')
+-- (type='d' or path~'^(global/.*|PG_VERSION|postmaster\.opts|postmaster\.pid|pg_logical/replorigin_checkpoint)$') and filename!~'[0-9]'
+order by path collate "C", filename collate "C";
 
 --
 -- Test replication slot directory functions
