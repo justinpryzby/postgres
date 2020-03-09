@@ -47,11 +47,8 @@ static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags
 #define	LS_DIR_SKIP_DIRS			(1<<5) /* Do not show directories */
 #define	LS_DIR_SKIP_SPECIAL			(1<<6) /* Do not show special file types */
 
-/*
- * Shortcut for the historic behavior of the pg_ls_* functions (not including
- * pg_ls_dir, which skips different files and doesn't show metadata).
- */
-#define LS_DIR_HISTORIC				(LS_DIR_SKIP_DIRS | LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_METADATA)
+/* Shortcut for common behavior */
+#define LS_DIR_COMMON				(LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_METADATA)
 
 /*
  * Convert a "text" filename argument to C string, and check it's allowable.
@@ -644,14 +641,14 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 Datum
 pg_ls_logdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, Log_directory, LS_DIR_HISTORIC);
+	return pg_ls_dir_files(fcinfo, Log_directory, LS_DIR_COMMON);
 }
 
 /* Function to return the list of files in the WAL directory */
 Datum
 pg_ls_waldir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, XLOGDIR, LS_DIR_HISTORIC);
+	return pg_ls_dir_files(fcinfo, XLOGDIR, LS_DIR_COMMON);
 }
 
 /*
@@ -670,7 +667,7 @@ pg_ls_tmpdir(FunctionCallInfo fcinfo, Oid tblspc)
 
 	TempTablespacePath(path, tblspc);
 	return pg_ls_dir_files(fcinfo, path,
-			LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR | LS_DIR_METADATA | LS_DIR_MISSING_OK);
+			LS_DIR_COMMON | LS_DIR_MISSING_OK);
 }
 
 /*
@@ -700,7 +697,7 @@ Datum
 pg_ls_archive_statusdir(PG_FUNCTION_ARGS)
 {
 	return pg_ls_dir_files(fcinfo, XLOGDIR "/archive_status",
-			LS_DIR_HISTORIC | LS_DIR_MISSING_OK);
+			LS_DIR_COMMON | LS_DIR_MISSING_OK);
 }
 
 /*
@@ -736,7 +733,7 @@ pg_ls_dir_metadata_1arg(PG_FUNCTION_ARGS)
 Datum
 pg_ls_logicalsnapdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, "pg_logical/snapshots", LS_DIR_HISTORIC);
+	return pg_ls_dir_files(fcinfo, "pg_logical/snapshots", LS_DIR_COMMON);
 }
 
 /*
@@ -745,7 +742,7 @@ pg_ls_logicalsnapdir(PG_FUNCTION_ARGS)
 Datum
 pg_ls_logicalmapdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, "pg_logical/mappings", LS_DIR_HISTORIC);
+	return pg_ls_dir_files(fcinfo, "pg_logical/mappings", LS_DIR_COMMON);
 }
 
 /*
@@ -770,5 +767,5 @@ pg_ls_replslotdir(PG_FUNCTION_ARGS)
 						slotname)));
 
 	snprintf(path, sizeof(path), "pg_replslot/%s", slotname);
-	return pg_ls_dir_files(fcinfo, path, LS_DIR_HISTORIC);
+	return pg_ls_dir_files(fcinfo, path, LS_DIR_COMMON);
 }
