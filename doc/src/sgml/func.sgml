@@ -27550,16 +27550,17 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <returnvalue>setof record</returnvalue>
         ( <parameter>name</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
-        <parameter>modification</parameter> <type>timestamp with time zone</type> )
+        <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
-        Returns the name, size, and last modification time (mtime) of each
-        ordinary file in the temporary file directory for the
-        specified <parameter>tablespace</parameter>.
-        If <parameter>tablespace</parameter> is not provided,
-        the <literal>pg_default</literal> tablespace is examined.  Filenames
-        beginning with a dot, directories, and other special files are
-        excluded.
+        For each file in the temporary directory within the given
+        <parameter>tablespace</parameter>, return the file's name, size, last
+        modification time (mtime) and a boolean indicating if the file is a directory.
+        Directories are used for temporary files shared by parallel processes.
+        If <parameter>tablespace</parameter> is not provided, the
+        <literal>pg_default</literal> tablespace is examined.
+        Filenames beginning with a dot and special file types are excluded.
        </para>
        <para>
         This function is restricted to superusers and members of
