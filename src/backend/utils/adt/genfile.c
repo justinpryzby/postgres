@@ -37,6 +37,8 @@
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 
+static void values_from_stat(struct stat *fst, const char *path, Datum *values,
+		bool *nulls);
 static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags);
 
 #define	LS_DIR_ISDIR				(1<<0) /* Show column: isdir */
@@ -395,6 +397,28 @@ pg_read_binary_file_all(PG_FUNCTION_ARGS)
 }
 
 /*
+ * Populate values and nulls from fst and path.
+ * Used for pg_stat_file() and pg_ls_dir_files()
+ * nulls is assumed to have been zerod.
+ */
+static void
+values_from_stat(struct stat *fst, const char *path, Datum *values, bool *nulls)
+{
+	values[0] = Int64GetDatum((int64) fst->st_size);
+	values[1] = TimestampTzGetDatum(time_t_to_timestamptz(fst->st_atime));
+	values[2] = TimestampTzGetDatum(time_t_to_timestamptz(fst->st_mtime));
+	/* Unix has file status change time, while Win32 has creation time */
+#if !defined(WIN32) && !defined(__CYGWIN__)
+	values[3] = TimestampTzGetDatum(time_t_to_timestamptz(fst->st_ctime));
+	nulls[4] = true;
+#else
+	nulls[3] = true;
+	values[4] = TimestampTzGetDatum(time_t_to_timestamptz(fst->st_ctime));
+#endif
+	values[5] = BoolGetDatum(S_ISDIR(fst->st_mode));
+}
+
+/*
  * stat a file
  */
 Datum
@@ -404,7 +428,7 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	char	   *filename;
 	struct stat fst;
 	Datum		values[6];
-	bool		isnull[6];
+	bool		nulls[6];
 	HeapTuple	tuple;
 	TupleDesc	tupdesc;
 	bool		missing_ok = false;
@@ -444,27 +468,9 @@ pg_stat_file(PG_FUNCTION_ARGS)
 					   "isdir", BOOLOID, -1, 0);
 	BlessTupleDesc(tupdesc);
 
-	memset(isnull, false, sizeof(isnull));
-
-	values[0] = Int64GetDatum((int64) fst.st_size);
-	values[1] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_atime));
-	values[2] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_mtime));
-	/* Unix has file status change time, while Win32 has creation time */
-#if !defined(WIN32) && !defined(__CYGWIN__)
-	values[3] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_ctime));
-	isnull[4] = true;
-#else
-	isnull[3] = true;
-	values[4] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_ctime));
-#endif
-	values[5] = BoolGetDatum(S_ISDIR(fst.st_mode));
-#ifdef WIN32
-	/* Links should have isdir=false */
-	if (pgwin32_is_junction(filename))
-		values[5] = BoolGetDatum(false);
-#endif
-
-	tuple = heap_form_tuple(tupdesc, values, isnull);
+	memset(nulls, false, sizeof(nulls));
+	values_from_stat(&fst, filename, values, nulls);
+	tuple = heap_form_tuple(tupdesc, values, nulls);
 
 	pfree(filename);
 
@@ -571,8 +577,8 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 
 	while ((de = ReadDir(dirdesc, dir)) != NULL)
 	{
-		Datum		values[4];
-		bool		nulls[4];
+		Datum		values[7];
+		bool		nulls[7];
 		char		path[MAXPGPATH * 2];
 		struct stat attrib;
 
@@ -611,24 +617,10 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 				continue;
 		}
 
+		memset(nulls, false, sizeof(nulls));
 		values[0] = CStringGetTextDatum(de->d_name);
 		if (flags & LS_DIR_METADATA)
-		{
-			values[1] = Int64GetDatum((int64) attrib.st_size);
-			values[2] = TimestampTzGetDatum(time_t_to_timestamptz(attrib.st_mtime));
-			if (flags & LS_DIR_ISDIR)
-			{
-#ifdef WIN32
-				/* Links should have isdir=false */
-				if (pgwin32_is_junction(path))
-					values[3] = BoolGetDatum(false);
-				else
-#endif
-					values[3] = BoolGetDatum(S_ISDIR(attrib.st_mode));
-			}
-		}
-
-		memset(nulls, 0, sizeof(nulls));
+			values_from_stat(&attrib, path, 1+values, 1+nulls);
 
 		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
 	}
