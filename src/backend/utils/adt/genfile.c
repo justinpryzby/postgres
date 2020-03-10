@@ -37,6 +37,21 @@
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 
+static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags);
+
+#define	LS_DIR_ISDIR				(1<<0) /* Show column: isdir */
+#define	LS_DIR_METADATA				(1<<1) /* Show columns: mtime, size */
+#define	LS_DIR_MISSING_OK			(1<<2) /* Ignore ENOENT if the toplevel dir is missing */
+#define	LS_DIR_SKIP_DOT_DIRS		(1<<3) /* Do not show . or .. */
+#define	LS_DIR_SKIP_HIDDEN			(1<<4) /* Do not show anything beginning with . */
+#define	LS_DIR_SKIP_DIRS			(1<<5) /* Do not show directories */
+#define	LS_DIR_SKIP_SPECIAL			(1<<6) /* Do not show special file types */
+
+/*
+ * Shortcut for the historic behavior of the pg_ls_* functions (not including
+ * pg_ls_dir, which skips different files and doesn't show metadata).
+ */
+#define LS_DIR_HISTORIC				(LS_DIR_SKIP_DIRS | LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_METADATA)
 
 /*
  * Convert a "text" filename argument to C string, and check it's allowable.
@@ -446,6 +461,11 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	values[4] = TimestampTzGetDatum(time_t_to_timestamptz(fst.st_ctime));
 #endif
 	values[5] = BoolGetDatum(S_ISDIR(fst.st_mode));
+#ifdef WIN32
+	/* Links should have isdir=false */
+	if (pgwin32_is_junction(filename))
+		values[5] = BoolGetDatum(false);
+#endif
 
 	tuple = heap_form_tuple(tupdesc, values, isnull);
 
@@ -473,54 +493,9 @@ pg_stat_file_1arg(PG_FUNCTION_ARGS)
 Datum
 pg_ls_dir(PG_FUNCTION_ARGS)
 {
-	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
-	char	   *location;
-	bool		missing_ok = false;
-	bool		include_dot_dirs = false;
-	DIR		   *dirdesc;
-	struct dirent *de;
-
-	location = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
-
-	/* check the optional arguments */
-	if (PG_NARGS() == 3)
-	{
-		if (!PG_ARGISNULL(1))
-			missing_ok = PG_GETARG_BOOL(1);
-		if (!PG_ARGISNULL(2))
-			include_dot_dirs = PG_GETARG_BOOL(2);
-	}
-
-	SetSingleFuncCall(fcinfo, SRF_SINGLE_USE_EXPECTED);
-
-	dirdesc = AllocateDir(location);
-	if (!dirdesc)
-	{
-		/* Return empty tuplestore if appropriate */
-		if (missing_ok && errno == ENOENT)
-			return (Datum) 0;
-		/* Otherwise, we can let ReadDir() throw the error */
-	}
-
-	while ((de = ReadDir(dirdesc, location)) != NULL)
-	{
-		Datum		values[1];
-		bool		nulls[1];
-
-		if (!include_dot_dirs &&
-			(strcmp(de->d_name, ".") == 0 ||
-			 strcmp(de->d_name, "..") == 0))
-			continue;
-
-		values[0] = CStringGetTextDatum(de->d_name);
-		nulls[0] = false;
-
-		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc,
-							 values, nulls);
-	}
-
-	FreeDir(dirdesc);
-	return (Datum) 0;
+	text	*filename_t = PG_GETARG_TEXT_PP(0);
+	char	*filename = convert_and_check_filename(filename_t);
+	return pg_ls_dir_files(fcinfo, filename, LS_DIR_SKIP_DOT_DIRS);
 }
 
 /*
@@ -533,23 +508,55 @@ pg_ls_dir(PG_FUNCTION_ARGS)
 Datum
 pg_ls_dir_1arg(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir(fcinfo);
+	text	*filename_t = PG_GETARG_TEXT_PP(0);
+	char	*filename = convert_and_check_filename(filename_t);
+	return pg_ls_dir_files(fcinfo, filename, LS_DIR_SKIP_DOT_DIRS);
 }
 
 /*
- * Generic function to return a directory listing of files.
+ * Generic function to return a directory listing of files (and optionally dirs).
  *
- * If the directory isn't there, silently return an empty set if missing_ok.
+ * If the directory isn't there, silently return an empty set if MISSING_OK.
  * Other unreadable-directory cases throw an error.
  */
 static Datum
-pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, bool missing_ok)
+pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 {
 	ReturnSetInfo *rsinfo = (ReturnSetInfo *) fcinfo->resultinfo;
 	DIR		   *dirdesc;
 	struct dirent *de;
 
-	SetSingleFuncCall(fcinfo, 0);
+	/* isdir depends on metadata */
+	Assert(!(flags & LS_DIR_ISDIR) || (flags & LS_DIR_METADATA));
+	/* Unreasonable to show isdir and skip dirs */
+	Assert(!(flags & LS_DIR_ISDIR) || !(flags & LS_DIR_SKIP_DIRS));
+
+	/* check the optional arguments */
+	if (PG_NARGS() == 3)
+	{
+		/* missing_ok */
+		if (!PG_ARGISNULL(1))
+		{
+			if (PG_GETARG_BOOL(1))
+				flags |= LS_DIR_MISSING_OK;
+			else
+				flags &= ~LS_DIR_MISSING_OK;
+		}
+
+		/* include_dot_dirs */
+		if (!PG_ARGISNULL(2))
+		{
+			if (PG_GETARG_BOOL(2))
+				flags &= ~LS_DIR_SKIP_DOT_DIRS;
+			else
+				flags |= LS_DIR_SKIP_DOT_DIRS;
+		}
+	}
+
+	if (flags & LS_DIR_METADATA)
+		SetSingleFuncCall(fcinfo, 0);
+	else
+		SetSingleFuncCall(fcinfo, SRF_SINGLE_USE_EXPECTED);
 
 	/*
 	 * Now walk the directory.  Note that we must do this within a single SRF
@@ -560,20 +567,27 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, bool missing_ok)
 	if (!dirdesc)
 	{
 		/* Return empty tuplestore if appropriate */
-		if (missing_ok && errno == ENOENT)
+		if (flags & LS_DIR_MISSING_OK && errno == ENOENT)
 			return (Datum) 0;
 		/* Otherwise, we can let ReadDir() throw the error */
 	}
 
 	while ((de = ReadDir(dirdesc, dir)) != NULL)
 	{
-		Datum		values[3];
-		bool		nulls[3];
+		Datum		values[4];
+		bool		nulls[4];
 		char		path[MAXPGPATH * 2];
 		struct stat attrib;
 
-		/* Skip hidden files */
-		if (de->d_name[0] == '.')
+		/* Skip dot dirs? */
+		if (flags & LS_DIR_SKIP_DOT_DIRS &&
+			(strcmp(de->d_name, ".") == 0 ||
+			 strcmp(de->d_name, "..") == 0))
+			continue;
+
+		/* Skip hidden files? */
+		if (flags & LS_DIR_SKIP_HIDDEN &&
+			de->d_name[0] == '.')
 			continue;
 
 		/* Get the file info */
@@ -588,13 +602,35 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, bool missing_ok)
 					 errmsg("could not stat file \"%s\": %m", path)));
 		}
 
-		/* Ignore anything but regular files */
-		if (!S_ISREG(attrib.st_mode))
-			continue;
+		/* Skip dirs or special files? */
+		if (S_ISDIR(attrib.st_mode))
+		{
+			if (flags & LS_DIR_SKIP_DIRS)
+				continue;
+		}
+		else if (!S_ISREG(attrib.st_mode))
+		{
+			if (flags & LS_DIR_SKIP_SPECIAL)
+				continue;
+		}
 
 		values[0] = CStringGetTextDatum(de->d_name);
-		values[1] = Int64GetDatum((int64) attrib.st_size);
-		values[2] = TimestampTzGetDatum(time_t_to_timestamptz(attrib.st_mtime));
+		if (flags & LS_DIR_METADATA)
+		{
+			values[1] = Int64GetDatum((int64) attrib.st_size);
+			values[2] = TimestampTzGetDatum(time_t_to_timestamptz(attrib.st_mtime));
+			if (flags & LS_DIR_ISDIR)
+			{
+#ifdef WIN32
+				/* Links should have isdir=false */
+				if (pgwin32_is_junction(path))
+					values[3] = BoolGetDatum(false);
+				else
+#endif
+					values[3] = BoolGetDatum(S_ISDIR(attrib.st_mode));
+			}
+		}
+
 		memset(nulls, 0, sizeof(nulls));
 
 		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
@@ -608,14 +644,14 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, bool missing_ok)
 Datum
 pg_ls_logdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, Log_directory, false);
+	return pg_ls_dir_files(fcinfo, Log_directory, LS_DIR_HISTORIC);
 }
 
 /* Function to return the list of files in the WAL directory */
 Datum
 pg_ls_waldir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, XLOGDIR, false);
+	return pg_ls_dir_files(fcinfo, XLOGDIR, LS_DIR_HISTORIC);
 }
 
 /*
@@ -633,7 +669,8 @@ pg_ls_tmpdir(FunctionCallInfo fcinfo, Oid tblspc)
 						tblspc)));
 
 	TempTablespacePath(path, tblspc);
-	return pg_ls_dir_files(fcinfo, path, true);
+	return pg_ls_dir_files(fcinfo, path,
+			LS_DIR_HISTORIC | LS_DIR_MISSING_OK);
 }
 
 /*
@@ -662,7 +699,35 @@ pg_ls_tmpdir_1arg(PG_FUNCTION_ARGS)
 Datum
 pg_ls_archive_statusdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, XLOGDIR "/archive_status", true);
+	return pg_ls_dir_files(fcinfo, XLOGDIR "/archive_status",
+			LS_DIR_HISTORIC | LS_DIR_MISSING_OK);
+}
+
+/*
+ * Return the list of files and metadata in an arbitrary directory.
+ */
+Datum
+pg_ls_dir_metadata(PG_FUNCTION_ARGS)
+{
+	char	*dirname = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
+
+	return pg_ls_dir_files(fcinfo, dirname,
+			LS_DIR_METADATA | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR);
+}
+
+/*
+ * Return the list of files and metadata in an arbitrary directory.
+ * note: this wrapper is necessary to pass the sanity check in opr_sanity,
+ * which checks that all built-in functions that share the implementing C
+ * function take the same number of arguments.
+ */
+Datum
+pg_ls_dir_metadata_1arg(PG_FUNCTION_ARGS)
+{
+	char	*dirname = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
+
+	return pg_ls_dir_files(fcinfo, dirname,
+			LS_DIR_METADATA | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR);
 }
 
 /*
@@ -671,7 +736,7 @@ pg_ls_archive_statusdir(PG_FUNCTION_ARGS)
 Datum
 pg_ls_logicalsnapdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, "pg_logical/snapshots", false);
+	return pg_ls_dir_files(fcinfo, "pg_logical/snapshots", LS_DIR_HISTORIC);
 }
 
 /*
@@ -680,7 +745,7 @@ pg_ls_logicalsnapdir(PG_FUNCTION_ARGS)
 Datum
 pg_ls_logicalmapdir(PG_FUNCTION_ARGS)
 {
-	return pg_ls_dir_files(fcinfo, "pg_logical/mappings", false);
+	return pg_ls_dir_files(fcinfo, "pg_logical/mappings", LS_DIR_HISTORIC);
 }
 
 /*
@@ -705,5 +770,5 @@ pg_ls_replslotdir(PG_FUNCTION_ARGS)
 						slotname)));
 
 	snprintf(path, sizeof(path), "pg_replslot/%s", slotname);
-	return pg_ls_dir_files(fcinfo, path, false);
+	return pg_ls_dir_files(fcinfo, path, LS_DIR_HISTORIC);
 }
