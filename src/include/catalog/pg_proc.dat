@@ -11683,6 +11683,18 @@
   proargmodes => '{i,o,o,o}',
   proargnames => '{slot_name,name,size,modification}',
   prosrc => 'pg_ls_replslotdir' },
+{ oid => '8450', descr => 'list directory with metadata',
+  proname => 'pg_ls_dir_metadata', procost => '10', prorows => '20', proretset => 't',
+  provolatile => 'v', prorettype => 'record', proargtypes => 'text bool bool',
+  proallargtypes => '{text,bool,bool,text,int8,timestamptz,bool}', proargmodes => '{i,i,i,o,o,o,o}',
+  proargnames => '{dirname,missing_ok,include_dot_dirs,filename,size,modification,isdir}',
+  prosrc => 'pg_ls_dir_metadata' },
+{ oid => '8451', descr => 'list directory with metadata',
+  proname => 'pg_ls_dir_metadata', procost => '10', prorows => '20', proretset => 't',
+  provolatile => 'v', prorettype => 'record', proargtypes => 'text',
+  proallargtypes => '{text,text,int8,timestamptz,bool}', proargmodes => '{i,o,o,o,o}',
+  proargnames => '{dirname,filename,size,modification,isdir}',
+  prosrc => 'pg_ls_dir_metadata_1arg' },
 
 # hash partitioning constraint function
 { oid => '5028', descr => 'hash partition CHECK constraint',
