@@ -25958,7 +25958,10 @@ postgres=# SELECT * FROM pg_walfile_name_offset(pg_stop_backup());
         <returnvalue>setof record</returnvalue>
         ( <parameter>filename</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
+        <parameter>access</parameter> <type>timestamp with time zone</type>,
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>change</parameter> <type>timestamp with time zone</type>,
+        <parameter>creation</parameter> <type>timestamp with time zone</type>,
         <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
@@ -27358,13 +27361,16 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <returnvalue>setof record</returnvalue>
         ( <parameter>name</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
+        <parameter>access</parameter> <type>timestamp with time zone</type>,
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>change</parameter> <type>timestamp with time zone</type>,
+        <parameter>creation</parameter> <type>timestamp with time zone</type>,
         <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
         For each file in the server's log directory,
-        return the file's name, size, last modification time (mtime), and a boolean
-        indicating if the file is a directory.
+        return the file's name, along with the metadata columns returned by
+        <function>pg_stat_file</function>.
         Filenames beginning with a dot and special file types are excluded.
        </para>
        <para>
@@ -27383,13 +27389,16 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <returnvalue>setof record</returnvalue>
         ( <parameter>name</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
+        <parameter>access</parameter> <type>timestamp with time zone</type>,
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>change</parameter> <type>timestamp with time zone</type>,
+        <parameter>creation</parameter> <type>timestamp with time zone</type>,
         <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
         For each file in the server's write-ahead log (WAL) directory, list the
-        file's name, size, last modification time (mtime), and a boolean
-        indicating if the file is a directory.
+        file's name along with the metadata columns returned by
+        <function>pg_stat_file</function>.
         Filenames beginning with a dot and special files types are excluded.
        </para>
        <para>
@@ -27408,14 +27417,17 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <returnvalue>setof record</returnvalue>
         ( <parameter>name</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
+        <parameter>access</parameter> <type>timestamp with time zone</type>,
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>change</parameter> <type>timestamp with time zone</type>,
+        <parameter>creation</parameter> <type>timestamp with time zone</type>,
         <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
         For each file in the server's WAL archive status directory
-        (<filename>pg_wal/archive_status</filename>), list the file's
-        name, size, last modification time (mtime), and a boolean indicating if
-        the file is a directory.
+        (<filename>pg_wal/archive_status</filename>), list the file's name
+        along with the metadata columns returned by
+        <function>pg_stat_file</function>.
         Filenames beginning with a dot and special file types are excluded.
        </para>
        <para>
@@ -27435,13 +27447,17 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <returnvalue>setof record</returnvalue>
         ( <parameter>name</parameter> <type>text</type>,
         <parameter>size</parameter> <type>bigint</type>,
+        <parameter>access</parameter> <type>timestamp with time zone</type>,
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
+        <parameter>change</parameter> <type>timestamp with time zone</type>,
+        <parameter>creation</parameter> <type>timestamp with time zone</type>,
         <parameter>isdir</parameter> <type>boolean</type> )
        </para>
        <para>
         For each file in the temporary directory within the given
-        <parameter>tablespace</parameter>, return the file's name, size, last
-        modification time (mtime) and a boolean indicating if the file is a directory.
+        <parameter>tablespace</parameter>, list the file's name
+        along with the metadata columns returned by
+        <function>pg_stat_file</function>.
         Directories are used for temporary files shared by parallel processes.
         If <parameter>tablespace</parameter> is not provided, the
         <literal>pg_default</literal> tablespace is examined.
