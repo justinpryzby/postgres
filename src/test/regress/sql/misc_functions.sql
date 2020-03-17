@@ -121,6 +121,21 @@ select count(*) > 0 from
    where spcname = 'pg_default') pts
   join pg_database db on pts.pts = db.oid;
 
+select * from (select pg_ls_dir('.', false, true) as name) as ls where ls.name='.'; -- include_dot_dirs=true
+select * from (select pg_ls_dir('.', false, false) as name) as ls where ls.name='.'; -- include_dot_dirs=false
+select pg_ls_dir('does not exist', true, false); -- ok with missingok=true
+select pg_ls_dir('does not exist'); -- fails with missingok=false
+
+-- Check that expected columns are present
+select * from pg_ls_archive_statusdir() limit 0;
+select * from pg_ls_logdir() limit 0;
+select * from pg_ls_logicalmapdir() limit 0;
+select * from pg_ls_logicalsnapdir() limit 0;
+select * from pg_ls_replslotdir('') limit 0;
+select * from pg_ls_tmpdir() limit 0;
+select * from pg_ls_waldir() limit 0;
+select * from pg_stat_file('.') limit 0;
+
 --
 -- Test replication slot directory functions
 --
