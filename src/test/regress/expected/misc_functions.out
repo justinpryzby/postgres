@@ -250,6 +250,65 @@ select count(*) > 0 from
  t
 (1 row)
 
+select * from (select pg_ls_dir('.', false, true) as name) as ls where ls.name='.'; -- include_dot_dirs=true
+ name 
+------
+ .
+(1 row)
+
+select * from (select pg_ls_dir('.', false, false) as name) as ls where ls.name='.'; -- include_dot_dirs=false
+ name 
+------
+(0 rows)
+
+select pg_ls_dir('does not exist', true, false); -- ok with missingok=true
+ pg_ls_dir 
+-----------
+(0 rows)
+
+select pg_ls_dir('does not exist'); -- fails with missingok=false
+ERROR:  could not open directory "does not exist": No such file or directory
+-- Check that expected columns are present
+select * from pg_ls_archive_statusdir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_logdir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_logicalmapdir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_logicalsnapdir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_replslotdir('') limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_tmpdir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_ls_waldir() limit 0;
+ name | size | modification 
+------+------+--------------
+(0 rows)
+
+select * from pg_stat_file('.') limit 0;
+ size | access | modification | change | creation | isdir 
+------+--------+--------------+--------+----------+-------
+(0 rows)
+
 --
 -- Test replication slot directory functions
 --
