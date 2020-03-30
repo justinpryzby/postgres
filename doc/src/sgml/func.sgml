@@ -27676,8 +27676,8 @@ SELECT convert_from(pg_read_binary_file('file_in_utf8.txt'), 'UTF8');
         indicating if it is a directory.
        </para>
        <para>
-       If filename is a link, this function returns information about the file
-       or directory the link refers to.
+       If filename is a link, this function returns information about the link
+       itself.
        </para>
        <para>
         This function is restricted to superusers by default, but other users
