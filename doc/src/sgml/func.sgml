@@ -27644,7 +27644,7 @@ SELECT convert_from(pg_read_binary_file('file_in_utf8.txt'), 'UTF8');
         Returns a record containing the file's size, last access time stamp,
         last modification time stamp, last file status change time stamp (Unix
         platforms only), file creation time stamp (Windows only), and a flag
-        indicating if it is a directory (or a symbolic link to a directory).
+        indicating if it is a directory.
        </para>
        <para>
         This function is restricted to superusers by default, but other users
