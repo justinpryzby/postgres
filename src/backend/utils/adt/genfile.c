@@ -37,11 +37,12 @@
 #include "utils/syscache.h"
 #include "utils/timestamp.h"
 
+static char get_file_type(mode_t mode, const char *path);
 static void values_from_stat(struct stat *fst, const char *path, Datum *values,
 		bool *nulls);
 static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags);
 
-#define	LS_DIR_ISDIR				(1<<0) /* Show column: isdir */
+#define	LS_DIR_TYPE					(1<<0) /* Show column: type */
 #define	LS_DIR_METADATA				(1<<1) /* Show columns: mtime, size */
 #define	LS_DIR_MISSING_OK			(1<<2) /* Ignore ENOENT if the toplevel dir is missing */
 #define	LS_DIR_SKIP_DOT_DIRS		(1<<3) /* Do not show . or .. */
@@ -50,7 +51,7 @@ static Datum pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags
 #define	LS_DIR_SKIP_SPECIAL			(1<<6) /* Do not show special file types */
 
 /* Shortcut for common behavior */
-#define LS_DIR_COMMON				(LS_DIR_SKIP_HIDDEN | LS_DIR_SKIP_SPECIAL | LS_DIR_METADATA)
+#define LS_DIR_COMMON				(LS_DIR_SKIP_HIDDEN | LS_DIR_METADATA)
 
 /*
  * Convert a "text" filename argument to C string, and check it's allowable.
@@ -396,6 +397,43 @@ pg_read_binary_file_all(PG_FUNCTION_ARGS)
 	return pg_read_binary_file(fcinfo);
 }
 
+/* Return a character indicating the type of file, or '?' if unknown type */
+static char
+get_file_type(mode_t mode, const char *path)
+{
+	if (S_ISREG(mode))
+		return '-';
+
+	if (S_ISDIR(mode))
+		return 'd';
+#ifndef WIN32
+	if (S_ISLNK(mode))
+		return 'l';
+#else
+	if (pgwin32_is_junction(path))
+		return 'l';
+#endif
+
+#ifdef S_ISCHR
+	if (S_ISCHR(mode))
+		return 'c';
+#endif
+#ifdef S_ISBLK
+	if (S_ISBLK(mode))
+		return 'b';
+#endif
+#ifdef S_ISFIFO
+	if (S_ISFIFO(mode))
+		return 'p';
+#endif
+#ifdef S_ISSOCK
+	if (S_ISSOCK(mode))
+		return 's';
+#endif
+
+	return '?';
+}
+
 /*
  * Populate values and nulls from fst and path.
  * Used for pg_stat_file() and pg_ls_dir_files()
@@ -415,7 +453,7 @@ values_from_stat(struct stat *fst, const char *path, Datum *values, bool *nulls)
 	nulls[3] = true;
 	values[4] = TimestampTzGetDatum(time_t_to_timestamptz(fst->st_ctime));
 #endif
-	values[5] = BoolGetDatum(S_ISDIR(fst->st_mode));
+	values[5] = CharGetDatum(get_file_type(fst->st_mode, path));
 }
 
 /*
@@ -465,7 +503,7 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	TupleDescInitEntry(tupdesc, (AttrNumber) 5,
 					   "creation", TIMESTAMPTZOID, -1, 0);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 6,
-					   "isdir", BOOLOID, -1, 0);
+					   "type", CHAROID, -1, 0);
 	BlessTupleDesc(tupdesc);
 
 	memset(nulls, false, sizeof(nulls));
@@ -529,10 +567,10 @@ pg_ls_dir_files(FunctionCallInfo fcinfo, const char *dir, int flags)
 	DIR		   *dirdesc;
 	struct dirent *de;
 
-	/* isdir depends on metadata */
-	Assert(!(flags & LS_DIR_ISDIR) || (flags & LS_DIR_METADATA));
-	/* Unreasonable to show isdir and skip dirs */
-	Assert(!(flags & LS_DIR_ISDIR) || !(flags & LS_DIR_SKIP_DIRS));
+	/* type depends on metadata */
+	Assert(!(flags & LS_DIR_TYPE) || (flags & LS_DIR_METADATA));
+	/* Unreasonable to show type and skip dirs XXX */
+	Assert(!(flags & LS_DIR_TYPE) || !(flags & LS_DIR_SKIP_DIRS));
 
 	/* check the optional arguments */
 	if (PG_NARGS() == 3)
@@ -701,7 +739,7 @@ pg_ls_dir_metadata(PG_FUNCTION_ARGS)
 	char	*dirname = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
 
 	return pg_ls_dir_files(fcinfo, dirname,
-			LS_DIR_METADATA | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR);
+			LS_DIR_METADATA | LS_DIR_TYPE);
 }
 
 /*
@@ -716,7 +754,7 @@ pg_ls_dir_metadata_1arg(PG_FUNCTION_ARGS)
 	char	*dirname = convert_and_check_filename(PG_GETARG_TEXT_PP(0));
 
 	return pg_ls_dir_files(fcinfo, dirname,
-			LS_DIR_METADATA | LS_DIR_SKIP_SPECIAL | LS_DIR_ISDIR);
+			LS_DIR_METADATA | LS_DIR_TYPE);
 }
 
 /*
