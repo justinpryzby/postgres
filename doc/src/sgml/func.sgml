@@ -25991,7 +25991,7 @@ postgres=# SELECT * FROM pg_walfile_name_offset(pg_stop_backup());
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         For each file in the specified directory, list the file and its
@@ -27413,13 +27413,13 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         For each file in the server's log directory,
         return the file's name, along with the metadata columns returned by
         <function>pg_stat_file</function>.
-        Filenames beginning with a dot and special file types are excluded.
+        Filenames beginning with a dot are excluded.
        </para>
        <para>
         This function is restricted to superusers and members of
@@ -27441,13 +27441,13 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         For each file in the server's write-ahead log (WAL) directory, list the
         file's name along with the metadata columns returned by
         <function>pg_stat_file</function>.
-        Filenames beginning with a dot and special files types are excluded.
+        Filenames beginning with a dot are excluded.
        </para>
        <para>
         This function is restricted to superusers and members of
@@ -27542,14 +27542,14 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         For each file in the server's WAL archive status directory
         (<filename>pg_wal/archive_status</filename>), list the file's name
         along with the metadata columns returned by
         <function>pg_stat_file</function>.
-        Filenames beginning with a dot and special file types are excluded.
+        Filenames beginning with a dot are excluded.
        </para>
        <para>
         This function is restricted to superusers and members of
@@ -27572,7 +27572,7 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         For each file in the temporary directory within the given
@@ -27582,7 +27582,7 @@ SELECT pg_size_pretty(sum(pg_relation_size(relid))) AS total_size
         Directories are used for temporary files shared by parallel processes.
         If <parameter>tablespace</parameter> is not provided, the
         <literal>pg_default</literal> tablespace is examined.
-        Filenames beginning with a dot and special file types are excluded.
+        Filenames beginning with a dot are excluded.
        </para>
        <para>
         This function is restricted to superusers and members of
@@ -27656,13 +27656,15 @@ SELECT convert_from(pg_read_binary_file('file_in_utf8.txt'), 'UTF8');
         <parameter>modification</parameter> <type>timestamp with time zone</type>,
         <parameter>change</parameter> <type>timestamp with time zone</type>,
         <parameter>creation</parameter> <type>timestamp with time zone</type>,
-        <parameter>isdir</parameter> <type>boolean</type> )
+        <parameter>type</parameter> <type>char</type> )
        </para>
        <para>
         Returns a record containing the file's size, last access time stamp,
         last modification time stamp, last file status change time stamp (Unix
-        platforms only), file creation time stamp (Windows only), and a flag
-        indicating if it is a directory.
+        platforms only), file creation time stamp (Windows only), and a
+        character representing the file's type: regular (-), directory (d), link
+        or junction (l), character device (c), block device (b), fifo (p),
+        socket (s) or other/unknown (?).
        </para>
        <para>
        If filename is a link, this function returns information about the link
