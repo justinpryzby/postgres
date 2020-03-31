@@ -103,9 +103,9 @@ select * from pg_stat_file('.') limit 0;
 -- The name='' condition is never true, so the function runs to completion but returns zero rows.
 select * from pg_ls_tmpdir() where name='Does not exist';
 
-select filename, isdir from pg_ls_dir_metadata('.') where filename='.';
+select filename, type from pg_ls_dir_metadata('.') where filename='.';
 
-select filename, isdir from pg_ls_dir_metadata('.', false, false) where filename='.'; -- include_dot_dirs=false
+select filename, type from pg_ls_dir_metadata('.', false, false) where filename='.'; -- include_dot_dirs=false
 
 -- Check that expected columns are present
 select * from pg_ls_dir_metadata('.') limit 0;
