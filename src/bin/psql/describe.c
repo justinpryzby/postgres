@@ -3007,12 +3007,12 @@ describeOneTableDetails(const char *schemaname,
 						  "t.tgenabled, t.tgisinternal, %s\n"
 						  "FROM pg_catalog.pg_trigger t\n"
 						  "WHERE t.tgrelid = '%s' AND ",
-						  (pset.sversion >= 130000 ?
-						   "(SELECT (NULLIF(a.relid, t.tgrelid))::pg_catalog.regclass"
-						   " FROM pg_catalog.pg_trigger AS u, "
-						   "      pg_catalog.pg_partition_ancestors(t.tgrelid) AS a"
-						   " WHERE u.tgname = t.tgname AND u.tgrelid = a.relid"
-						   "       AND u.tgparentid = 0 LIMIT 1) AS parent" :
+						  (pset.sversion >= 130000 ? "\n"
+						   "  (SELECT (NULLIF(a.relid, t.tgrelid))::pg_catalog.regclass\n"
+						   "   FROM pg_catalog.pg_trigger AS u,\n"
+						   "      pg_catalog.pg_partition_ancestors(t.tgrelid) AS a\n"
+						   "   WHERE u.tgname = t.tgname AND u.tgrelid = a.relid\n"
+						   "        AND u.tgparentid = 0 LIMIT 1) AS parent" :
 						   "NULL AS parent"),
 						  oid);
 
