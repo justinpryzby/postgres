@@ -760,14 +760,14 @@ NextCopyFromRawFields(CopyFromState cstate, char ***fields, int *nfields)
 	Assert(!cstate->opts.binary);
 
 	/* on input check that the header line is correct if needed */
-	if (cstate->cur_lineno == 0 && cstate->opts.header_line)
+	if (cstate->miinfo.cur_lineno == 0 && cstate->opts.header_line)
 	{
 		ListCell   *cur;
 		TupleDesc	tupDesc;
 
 		tupDesc = RelationGetDescr(cstate->rel);
 
-		cstate->cur_lineno++;
+		cstate->miinfo.cur_lineno++;
 		done = CopyReadLine(cstate);
 
 		if (cstate->opts.header_line == COPY_HEADER_MATCH)
@@ -813,7 +813,7 @@ NextCopyFromRawFields(CopyFromState cstate, char ***fields, int *nfields)
 			return false;
 	}
 
-	cstate->cur_lineno++;
+	cstate->miinfo.cur_lineno++;
 
 	/* Actually read the line into memory here */
 	done = CopyReadLine(cstate);
@@ -954,7 +954,7 @@ NextCopyFrom(CopyFromState cstate, ExprContext *econtext,
 		int16		fld_count;
 		ListCell   *cur;
 
-		cstate->cur_lineno++;
+		cstate->miinfo.cur_lineno++;
 
 		if (!CopyGetInt16(cstate, &fld_count))
 		{
@@ -1037,7 +1037,7 @@ CopyReadLine(CopyFromState cstate)
 	bool		result;
 
 	resetStringInfo(&cstate->line_buf);
-	cstate->line_buf_valid = false;
+	cstate->miinfo.line_buf_valid = false;
 
 	/* Parse data and transfer into line_buf */
 	result = CopyReadLineText(cstate);
@@ -1099,7 +1099,7 @@ CopyReadLine(CopyFromState cstate)
 	}
 
 	/* Now it's safe to use the buffer in error messages */
-	cstate->line_buf_valid = true;
+	cstate->miinfo.line_buf_valid = true;
 
 	return result;
 }
@@ -1244,7 +1244,7 @@ CopyReadLineText(CopyFromState cstate)
 			 * at all --- is cur_lineno a physical or logical count?)
 			 */
 			if (in_quote && c == (cstate->eol_type == EOL_NL ? '\n' : '\r'))
-				cstate->cur_lineno++;
+				cstate->miinfo.cur_lineno++;
 		}
 
 		/* Process \r */

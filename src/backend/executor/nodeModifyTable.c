@@ -724,6 +724,7 @@ ExecInsert(ModifyTableContext *context,
 	OnConflictAction onconflict = node->onConflictAction;
 	PartitionTupleRouting *proute = mtstate->mt_partition_tuple_routing;
 	MemoryContext oldContext;
+	bool	use_multi_insert = false;
 
 	/*
 	 * If the input result relation is a partitioned table, find the leaf
@@ -755,6 +756,49 @@ ExecInsert(ModifyTableContext *context,
 		mtstate->bistate = GetBulkInsertState();
 	}
 
+	if (!mtstate->miinfo)
+	{
+		/*
+		 * Multi-inserts aren't possible for this statement at all, so don't
+		 * check further
+		 */
+	}
+	else if (proute == NULL)
+	{
+		if (mtstate->miinfo->ntuples++ >= bulk_insert_ntuples &&
+			bulk_insert_ntuples >= 0)
+			use_multi_insert = true;
+	}
+	else
+	{
+		/*
+		 * If a partitioned table itself allows multi-insert, and bistate
+		 * indicates we've inserted the threshold number of tuples, check if
+		 * the partition also supports it.
+		 */
+
+		/* Determine which triggers exist on this partition */
+		bool has_incompatible_trigger = resultRelInfo->ri_TrigDesc && (
+				resultRelInfo->ri_TrigDesc->trig_insert_instead_row ||
+				resultRelInfo->ri_TrigDesc->trig_insert_after_statement || /* This is an additional condition than copyfrom.c */
+				resultRelInfo->ri_TrigDesc->trig_insert_before_row);
+
+		/*
+		 * Disable multi-inserts when the partition has BEFORE/INSTEAD
+		 * OF triggers, or if the partition is a foreign partition.
+		 * The number of tuples eligible for multi-insert is tracked separately
+		 * from the total number of tuples in case it's not supported for some
+		 * partitions.
+		 */
+		if (!has_incompatible_trigger &&
+			resultRelInfo->ri_FdwRoutine == NULL &&
+			mtstate->miinfo->ntuples++ >= bulk_insert_ntuples &&
+			bulk_insert_ntuples >= 0)
+			use_multi_insert = true;
+	}
+
+	if (use_multi_insert && mtstate->miinfo->ntuples - 1 == bulk_insert_ntuples)
+		elog(DEBUG1, "enabling multi insert");
 
 	/*
 	 * Open the table's indexes, if we have not done so already, so that we
@@ -1067,14 +1111,36 @@ ExecInsert(ModifyTableContext *context,
 
 			/* Since there was no insertion conflict, we're done */
 		}
+		else if (use_multi_insert)
+		{
+			TupleTableSlot *batchslot;
+			if (resultRelInfo->ri_MultiInsertBuffer == NULL)
+				MultiInsertInfoSetupBuffer(mtstate->miinfo, resultRelInfo);
+
+			batchslot = MultiInsertInfoNextFreeSlot(mtstate->miinfo, resultRelInfo);
+			ExecCopySlot(batchslot, slot);
+
+			MultiInsertInfoStore(mtstate->miinfo, resultRelInfo, batchslot, 9999, 0); // XXX: tuplen/lineno
+
+			if (MultiInsertInfoIsFull(mtstate->miinfo))
+				MultiInsertInfoFlush(mtstate->miinfo, resultRelInfo);
+		}
 		else
 		{
+			/* Flush BulkInsert state if inserting into a different partition */
 			if (proute && mtstate->prevResultRelInfo != resultRelInfo)
 			{
 				if (mtstate->bistate)
 					ReleaseBulkInsertStatePin(mtstate->bistate);
 				mtstate->prevResultRelInfo = resultRelInfo;
 			}
+
+			/*
+			 * Flush pending inserts if this partition can't use
+			 * batching, so rows are visible to triggers etc.
+			 */
+			if (mtstate->miinfo && !MultiInsertInfoIsEmpty(mtstate->miinfo))
+				MultiInsertInfoFlush(mtstate->miinfo, resultRelInfo);
 
 			/* insert the tuple normally */
 			table_tuple_insert(resultRelationDesc, slot,
@@ -1092,35 +1158,39 @@ ExecInsert(ModifyTableContext *context,
 	if (canSetTag)
 		(estate->es_processed)++;
 
-	/*
-	 * If this insert is the result of a partition key update that moved the
-	 * tuple to a new partition, put this row into the transition NEW TABLE,
-	 * if there is one. We need to do this separately for DELETE and INSERT
-	 * because they happen on different tables.
-	 */
-	ar_insert_trig_tcs = mtstate->mt_transition_capture;
-	if (mtstate->operation == CMD_UPDATE && mtstate->mt_transition_capture
-		&& mtstate->mt_transition_capture->tcs_update_new_table)
+	/* Triggers were already run in the batch insert case */
+	if (!use_multi_insert)
 	{
-		ExecARUpdateTriggers(estate, resultRelInfo,
-							 NULL, NULL,
-							 NULL,
-							 NULL,
-							 slot,
-							 NULL,
-							 mtstate->mt_transition_capture,
-							 false);
-
 		/*
-		 * We've already captured the NEW TABLE row, so make sure any AR
-		 * INSERT trigger fired below doesn't capture it again.
+		 * If this insert is the result of a partition key update that moved the
+		 * tuple to a new partition, put this row into the transition NEW TABLE,
+		 * if there is one. We need to do this separately for DELETE and INSERT
+		 * because they happen on different tables.
 		 */
-		ar_insert_trig_tcs = NULL;
-	}
+		ar_insert_trig_tcs = mtstate->mt_transition_capture;
+		if (mtstate->operation == CMD_UPDATE && mtstate->mt_transition_capture
+			&& mtstate->mt_transition_capture->tcs_update_new_table)
+		{
+			ExecARUpdateTriggers(estate, resultRelInfo,
+								 NULL, NULL,
+								 NULL,
+								 NULL,
+								 slot,
+								 NULL,
+								 mtstate->mt_transition_capture,
+								 false);
 
-	/* AFTER ROW INSERT Triggers */
-	ExecARInsertTriggers(estate, resultRelInfo, slot, recheckIndexes,
-						 ar_insert_trig_tcs);
+			/*
+			 * We've already captured the NEW TABLE row, so make sure any AR
+			 * INSERT trigger fired below doesn't capture it again.
+			 */
+			ar_insert_trig_tcs = NULL;
+		}
+
+		/* AFTER ROW INSERT Triggers */
+		ExecARInsertTriggers(estate, resultRelInfo, slot, recheckIndexes,
+							 ar_insert_trig_tcs);
+	}
 
 	list_free(recheckIndexes);
 
@@ -4076,6 +4146,50 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 	mtstate->mt_lastResultOid = InvalidOid; /* force lookup at first tuple */
 	mtstate->mt_lastResultIndex = 0;	/* must be zero if no such attr */
 
+	/*
+	 * Set miinfo if it can support multi-insert. This is the equivalent of
+	 * CIM_MULTI_* et al in copyfrom.c
+	 */
+
+	if (operation != CMD_INSERT ||
+			node->onConflictAction != ONCONFLICT_NONE)
+		mtstate->miinfo = NULL;
+	else if (mtstate->rootResultRelInfo->ri_TrigDesc != NULL &&
+			(mtstate->rootResultRelInfo->ri_TrigDesc->trig_insert_before_row ||
+			 mtstate->rootResultRelInfo->ri_TrigDesc->trig_insert_after_statement || /* This is an additional condition than copyfrom.c */
+			 mtstate->rootResultRelInfo->ri_TrigDesc->trig_insert_instead_row))
+		/*
+		 * Can't support multi-inserts when there are any BEFORE/INSTEAD OF
+		 * triggers on the table.
+		 */
+		mtstate->miinfo = NULL;
+	else if (node->rootRelation > 0 &&
+			mtstate->rootResultRelInfo->ri_TrigDesc != NULL &&
+			 mtstate->rootResultRelInfo->ri_TrigDesc->trig_insert_new_table)
+		/*
+		 * For partitioned tables we can't support multi-inserts when there
+		 * are any statement level insert triggers.
+		 */
+		mtstate->miinfo = NULL;
+	else if (mtstate->rootResultRelInfo->ri_FdwRoutine != NULL
+			/* || cstate->volatile_defexprs */ )
+		// XXX contain_volatile_functions_not_nextval((Node *) defexpr);
+		/* Can't support multi-inserts to foreign tables or if there are any */
+		mtstate->miinfo = NULL;
+	else
+	{
+		mtstate->miinfo = calloc(sizeof(*mtstate->miinfo), 1);
+		MultiInsertInfoInit(mtstate->miinfo, mtstate->rootResultRelInfo,
+				mtstate->mt_transition_capture,
+				estate, GetCurrentCommandId(true), 0);
+	}
+
+	/*
+	 * XXX: Can't support multi-inserts if there are any volatile function
+	 * expressions in WHERE clause.  Similarly to the trigger case above,
+	 * such expressions may query the table we're inserting into.
+	 */
+
 	/* Get the root target relation */
 	rel = mtstate->rootResultRelInfo->ri_RelationDesc;
 
@@ -4385,6 +4499,14 @@ ExecEndModifyTable(ModifyTableState *node)
 	{
 		FreeBulkInsertState(node->bistate);
 		table_finish_bulk_insert(node->rootResultRelInfo->ri_RelationDesc, 0);
+	}
+
+	if (node->miinfo)
+	{
+		if (!MultiInsertInfoIsEmpty(node->miinfo))
+			MultiInsertInfoFlush(node->miinfo, node->resultRelInfo); // root ?
+
+		MultiInsertInfoCleanup(node->miinfo);
 	}
 
 	/*

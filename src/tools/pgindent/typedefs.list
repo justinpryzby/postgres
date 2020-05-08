@@ -447,8 +447,6 @@ CopyFormatOptions
 CopyFromState
 CopyFromStateData
 CopyInsertMethod
-CopyMultiInsertBuffer
-CopyMultiInsertInfo
 CopySource
 CopyStmt
 CopyToState
@@ -1487,6 +1485,8 @@ ModifyTableState
 MorphOpaque
 MsgType
 MultiAssignRef
+MultiInsertBuffer
+MultiInsertInfo
 MultiSortSupport
 MultiSortSupportData
 MultiXactId

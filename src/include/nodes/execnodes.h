@@ -42,8 +42,7 @@ struct ExprContext;
 struct RangeTblEntry;			/* avoid including parsenodes.h here */
 struct ExprEvalStep;			/* avoid including execExpr.h everywhere */
 struct CopyMultiInsertBuffer;
-struct LogicalTapeSet;
-
+// struct LogicalTapeSet;
 
 /* ----------------
  *		ExprState node
@@ -549,8 +548,8 @@ typedef struct ResultRelInfo
 	TupleConversionMap *ri_ChildToRootMap;
 	bool		ri_ChildToRootMapValid;
 
-	/* for use by copyfrom.c when performing multi-inserts */
-	struct CopyMultiInsertBuffer *ri_CopyMultiInsertBuffer;
+	/* for use by copyfrom.c/modifyTable when performing multi-inserts */
+	struct MultiInsertBuffer *ri_MultiInsertBuffer;
 
 	/*
 	 * Used when a leaf partition is involved in a cross-partition update of
@@ -1241,6 +1240,7 @@ typedef struct ModifyTableState
 	EPQState	mt_epqstate;	/* for evaluating EvalPlanQual rechecks */
 	bool		fireBSTriggers; /* do we need to fire stmt triggers? */
 
+	struct MultiInsertInfo	*miinfo;
 	BulkInsertState	bistate;	/* state for bulk insert like INSERT SELECT, when miinfo cannot be used */
 	ResultRelInfo	*prevResultRelInfo; /* last child inserted with bistate */
 	size_t			ntuples;	/* Number of tuples inserted */
