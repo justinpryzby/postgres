@@ -174,6 +174,7 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 	bool		timing_set = false;
 	bool		summary_set = false;
 	bool		costs_set = false;
+	bool		buffers_set = false;
 
 	/* Parse options list. */
 	foreach(lc, stmt->options)
@@ -191,7 +192,10 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 			es->costs = defGetBoolean(opt);
 		}
 		else if (strcmp(opt->defname, "buffers") == 0)
+		{
+			buffers_set = true;
 			es->buffers = defGetBoolean(opt);
+		}
 		else if (strcmp(opt->defname, "wal") == 0)
 			es->wal = defGetBoolean(opt);
 		else if (strcmp(opt->defname, "settings") == 0)
@@ -252,6 +256,9 @@ ExplainQuery(ParseState *pstate, ExplainStmt *stmt,
 
 	/* if the summary was not set explicitly, set default value */
 	es->summary = (summary_set) ? es->summary : es->analyze && !explain_regress;
+
+	/* if the buffers option was not set explicitly, set default value */
+	es->buffers = (buffers_set) ? es->buffers : !explain_regress;
 
 	query = castNode(Query, stmt->query);
 	if (IsQueryIdEnabled())
@@ -323,6 +330,7 @@ NewExplainState(void)
 
 	/* Set default options (most fields can be left as zeroes). */
 	es->costs = true;
+	es->buffers = true;
 	/* Prepare output buffer. */
 	es->str = makeStringInfo();
 
