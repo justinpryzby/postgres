@@ -251,6 +251,10 @@ ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
 CREATE TABLE clstrpart5 (LIKE clstrpart INCLUDING INDEXES);
 ALTER TABLE clstrpart ATTACH PARTITION clstrpart5 FOR VALUES FROM (40)TO(50);
 \d clstrpart
+-- Check that new children inherit clustered mark
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CREATE TABLE clstrpart4 PARTITION OF clstrpart FOR VALUES FROM (30)TO(40);
+\d clstrpart4
 
 -- Test CLUSTER with external tuplesorting
 

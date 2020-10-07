@@ -596,6 +596,18 @@ Indexes:
     "clstrpart_idx" btree (a)
 Number of partitions: 4 (Use \d+ to list them.)
 
+-- Check that new children inherit clustered mark
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CREATE TABLE clstrpart4 PARTITION OF clstrpart FOR VALUES FROM (30)TO(40);
+\d clstrpart4
+             Table "public.clstrpart4"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+Partition of: clstrpart FOR VALUES FROM (30) TO (40)
+Indexes:
+    "clstrpart4_a_idx" btree (a) CLUSTER
+
 -- Test CLUSTER with external tuplesorting
 create table clstr_4 as select * from tenk1;
 create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
