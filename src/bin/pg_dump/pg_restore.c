@@ -166,19 +166,27 @@ main(int argc, char **argv)
 				opts->createDB = 1;
 				break;
 			case 'd':
+				if (opts->cparams.dbname)
+					pg_log_error("Cannot specify option multiple times: %s", "-d");
 				opts->cparams.dbname = pg_strdup(optarg);
 				break;
 			case 'e':
 				opts->exit_on_error = true;
 				break;
 			case 'f':			/* output file name */
+				if (opts->filename)
+					pg_log_error("Cannot specify option multiple times: %s", "-f");
 				opts->filename = pg_strdup(optarg);
 				break;
 			case 'F':
+				if (opts->formatName)
+					pg_log_error("Cannot specify option multiple times: %s", "-F");
 				if (strlen(optarg) != 0)
 					opts->formatName = pg_strdup(optarg);
 				break;
 			case 'h':
+				if (opts->cparams.pghost)
+					pg_log_error("Cannot specify option multiple times: %s", "-h");
 				if (strlen(optarg) != 0)
 					opts->cparams.pghost = pg_strdup(optarg);
 				break;
@@ -195,6 +203,8 @@ main(int argc, char **argv)
 				break;
 
 			case 'L':			/* input TOC summary file name */
+				if (opts->tocFile)
+					pg_log_error("Cannot specify option multiple times: %s", "-L");
 				opts->tocFile = pg_strdup(optarg);
 				break;
 
@@ -211,6 +221,8 @@ main(int argc, char **argv)
 				break;
 
 			case 'p':
+				if (opts->cparams.pgport)
+					pg_log_error("Cannot specify option multiple times: %s", "-p");
 				if (strlen(optarg) != 0)
 					opts->cparams.pgport = pg_strdup(optarg);
 				break;
@@ -236,6 +248,8 @@ main(int argc, char **argv)
 				opts->schemaOnly = 1;
 				break;
 			case 'S':			/* Superuser username */
+				if (opts->superuser)
+					pg_log_error("Cannot specify option multiple times: %s", "-S");
 				if (strlen(optarg) != 0)
 					opts->superuser = pg_strdup(optarg);
 				break;
@@ -246,6 +260,8 @@ main(int argc, char **argv)
 				break;
 
 			case 'U':
+				if (opts->cparams.username)
+					pg_log_error("Cannot specify option multiple times: %s", "-U");
 				opts->cparams.username = pg_strdup(optarg);
 				break;
 
