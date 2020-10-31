@@ -3200,6 +3200,7 @@ static void
 ReindexPartitions(Oid relid, ReindexParams *params, bool isTopLevel)
 {
 	List	   *partitions = NIL;
+	List	   *inhpartindexes = NIL;
 	char		relkind = get_rel_relkind(relid);
 	char	   *relname = get_rel_name(relid);
 	char	   *relnamespace = get_namespace_name(get_rel_namespace(relid));
@@ -3253,6 +3254,17 @@ ReindexPartitions(Oid relid, ReindexParams *params, bool isTopLevel)
 		char		partkind = get_rel_relkind(partoid);
 		MemoryContext old_context;
 
+		/* Create a list of invalid inherited partitioned indexes */
+		if (partkind == RELKIND_PARTITIONED_INDEX)
+		{
+			if (get_index_isvalid(partoid))
+				continue;
+
+			old_context = MemoryContextSwitchTo(reindex_context);
+			inhpartindexes = lappend_oid(inhpartindexes, partoid);
+			MemoryContextSwitchTo(old_context);
+		}
+
 		/*
 		 * This discards partitioned tables, partitioned indexes and foreign
 		 * tables.
@@ -3274,6 +3286,19 @@ ReindexPartitions(Oid relid, ReindexParams *params, bool isTopLevel)
 	 * this commits and then starts a new transaction immediately.
 	 */
 	ReindexMultipleInternal(partitions, params);
+
+	/*
+	 * Mark partitioned indexes as valid.  This does nothing when reindexing a
+	 * partitioned table.
+	 */
+	foreach(lc, inhpartindexes)
+	{
+		Oid	partoid = lfirst_oid(lc);
+		/* Can't mark an index valid without marking it ready */
+		index_set_state_flags(partoid, INDEX_CREATE_SET_READY);
+		CommandCounterIncrement();
+		index_set_state_flags(partoid, INDEX_CREATE_SET_VALID);
+	}
 
 	/*
 	 * Clean up working storage --- note we must do this after
