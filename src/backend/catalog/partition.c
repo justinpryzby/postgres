@@ -28,6 +28,7 @@
 #include "partitioning/partbounds.h"
 #include "rewrite/rewriteManip.h"
 #include "utils/fmgroids.h"
+#include "utils/lsyscache.h"
 #include "utils/partcache.h"
 #include "utils/rel.h"
 #include "utils/syscache.h"
@@ -180,17 +181,8 @@ index_get_partition(Relation partition, Oid indexId)
 	foreach(l, idxlist)
 	{
 		Oid			partIdx = lfirst_oid(l);
-		HeapTuple	tup;
-		Form_pg_class classForm;
-		bool		ispartition;
 
-		tup = SearchSysCache1(RELOID, ObjectIdGetDatum(partIdx));
-		if (!HeapTupleIsValid(tup))
-			elog(ERROR, "cache lookup failed for relation %u", partIdx);
-		classForm = (Form_pg_class) GETSTRUCT(tup);
-		ispartition = classForm->relispartition;
-		ReleaseSysCache(tup);
-		if (!ispartition)
+		if (!get_rel_relispartition(partIdx))
 			continue;
 		if (get_partition_parent(partIdx, false) == indexId)
 		{
