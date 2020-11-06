@@ -4097,6 +4097,27 @@ IndexSetParentIndex(Relation partitionIdx, Oid parentOid)
 	/* set relispartition correctly on the partition */
 	update_relispartition(partRelid, OidIsValid(parentOid));
 
+	/*
+	 * If the attached index is not clustered, invalidate cluster mark on
+	 * any parents
+	 */
+	if ((OidIsValid(parentOid) && get_index_isclustered(parentOid)) ||
+			get_index_isclustered(partRelid))
+	{
+		Relation indrel;
+
+		/* Make relispartition visible */
+		CommandCounterIncrement();
+
+		indrel = table_open(IndexGetRelation(partRelid, false),
+				ShareUpdateExclusiveLock);
+		mark_index_clustered(indrel,
+				get_index_isclustered(partRelid) ? partRelid : InvalidOid,
+				true);
+		table_close(indrel, ShareUpdateExclusiveLock);
+
+	}
+
 	if (fix_dependencies)
 	{
 		/*
