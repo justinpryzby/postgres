@@ -246,6 +246,11 @@ CLUSTER clstrpart1 USING clstrpart1_idx_2;
 ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
 ALTER TABLE clstrpart1 SET WITHOUT CLUSTER;
 \d clstrpart
+-- Check that attaching an unclustered index marks the parent unclustered:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CREATE TABLE clstrpart5 (LIKE clstrpart INCLUDING INDEXES);
+ALTER TABLE clstrpart ATTACH PARTITION clstrpart5 FOR VALUES FROM (40)TO(50);
+\d clstrpart
 
 -- Test CLUSTER with external tuplesorting
 

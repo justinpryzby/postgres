@@ -582,6 +582,20 @@ Indexes:
     "clstrpart_idx" btree (a)
 Number of partitions: 3 (Use \d+ to list them.)
 
+-- Check that attaching an unclustered index marks the parent unclustered:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CREATE TABLE clstrpart5 (LIKE clstrpart INCLUDING INDEXES);
+ALTER TABLE clstrpart ATTACH PARTITION clstrpart5 FOR VALUES FROM (40)TO(50);
+\d clstrpart
+       Partitioned table "public.clstrpart"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+Partition key: RANGE (a)
+Indexes:
+    "clstrpart_idx" btree (a)
+Number of partitions: 4 (Use \d+ to list them.)
+
 -- Test CLUSTER with external tuplesorting
 create table clstr_4 as select * from tenk1;
 create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
