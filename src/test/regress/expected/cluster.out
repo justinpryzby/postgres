@@ -556,6 +556,32 @@ Indexes:
     "clstrpart1_idx_2" btree (a) CLUSTER
 Number of partitions: 2 (Use \d+ to list them.)
 
+-- Check that the parent index is marked not clustered after clustering a partition on a different index:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CLUSTER clstrpart1 USING clstrpart1_idx_2;
+\d clstrpart
+       Partitioned table "public.clstrpart"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+Partition key: RANGE (a)
+Indexes:
+    "clstrpart_idx" btree (a)
+Number of partitions: 3 (Use \d+ to list them.)
+
+-- Check that the parent index is marked not clustered after setting a partition not clustered:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+ALTER TABLE clstrpart1 SET WITHOUT CLUSTER;
+\d clstrpart
+       Partitioned table "public.clstrpart"
+ Column |  Type   | Collation | Nullable | Default 
+--------+---------+-----------+----------+---------
+ a      | integer |           |          | 
+Partition key: RANGE (a)
+Indexes:
+    "clstrpart_idx" btree (a)
+Number of partitions: 3 (Use \d+ to list them.)
+
 -- Test CLUSTER with external tuplesorting
 create table clstr_4 as select * from tenk1;
 create index cluster_sort on clstr_4 (hundred, thousand, tenthous);
