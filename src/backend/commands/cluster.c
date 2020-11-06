@@ -606,6 +606,27 @@ mark_index_clustered(Relation rel, Oid indexOid, bool is_internal)
 	}
 	list_free(inh);
 
+	/*
+	 * Set parent of all indexes as unclustered when a rel is unclustered; and,
+	 * when an index is clustered, set parents of all /other/ indexes as
+	 * unclustered.
+	 */
+	indexes = RelationGetIndexList(rel);
+	foreach (lc, indexes)
+	{
+		Oid	thisIndexOid = lfirst_oid(lc);
+
+		if (thisIndexOid == indexOid)
+			continue;
+
+		while (get_rel_relispartition(thisIndexOid))
+		{
+			thisIndexOid = get_partition_parent(thisIndexOid, true);
+			set_indisclustered(thisIndexOid, false, pg_index);
+		}
+	}
+	list_free(indexes);
+
 	table_close(pg_index, RowExclusiveLock);
 }
 

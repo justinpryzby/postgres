@@ -238,6 +238,14 @@ CREATE INDEX clstrpart1_idx_2 ON clstrpart1(a);
 ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
 ALTER TABLE clstrpart1 CLUSTER ON clstrpart1_idx_2;
 \d clstrpart1
+-- Check that the parent index is marked not clustered after clustering a partition on a different index:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+CLUSTER clstrpart1 USING clstrpart1_idx_2;
+\d clstrpart
+-- Check that the parent index is marked not clustered after setting a partition not clustered:
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+ALTER TABLE clstrpart1 SET WITHOUT CLUSTER;
+\d clstrpart
 
 -- Test CLUSTER with external tuplesorting
 
