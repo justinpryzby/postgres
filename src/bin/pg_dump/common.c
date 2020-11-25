@@ -412,6 +412,12 @@ flagInhIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 			attachinfo->partitionIdx = index;
 
 			/*
+			 * We want dependencies from parent to partition (so that the
+			 * partition index is created first)
+			 */
+			addObjectDependency(&parentidx->dobj, index->dobj.dumpId);
+
+			/*
 			 * We must state the DO_INDEX_ATTACH object's dependencies
 			 * explicitly, since it will not match anything in pg_depend.
 			 *
