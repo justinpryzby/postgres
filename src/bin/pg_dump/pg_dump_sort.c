@@ -84,6 +84,7 @@ enum dbObjectTypePriorities
 	PRIO_CONSTRAINT,
 	PRIO_INDEX,
 	PRIO_INDEX_ATTACH,
+	PRIO_INDEX_CLUSTER_ON,
 	PRIO_STATSEXT,
 	PRIO_RULE,
 	PRIO_TRIGGER,
@@ -118,6 +119,7 @@ static const int dbObjectTypePriority[] =
 	PRIO_ATTRDEF,				/* DO_ATTRDEF */
 	PRIO_INDEX,					/* DO_INDEX */
 	PRIO_INDEX_ATTACH,			/* DO_INDEX_ATTACH */
+	PRIO_INDEX_CLUSTER_ON,			/* DO_INDEX_CLUSTER_ON */
 	PRIO_STATSEXT,				/* DO_STATSEXT */
 	PRIO_RULE,					/* DO_RULE */
 	PRIO_TRIGGER,				/* DO_TRIGGER */
@@ -147,6 +149,7 @@ static const int dbObjectTypePriority[] =
 	PRIO_PUBLICATION_REL,		/* DO_PUBLICATION_REL */
 	PRIO_PUBLICATION_TABLE_IN_SCHEMA,	/* DO_PUBLICATION_TABLE_IN_SCHEMA */
 	PRIO_SUBSCRIPTION			/* DO_SUBSCRIPTION */
+
 };
 
 StaticAssertDecl(lengthof(dbObjectTypePriority) == (DO_SUBSCRIPTION + 1),
@@ -1357,6 +1360,11 @@ describeDumpableObject(DumpableObject *obj, char *buf, int bufsize)
 		case DO_INDEX_ATTACH:
 			snprintf(buf, bufsize,
 					 "INDEX ATTACH %s  (ID %d)",
+					 obj->name, obj->dumpId);
+			return;
+		case DO_INDEX_CLUSTER_ON:
+			snprintf(buf, bufsize,
+					 "INDEX CLUSTER ON %s  (ID %d)",
 					 obj->name, obj->dumpId);
 			return;
 		case DO_STATSEXT:
