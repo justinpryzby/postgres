@@ -465,11 +465,12 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	text	   *filename_t = PG_GETARG_TEXT_PP(0);
 	char	   *filename;
 	struct stat fst;
-	Datum		values[6];
-	bool		nulls[6];
+	Datum		values[7];
+	bool		nulls[7];
 	HeapTuple	tuple;
 	TupleDesc	tupdesc;
 	bool		missing_ok = false;
+	char		type;
 
 	/* check the optional argument */
 	if (PG_NARGS() == 2)
@@ -491,7 +492,7 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	 * This record type had better match the output parameters declared for me
 	 * in pg_proc.h.
 	 */
-	tupdesc = CreateTemplateTupleDesc(6);
+	tupdesc = CreateTemplateTupleDesc(7);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 1,
 					   "size", INT8OID, -1, 0);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 2,
@@ -503,11 +504,19 @@ pg_stat_file(PG_FUNCTION_ARGS)
 	TupleDescInitEntry(tupdesc, (AttrNumber) 5,
 					   "creation", TIMESTAMPTZOID, -1, 0);
 	TupleDescInitEntry(tupdesc, (AttrNumber) 6,
+					   "isdir", BOOLOID, -1, 0);
+	TupleDescInitEntry(tupdesc, (AttrNumber) 7,
 					   "type", CHAROID, -1, 0);
 	BlessTupleDesc(tupdesc);
 
 	memset(nulls, false, sizeof(nulls));
 	values_from_stat(&fst, filename, values, nulls);
+
+	/* For pg_stat_file, keep isdir column for backward compatibility */
+	type = DatumGetChar(values[5]);
+	values[5] = BoolGetDatum(type == 'd'); /* isdir */
+	values[6] = CharGetDatum(type); /* file type */
+
 	tuple = heap_form_tuple(tupdesc, values, nulls);
 
 	pfree(filename);
