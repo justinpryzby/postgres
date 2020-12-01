@@ -1121,7 +1121,13 @@ ExecInsert(ModifyTableContext *context,
 			batchslot = MultiInsertInfoNextFreeSlot(mtstate->miinfo, resultRelInfo);
 			ExecCopySlot(batchslot, slot);
 
-			MultiInsertInfoStore(mtstate->miinfo, resultRelInfo, batchslot, 9999, 0); // XXX: tuplen/lineno
+			MultiInsertInfoStore(mtstate->miinfo, resultRelInfo, batchslot,
+					// sizeof(void*) * batchslot->tts_nvalid, /* tuple size - underestimate */
+					MemoryContextMemAllocated(batchslot->tts_mcxt, true), /* tuple size */
+					mtstate->ntuples); /* lineno */
+
+			elog(DEBUG2, "bufferedBytes %d; tuples %d",
+					mtstate->miinfo->bufferedBytes, mtstate->miinfo->bufferedTuples);
 
 			if (MultiInsertInfoIsFull(mtstate->miinfo))
 				MultiInsertInfoFlush(mtstate->miinfo, resultRelInfo);
