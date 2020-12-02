@@ -1359,6 +1359,7 @@ _readTargetEntry(void)
 	READ_OID_FIELD(resorigtbl);
 	READ_INT_FIELD(resorigcol);
 	READ_BOOL_FIELD(resjunk);
+	READ_BOOL_FIELD(isdefault);
 
 	READ_DONE();
 }

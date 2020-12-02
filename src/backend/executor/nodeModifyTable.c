@@ -54,6 +54,7 @@
 #include "foreign/fdwapi.h"
 #include "miscadmin.h"
 #include "nodes/nodeFuncs.h"
+#include "optimizer/optimizer.h"
 #include "rewrite/rewriteHandler.h"
 #include "storage/bufmgr.h"
 #include "storage/lmgr.h"
@@ -3934,6 +3935,58 @@ ExecLookupResultRelByOid(ModifyTableState *node, Oid resultoid,
 	return NULL;
 }
 
+/*
+ * Determine if a table has volatile column defaults which are used by a given
+ * planned statement (if the column is not specified or specified as DEFAULT).
+ * This works only for INSERT.
+ */
+static bool
+has_volatile_defaults(ResultRelInfo *resultRelInfo, ModifyTable *node)
+{
+	TupleDesc	tupDesc = RelationGetDescr(resultRelInfo->ri_RelationDesc);
+	Plan	*plan = outerPlan(node);
+
+	for (int attnum = 1; attnum <= tupDesc->natts; attnum++)
+	{
+		Form_pg_attribute att = TupleDescAttr(tupDesc, attnum - 1);
+		Expr		*defexpr;
+		TargetEntry	*tle;
+
+		/* We don't need to check dropped/generated attributes */
+		if (att->attisdropped || att->attgenerated)
+			continue;
+
+		tle = list_nth(plan->targetlist, attnum - 1);
+		Assert(tle != NULL);
+		Assert(tle->resno == attnum);
+
+		/*
+		 * If the column was specified with a non-default value, then don't
+		 * check the volatility of its default
+		 */
+		if (!tle->isdefault)
+			continue;
+
+		/* Check the column's default value if one exists */
+		defexpr = (Expr *) build_column_default(resultRelInfo->ri_RelationDesc, attnum);
+		if (defexpr == NULL)
+			continue;
+
+		/* Run the expression through planner */
+		// defexpr = expression_planner(defexpr);
+		// (void) ExecInitExpr(defexpr, NULL);
+		expression_planner(defexpr);
+
+		if (contain_volatile_functions_not_nextval((Node *) defexpr))
+		{
+			elog(DEBUG1, "found volatile att %d", attnum);
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /* ----------------------------------------------------------------
  *		ExecInitModifyTable
  * ----------------------------------------------------------------
@@ -4171,10 +4224,10 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		 * are any statement level insert triggers.
 		 */
 		mtstate->miinfo = NULL;
-	else if (mtstate->rootResultRelInfo->ri_FdwRoutine != NULL
-			/* || cstate->volatile_defexprs */ )
-		// XXX contain_volatile_functions_not_nextval((Node *) defexpr);
-		/* Can't support multi-inserts to foreign tables or if there are any */
+	else if (mtstate->rootResultRelInfo->ri_FdwRoutine != NULL ||
+			has_volatile_defaults(mtstate->rootResultRelInfo, node))
+		/* Can't support multi-inserts to foreign tables or if there are any
+		 * volatile default expressions in the table. */
 		mtstate->miinfo = NULL;
 	else
 	{
