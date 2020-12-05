@@ -704,7 +704,7 @@ CopyFrom(CopyFromState cstate)
 					/* Add this tuple to the tuple buffer */
 					MultiInsertInfoStore(&cstate->miinfo,
 											 resultRelInfo, myslot,
-											 cstate->line_buf.len,
+											 MemoryContextMemAllocated(myslot->tts_mcxt, true),
 											 cstate->miinfo.cur_lineno);
 
 					/*

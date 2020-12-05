@@ -43,10 +43,10 @@ extern void ExecInitMergeTupleSlots(ModifyTableState *mtstate,
 #define MAX_BUFFERED_TUPLES		1000
 
 /*
- * Flush buffers if there are >= this many bytes, as counted by the input
- * size, of tuples stored.
+ * Flush buffers if there are >= this many bytes of tuples stored, as counted
+ * by the slot's memory contexts.
  */
-#define MAX_BUFFERED_BYTES		65535
+#define MAX_BUFFERED_BYTES		(1024*1024*8)
 
 /* Trim the list of buffers back down to this number after flushing */
 #define MAX_PARTITION_BUFFERS	32
