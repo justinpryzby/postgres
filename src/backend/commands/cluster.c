@@ -78,7 +78,7 @@ static void set_indisclustered(Oid indexOid, bool isclustered, Relation pg_index
 static List *get_tables_to_cluster(MemoryContext cluster_context);
 static List *get_tables_to_cluster_partitioned(MemoryContext cluster_context,
 		Oid indexOid);
-static void cluster_multiple_rels(List *rvs, int options);
+static void cluster_multiple_rels(List *rvs, int options, bool ispartitioned);
 
 
 /*---------------------------------------------------------------------------
@@ -187,18 +187,29 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 								stmt->indexname, stmt->relation->relname)));
 		}
 
+		pgstat_progress_start_command(PROGRESS_COMMAND_CLUSTER, tableOid);
+
 		if (rel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE)
 		{
 			/* close relation, keep lock till commit */
 			table_close(rel, NoLock);
 
 			/* Do the job. */
+			pgstat_progress_update_param(PROGRESS_CLUSTER_COMMAND,
+					PROGRESS_CLUSTER_COMMAND_CLUSTER);
 			cluster_rel(tableOid, indexOid, &params);
+			pgstat_progress_end_command();
 		}
 		else
 		{
 			List	   *rvs;
 			MemoryContext cluster_context;
+
+			int64		progress_val[2];
+			const int	progress_index[2] = {
+				PROGRESS_CLUSTER_COMMAND,
+				PROGRESS_CLUSTER_PARTITIONS_TOTAL,
+			};
 
 			/*
 			 * Expand partitioned relations for CLUSTER (the corresponding
@@ -226,8 +237,16 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 			/* XXX: need to acquire a ShareLock and check the rel hasn't changed */
 			table_close(rel, AccessExclusiveLock);
 
+			/* Report command and number of partitions */
+			progress_val[0] = PROGRESS_CLUSTER_COMMAND_CLUSTER;
+			/* XXX: rvs includes the parent, which is not a "partition" */
+			progress_val[1] = list_length(rvs);
+			pgstat_progress_update_multi_param(2, progress_index, progress_val);
+
 			/* Do the job. */
-			cluster_multiple_rels(rvs, params.options);
+			cluster_multiple_rels(rvs, params.options, true);
+
+			pgstat_progress_end_command();
 
 			/* Start a new transaction for the cleanup work. */
 			StartTransactionCommand();
@@ -266,7 +285,11 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 		 * cluster_context.
 		 */
 		rvs = get_tables_to_cluster(cluster_context);
-		cluster_multiple_rels(rvs, params.options | CLUOPT_RECHECK_ISCLUSTERED);
+
+		pgstat_progress_update_param(PROGRESS_CLUSTER_COMMAND,
+				PROGRESS_CLUSTER_COMMAND_CLUSTER);
+		cluster_multiple_rels(rvs, params.options | CLUOPT_RECHECK_ISCLUSTERED, false);
+		pgstat_progress_end_command();
 
 		/* Start a new transaction for the cleanup work. */
 		StartTransactionCommand();
@@ -303,14 +326,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 	/* Check for user-requested abort. */
 	CHECK_FOR_INTERRUPTS();
 
-	pgstat_progress_start_command(PROGRESS_COMMAND_CLUSTER, tableOid);
-	if (OidIsValid(indexOid))
-		pgstat_progress_update_param(PROGRESS_CLUSTER_COMMAND,
-									 PROGRESS_CLUSTER_COMMAND_CLUSTER);
-	else
-		pgstat_progress_update_param(PROGRESS_CLUSTER_COMMAND,
-									 PROGRESS_CLUSTER_COMMAND_VACUUM_FULL);
-
 	/*
 	 * We grab exclusive access to the target rel and index for the duration
 	 * of the transaction.  (This is redundant for the single-transaction
@@ -321,10 +336,7 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 
 	/* If the table has gone away, we can skip processing it */
 	if (!OldHeap)
-	{
-		pgstat_progress_end_command();
 		return;
-	}
 
 	/*
 	 * Since we may open a new transaction for each relation, we have to check
@@ -340,7 +352,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 		if (!pg_class_ownercheck(tableOid, GetUserId()))
 		{
 			relation_close(OldHeap, AccessExclusiveLock);
-			pgstat_progress_end_command();
 			return;
 		}
 
@@ -356,7 +367,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 		if (RELATION_IS_OTHER_TEMP(OldHeap))
 		{
 			relation_close(OldHeap, AccessExclusiveLock);
-			pgstat_progress_end_command();
 			return;
 		}
 
@@ -368,7 +378,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 			if (!SearchSysCacheExists1(RELOID, ObjectIdGetDatum(indexOid)))
 			{
 				relation_close(OldHeap, AccessExclusiveLock);
-				pgstat_progress_end_command();
 				return;
 			}
 
@@ -379,7 +388,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 					!get_index_isclustered(indexOid))
 			{
 				relation_close(OldHeap, AccessExclusiveLock);
-				pgstat_progress_end_command();
 				return;
 			}
 		}
@@ -433,7 +441,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 		!RelationIsPopulated(OldHeap))
 	{
 		relation_close(OldHeap, AccessExclusiveLock);
-		pgstat_progress_end_command();
 		return;
 	}
 
@@ -452,8 +459,6 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 	rebuild_relation(OldHeap, indexOid, verbose);
 
 	/* NB: rebuild_relation does table_close() on OldHeap */
-
-	pgstat_progress_end_command();
 }
 
 /*
@@ -1713,9 +1718,10 @@ get_tables_to_cluster_partitioned(MemoryContext cluster_context, Oid indexOid)
 
 /* Cluster each relation in a separate transaction */
 static void
-cluster_multiple_rels(List *rvs, int options)
+cluster_multiple_rels(List *rvs, int options, bool ispartitioned)
 {
 	ListCell *lc;
+	off_t	  childnum = 0;
 
 	/* Commit to get out of starting transaction */
 	PopActiveSnapshot();
@@ -1737,6 +1743,11 @@ cluster_multiple_rels(List *rvs, int options)
 		cluster_params.options |= CLUOPT_RECHECK;
 		cluster_rel(rvtc->tableOid, rvtc->indexOid,
 					&cluster_params);
+
+		if (ispartitioned)
+			pgstat_progress_update_param(PROGRESS_CLUSTER_PARTITIONS_DONE,
+					++childnum);
+
 
 		PopActiveSnapshot();
 		CommitTransactionCommand();

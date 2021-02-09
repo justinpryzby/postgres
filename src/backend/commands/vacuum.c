@@ -41,6 +41,7 @@
 #include "catalog/pg_namespace.h"
 #include "commands/cluster.h"
 #include "commands/defrem.h"
+#include "commands/progress.h"
 #include "commands/vacuum.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -833,7 +834,7 @@ expand_vacuum_rel(VacuumRelation *vrel, int options)
 		ReleaseSysCache(tuple);
 
 		/*
-		 * If it is, make relation list entries for its partitions.  Note that
+		 * Make relation list entries for its partitions, if needed.  Note that
 		 * the list returned by find_all_inheritors() includes the passed-in
 		 * OID, so we have to skip that.  There's no point in taking locks on
 		 * the individual partitions yet, and doing so would just add
@@ -2035,7 +2036,11 @@ vacuum_rel(Oid relid, RangeVar *relation, VacuumParams *params)
 			cluster_params.options |= CLUOPT_VERBOSE;
 
 		/* VACUUM FULL is now a variant of CLUSTER; see cluster.c */
+		pgstat_progress_start_command(PROGRESS_COMMAND_CLUSTER, relid);
+		pgstat_progress_update_param(PROGRESS_CLUSTER_COMMAND,
+				PROGRESS_CLUSTER_COMMAND_VACUUM_FULL);
 		cluster_rel(relid, InvalidOid, &cluster_params);
+		pgstat_progress_end_command();
 	}
 	else
 		table_relation_vacuum(rel, params, vac_strategy);
