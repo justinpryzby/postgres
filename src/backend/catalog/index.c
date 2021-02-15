@@ -3565,9 +3565,9 @@ reindex_index(Oid indexId, bool skip_constraint_checks, char persistence,
 	 */
 	iRel = index_open(indexId, AccessExclusiveLock);
 
-	if (progress)
-		pgstat_progress_update_param(PROGRESS_CREATEIDX_ACCESS_METHOD_OID,
-									 iRel->rd_rel->relam);
+	// Do this unconditionally?
+	pgstat_progress_update_param(PROGRESS_CREATEIDX_ACCESS_METHOD_OID,
+								 iRel->rd_rel->relam);
 
 	/*
 	 * Partitioned indexes should never get processed here, as they have no
