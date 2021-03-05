@@ -78,6 +78,11 @@ typedef struct MultiInsertInfo
 	int			ti_options;		/* table insert options */
 	size_t		ntuples;		/* Number of rows *eligible* for multi-insert */
 
+	/* these are just for error messages, see CopyFromErrorCallback XXX should be a separate struct? */
+	const char *cur_relname;	/* table name for error messages */
+	const char *cur_attname;	/* current att for error messages */
+	const char *cur_attval;		/* current att value for error messages */
+
 	/* Line number for errors in copyfrom.c */
 	uint64		cur_lineno;
 	bool		line_buf_valid;
@@ -137,7 +142,6 @@ MultiInsertInfoInit(MultiInsertInfo *miinfo, ResultRelInfo *rri,
 	miinfo->estate = estate;
 	miinfo->mycid = mycid;
 	miinfo->ti_options = ti_options;
-	miinfo->cur_lineno = 0;
 
 	/*
 	 * Only setup the buffer when not dealing with a partitioned table.

@@ -75,38 +75,38 @@ CopyFromErrorCallback(void *arg)
 	if (cstate->opts.binary)
 	{
 		/* can't usefully display the data */
-		if (cstate->cur_attname)
+		if (cstate->miinfo.cur_attname)
 			errcontext("COPY %s, line %llu, column %s",
-					   cstate->cur_relname,
+					   cstate->miinfo.cur_relname,
 					   (unsigned long long) cstate->miinfo.cur_lineno,
-					   cstate->cur_attname);
+					   cstate->miinfo.cur_attname);
 		else
 			errcontext("COPY %s, line %llu",
-					   cstate->cur_relname,
+					   cstate->miinfo.cur_relname,
 					   (unsigned long long) cstate->miinfo.cur_lineno);
 	}
 	else
 	{
-		if (cstate->cur_attname && cstate->cur_attval)
+		if (cstate->miinfo.cur_attname && cstate->miinfo.cur_attval)
 		{
 			/* error is relevant to a particular column */
 			char	   *attval;
 
-			attval = limit_printout_length(cstate->cur_attval);
+			attval = limit_printout_length(cstate->miinfo.cur_attval);
 			errcontext("COPY %s, line %llu, column %s: \"%s\"",
-					   cstate->cur_relname,
+					   cstate->miinfo.cur_relname,
 					   (unsigned long long) cstate->miinfo.cur_lineno,
-					   cstate->cur_attname,
+					   cstate->miinfo.cur_attname,
 					   attval);
 			pfree(attval);
 		}
-		else if (cstate->cur_attname)
+		else if (cstate->miinfo.cur_attname)
 		{
 			/* error is relevant to a particular column, value is NULL */
 			errcontext("COPY %s, line %llu, column %s: null input",
-					   cstate->cur_relname,
+					   cstate->miinfo.cur_relname,
 					   (unsigned long long) cstate->miinfo.cur_lineno,
-					   cstate->cur_attname);
+					   cstate->miinfo.cur_attname);
 		}
 		else
 		{
@@ -121,14 +121,14 @@ CopyFromErrorCallback(void *arg)
 
 				lineval = limit_printout_length(cstate->line_buf.data);
 				errcontext("COPY %s, line %llu: \"%s\"",
-						   cstate->cur_relname,
+						   cstate->miinfo.cur_relname,
 						   (unsigned long long) cstate->miinfo.cur_lineno, lineval);
 				pfree(lineval);
 			}
 			else
 			{
 				errcontext("COPY %s, line %llu",
-						   cstate->cur_relname,
+						   cstate->miinfo.cur_relname,
 						   (unsigned long long) cstate->miinfo.cur_lineno);
 			}
 		}
@@ -990,9 +990,10 @@ BeginCopyFrom(ParseState *pstate,
 
 	/* Initialize state variables */
 	cstate->eol_type = EOL_UNKNOWN;
-	cstate->cur_relname = RelationGetRelationName(cstate->rel);
-	cstate->cur_attname = NULL;
-	cstate->cur_attval = NULL;
+	cstate->miinfo.cur_relname = RelationGetRelationName(cstate->rel);
+	cstate->miinfo.cur_lineno = 0;
+	cstate->miinfo.cur_attname = NULL;
+	cstate->miinfo.cur_attval = NULL;
 
 	/*
 	 * Allocate buffers for the input pipeline.

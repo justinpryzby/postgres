@@ -77,11 +77,6 @@ typedef struct CopyFromStateData
 	bool	   *convert_select_flags;	/* per-column CSV/TEXT CS flags */
 	Node	   *whereClause;	/* WHERE condition (or NULL) */
 
-	/* these are just for error messages, see CopyFromErrorCallback */
-	const char *cur_relname;	/* table name for error messages */
-	const char *cur_attname;	/* current att for error messages */
-	const char *cur_attval;		/* current att value for error messages */
-
 	/* For bulk inserts and for error callback */
 	MultiInsertInfo miinfo;
 

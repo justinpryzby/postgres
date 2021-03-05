@@ -934,16 +934,16 @@ NextCopyFrom(CopyFromState cstate, ExprContext *econtext,
 				}
 			}
 
-			cstate->cur_attname = NameStr(att->attname);
-			cstate->cur_attval = string;
+			cstate->miinfo.cur_attname = NameStr(att->attname);
+			cstate->miinfo.cur_attval = string;
 			values[m] = InputFunctionCall(&in_functions[m],
 										  string,
 										  typioparams[m],
 										  att->atttypmod);
 			if (string != NULL)
 				nulls[m] = false;
-			cstate->cur_attname = NULL;
-			cstate->cur_attval = NULL;
+			cstate->miinfo.cur_attname = NULL;
+			cstate->miinfo.cur_attval = NULL;
 		}
 
 		Assert(fieldno == attr_count);
@@ -993,13 +993,13 @@ NextCopyFrom(CopyFromState cstate, ExprContext *econtext,
 			int			m = attnum - 1;
 			Form_pg_attribute att = TupleDescAttr(tupDesc, m);
 
-			cstate->cur_attname = NameStr(att->attname);
+			cstate->miinfo.cur_attname = NameStr(att->attname);
 			values[m] = CopyReadBinaryAttribute(cstate,
 												&in_functions[m],
 												typioparams[m],
 												att->atttypmod,
 												&nulls[m]);
-			cstate->cur_attname = NULL;
+			cstate->miinfo.cur_attname = NULL;
 		}
 	}
 
