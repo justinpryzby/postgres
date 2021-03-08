@@ -915,7 +915,7 @@ XLogInsertRecord(XLogRecData *rdata,
 
 	END_CRIT_SECTION();
 
-	MarkCurrentTransactionIdLoggedIfAny();
+	MarkCurrentTransactionIdLoggedIfAny(EndPos);
 
 	/*
 	 * Mark top transaction id is logged (if needed) so that we should not try
