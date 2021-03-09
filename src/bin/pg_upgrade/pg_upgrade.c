@@ -367,6 +367,16 @@ create_new_objects(void)
 		DbInfo	   *old_db = &old_cluster.dbarr.dbs[dbnum];
 		const char *create_opts;
 
+		PQExpBufferData connstr,
+				escaped_connstr;
+
+		initPQExpBuffer(&connstr);
+		initPQExpBuffer(&escaped_connstr);
+		appendPQExpBufferStr(&connstr, "dbname=");
+		appendConnStrVal(&connstr, old_db->db_name);
+		appendShellString(&escaped_connstr, connstr.data);
+		termPQExpBuffer(&connstr);
+
 		/* Skip template1 in this pass */
 		if (strcmp(old_db->db_name, "template1") == 0)
 			continue;
@@ -381,18 +391,31 @@ create_new_objects(void)
 		 * propagate its database-level properties.
 		 */
 		if (strcmp(old_db->db_name, "postgres") == 0)
-			create_opts = "--clean --create";
+			create_opts = "--clean";
 		else
-			create_opts = "--create";
+			create_opts = "";
 
+		/* Create the DB but exclude all objects */
 		parallel_exec_prog(log_file_name,
 						   NULL,
 						   "\"%s/pg_restore\" %s %s --exit-on-error --verbose "
+							"--create -L /dev/null "
 						   "--dbname template1 \"%s\"",
 						   new_cluster.bindir,
 						   cluster_conn_opts(&new_cluster),
 						   create_opts,
 						   sql_file_name);
+
+		parallel_exec_prog(log_file_name,
+						   NULL,
+						   "\"%s/pg_restore\" %s %s --exit-on-error --verbose --single "
+						   "--dbname=%s \"%s\"",
+						   new_cluster.bindir,
+						   cluster_conn_opts(&new_cluster),
+						   create_opts,
+							escaped_connstr.data,
+						   sql_file_name);
+
 	}
 
 	/* reap all children */
