@@ -3273,72 +3273,82 @@ getBlobs(Archive *fout)
 	BlobInfo   *binfo;
 	DumpableObject *bdata;
 	PGresult   *res;
-	int			ntups;
+	int			ntups, total = 0;
 	int			i;
 	int			i_oid;
 	int			i_lomowner;
 	int			i_lomacl;
 	int			i_acldefault;
+	const char		*blobFetchQry = "FETCH 1000 IN blob";
 
 	pg_log_info("reading large objects");
 
 	/* Fetch BLOB OIDs, and owner/ACL data */
+	appendPQExpBuffer(blobQry, "DECLARE blob NO SCROLL CURSOR FOR ");
 	appendPQExpBuffer(blobQry,
 					  "SELECT oid, lomowner, lomacl, "
 					  "acldefault('L', lomowner) AS acldefault "
 					  "FROM pg_largeobject_metadata");
 
-	res = ExecuteSqlQuery(fout, blobQry->data, PGRES_TUPLES_OK);
+	ExecuteSqlStatement(fout, blobQry->data);
+	destroyPQExpBuffer(blobQry);
 
-	i_oid = PQfnumber(res, "oid");
-	i_lomowner = PQfnumber(res, "lomowner");
-	i_lomacl = PQfnumber(res, "lomacl");
-	i_acldefault = PQfnumber(res, "acldefault");
+	i_oid = 0; // PQfnumber(res, "oid");
+	i_lomowner = 1; // PQfnumber(res, "lomowner");
+	i_lomacl = 2; // PQfnumber(res, "lomacl");
+	i_acldefault = 3; // PQfnumber(res, "acldefault");
 
-	ntups = PQntuples(res);
+	do {
+		res = ExecuteSqlQuery(fout, blobFetchQry, PGRES_TUPLES_OK);
 
-	/*
-	 * Each large object has its own BLOB archive entry.
-	 */
-	binfo = (BlobInfo *) pg_malloc(ntups * sizeof(BlobInfo));
-
-	for (i = 0; i < ntups; i++)
-	{
-		binfo[i].dobj.objType = DO_BLOB;
-		binfo[i].dobj.catId.tableoid = LargeObjectRelationId;
-		binfo[i].dobj.catId.oid = atooid(PQgetvalue(res, i, i_oid));
-		AssignDumpId(&binfo[i].dobj);
-
-		binfo[i].dobj.name = xpg_strdup(PQgetvalue(res, i, i_oid));
-		binfo[i].dacl.acl = xpg_strdup(PQgetvalue(res, i, i_lomacl));
-		binfo[i].dacl.acldefault = xpg_strdup(PQgetvalue(res, i, i_acldefault));
-		binfo[i].dacl.privtype = 0;
-		binfo[i].dacl.initprivs = NULL;
-		binfo[i].rolname = getRoleName(PQgetvalue(res, i, i_lomowner));
-
-		/* Blobs have data */
-		binfo[i].dobj.components |= DUMP_COMPONENT_DATA;
-
-		/* Mark whether blob has an ACL */
-		if (!PQgetisnull(res, i, i_lomacl))
-			binfo[i].dobj.components |= DUMP_COMPONENT_ACL;
+		ntups = PQntuples(res);
+		total += ntups;
 
 		/*
-		 * In binary-upgrade mode for blobs, we do *not* dump out the blob
-		 * data, as it will be copied by pg_upgrade, which simply copies the
-		 * pg_largeobject table. We *do* however dump out anything but the
-		 * data, as pg_upgrade copies just pg_largeobject, but not
-		 * pg_largeobject_metadata, after the dump is restored.
+		 * Each large object has its own BLOB archive entry.
 		 */
-		if (dopt->binary_upgrade)
-			binfo[i].dobj.dump &= ~DUMP_COMPONENT_DATA;
-	}
+		binfo = (BlobInfo *) pg_malloc(ntups * sizeof(BlobInfo));
+
+		for (i = 0; i < ntups; i++)
+		{
+			binfo[i].dobj.objType = DO_BLOB;
+			binfo[i].dobj.catId.tableoid = LargeObjectRelationId;
+			binfo[i].dobj.catId.oid = atooid(PQgetvalue(res, i, i_oid));
+			AssignDumpId(&binfo[i].dobj);
+
+			binfo[i].dobj.name = xpg_strdup(PQgetvalue(res, i, i_oid));
+			binfo[i].dacl.acl = xpg_strdup(PQgetvalue(res, i, i_lomacl));
+			binfo[i].dacl.acldefault = xpg_strdup(PQgetvalue(res, i, i_acldefault));
+			binfo[i].dacl.privtype = 0;
+			binfo[i].dacl.initprivs = NULL;
+			binfo[i].rolname = getRoleName(PQgetvalue(res, i, i_lomowner));
+
+			/* Blobs have data */
+			binfo[i].dobj.components |= DUMP_COMPONENT_DATA;
+
+			/* Mark whether blob has an ACL */
+			if (!PQgetisnull(res, i, i_lomacl))
+				binfo[i].dobj.components |= DUMP_COMPONENT_ACL;
+
+			/*
+			 * In binary-upgrade mode for blobs, we do *not* dump out the blob
+			 * data, as it will be copied by pg_upgrade, which simply copies the
+			 * pg_largeobject table. We *do* however dump out anything but the
+			 * data, as pg_upgrade copies just pg_largeobject, but not
+			 * pg_largeobject_metadata, after the dump is restored.
+			 */
+			if (dopt->binary_upgrade)
+				binfo[i].dobj.dump &= ~DUMP_COMPONENT_DATA;
+		}
+
+		PQclear(res);
+	} while (ntups != 0);
 
 	/*
 	 * If we have any large objects, a "BLOBS" archive entry is needed. This
 	 * is just a placeholder for sorting; it carries no data now.
 	 */
-	if (ntups > 0)
+	if (total > 0)
 	{
 		bdata = (DumpableObject *) pg_malloc(sizeof(DumpableObject));
 		bdata->objType = DO_BLOB_DATA;
@@ -3347,9 +3357,6 @@ getBlobs(Archive *fout)
 		bdata->name = pg_strdup("BLOBS");
 		bdata->components |= DUMP_COMPONENT_DATA;
 	}
-
-	PQclear(res);
-	destroyPQExpBuffer(blobQry);
 }
 
 /*
