@@ -115,6 +115,7 @@ int			CommitSiblings = 5; /* # concurrent xacts needed to sleep */
 int			wal_retrieve_retry_interval = 5000;
 int			max_slot_wal_keep_size_mb = -1;
 bool		track_wal_io_timing = false;
+bool		wal_pmem_map = false;
 
 #ifdef WAL_DEBUG
 bool		XLOG_DEBUG = false;
@@ -5195,12 +5196,27 @@ XLOGShmemSize(void)
 	Size		size;
 
 	/*
+	 * If we use WAL segment files as WAL buffers, we don't use the given
+	 * value of wal_buffers. Instead, we set it to the value based on the
+	 * segment size and the page size. This should be done before calculating
+	 * the size of xlblocks array.
+	 */
+	if (wal_pmem_map)
+	{
+		int			npages;
+		char		buf[32];
+
+		npages = wal_segment_size / XLOG_BLCKSZ;
+		snprintf(buf, sizeof(buf), "%d", (int) npages);
+		SetConfigOption("wal_buffers", buf, PGC_POSTMASTER, PGC_S_OVERRIDE);
+	}
+	/*
 	 * If the value of wal_buffers is -1, use the preferred auto-tune value.
 	 * This isn't an amazingly clean place to do this, but we must wait till
 	 * NBuffers has received its final value, and must do it before using the
 	 * value of XLOGbuffers to do anything important.
 	 */
-	if (XLOGbuffers == -1)
+	else if (XLOGbuffers == -1)
 	{
 		char		buf[32];
 
@@ -5216,10 +5232,17 @@ XLOGShmemSize(void)
 	size = add_size(size, mul_size(sizeof(WALInsertLockPadded), NUM_XLOGINSERT_LOCKS + 1));
 	/* xlblocks array */
 	size = add_size(size, mul_size(sizeof(XLogRecPtr), XLOGbuffers));
-	/* extra alignment padding for XLOG I/O buffers */
-	size = add_size(size, XLOG_BLCKSZ);
-	/* and the buffers themselves */
-	size = add_size(size, mul_size(XLOG_BLCKSZ, XLOGbuffers));
+
+	/*
+	 * If we use WAL segment files as WAL buffers, we don't need volatile ones.
+	 */
+	if (!wal_pmem_map)
+	{
+		/* extra alignment padding for XLOG I/O buffers */
+		size = add_size(size, XLOG_BLCKSZ);
+		/* and the buffers themselves */
+		size = add_size(size, mul_size(XLOG_BLCKSZ, XLOGbuffers));
+	}
 
 	/*
 	 * Note: we don't count ControlFileData, it comes out of the "slop factor"
@@ -5313,13 +5336,19 @@ XLOGShmemInit(void)
 	}
 
 	/*
-	 * Align the start of the page buffers to a full xlog block size boundary.
-	 * This simplifies some calculations in XLOG insertion. It is also
-	 * required for O_DIRECT.
+	 * If we use WAL segment files as WAL buffers, we don't need volatile ones.
 	 */
-	allocptr = (char *) TYPEALIGN(XLOG_BLCKSZ, allocptr);
-	XLogCtl->pages = allocptr;
-	memset(XLogCtl->pages, 0, (Size) XLOG_BLCKSZ * XLOGbuffers);
+	if (!wal_pmem_map)
+	{
+		/*
+		 * Align the start of the page buffers to a full xlog block size boundary.
+		 * This simplifies some calculations in XLOG insertion. It is also
+		 * required for O_DIRECT.
+		 */
+		allocptr = (char *) TYPEALIGN(XLOG_BLCKSZ, allocptr);
+		XLogCtl->pages = allocptr;
+		memset(XLogCtl->pages, 0, (Size) XLOG_BLCKSZ * XLOGbuffers);
+	}
 
 	/*
 	 * Do basic initialization of XLogCtl shared data. (StartupXLOG will fill
