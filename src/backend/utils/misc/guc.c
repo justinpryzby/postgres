@@ -4900,7 +4900,7 @@ static struct config_enum ConfigureNamesEnum[] =
 			NULL
 		},
 		&wal_compression,
-		WAL_COMPRESSION_NONE, wal_compression_options,
+		WAL_COMPRESSION_ZSTD, wal_compression_options,
 		NULL, NULL, NULL
 	},
 
