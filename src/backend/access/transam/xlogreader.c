@@ -18,6 +18,8 @@
 #include "postgres.h"
 
 #include <unistd.h>
+#include <limits.h>
+
 #ifdef USE_LZ4
 #include <lz4.h>
 #endif
@@ -52,6 +54,36 @@ static bool ValidXLogRecord(XLogReaderState *state, XLogRecord *record,
 static void ResetDecoder(XLogReaderState *state);
 static void WALOpenSegmentInit(WALOpenSegment *seg, WALSegmentContext *segcxt,
 							   int segsize, const char *waldir);
+
+static const struct {
+	char *name;
+	enum WalCompression compress_id; /* The internal ID */
+	bool has_level; /* If it accepts a numeric "level" */
+	int min_level, dfl_level, max_level;
+} wal_compression_options[] = {
+	{"pglz", WAL_COMPRESSION_PGLZ, false},
+
+#ifdef USE_LZ4
+	{"lz4", WAL_COMPRESSION_LZ4, false}, // XXX
+#endif
+
+#ifdef USE_ZSTD
+	/* XXX: the minimum level depends on the version */
+	/* Must be first */
+	{"zstd-fast", WAL_COMPRESSION_ZSTD, true, -7, -1, 0},
+
+	{"zstd", WAL_COMPRESSION_ZSTD, true, -7, 1, 22},
+#endif
+
+	{"on", WAL_COMPRESSION_PGLZ, false},
+	{"off", WAL_COMPRESSION_NONE, false},
+	{"true", WAL_COMPRESSION_PGLZ, false},
+	{"false", WAL_COMPRESSION_NONE, false},
+	{"yes", WAL_COMPRESSION_PGLZ, false},
+	{"no", WAL_COMPRESSION_NONE, false},
+	{"1", WAL_COMPRESSION_PGLZ, false},
+	{"0", WAL_COMPRESSION_NONE, false},
+};
 
 /* size of the buffer allocated for error message. */
 #define MAX_ERRORMSG_LEN 1000
@@ -1576,6 +1608,103 @@ XLogRecGetBlockData(XLogReaderState *record, uint8 block_id, Size *len)
 			*len = bkpb->data_len;
 		return bkpb->data;
 	}
+}
+
+/*
+ * Return the wal compression ID, or -1 if the input is
+ * invalid/unrecognized/unsupported.
+ * The compression level is stored in *level.
+ */
+int
+get_compression_level(const char *in, int *level)
+{
+	for (int idx=0; idx < lengthof(wal_compression_options); ++idx)
+	{
+		int len;
+		long tmp;
+		char *end;
+
+		if (strcmp(in, wal_compression_options[idx].name) == 0)
+		{
+			/* it has no -level suffix */
+			*level = wal_compression_options[idx].dfl_level;
+			return wal_compression_options[idx].compress_id;
+		}
+
+		len = strlen(wal_compression_options[idx].name);
+		if (strncmp(in, wal_compression_options[idx].name, len) != 0)
+			continue;
+		if (in[len] != '-')
+			continue;
+
+		/* it has a -level suffix, but level is not allowed */
+		if (!wal_compression_options[idx].has_level)
+		{
+#ifndef FRONTEND
+			GUC_check_errdetail("Compression method does not accept a compression level");
+#endif
+			return -1;
+		}
+
+		in += len + 1;
+		len = strlen(in);
+		errno = 0;
+		/* pg_strtoint16 throws an error, which we don't want */
+		/* option_parse_int is frontend only */
+		tmp = strtol(in, &end, 0);
+		if (end != in+len || end == in ||
+				(errno != 0 && tmp == 0) ||
+				(errno == ERANGE && (tmp == LONG_MIN || tmp == LONG_MAX)))
+		{
+#ifndef FRONTEND
+			GUC_check_errdetail("Could not parse compression level: %s", in);
+#endif
+			return -1;
+		}
+
+		/*
+		 * For convenience, allow specification of zstd-fast-N, which is
+		 * interpretted as a negative compression level.
+		 */
+		if (strncmp(wal_compression_options[idx].name, "zstd-fast", 9) == 0 &&
+			tmp > 0)
+			tmp = -tmp;
+
+		if (tmp < wal_compression_options[idx].min_level ||
+				tmp > wal_compression_options[idx].max_level)
+		{
+#ifndef FRONTEND
+			GUC_check_errdetail("Compression level is outside of allowed range: %d...%d",
+					wal_compression_options[idx].min_level,
+					wal_compression_options[idx].max_level);
+#endif
+			return -1;
+		}
+
+		*level = tmp;
+		return wal_compression_options[idx].compress_id;
+	}
+
+#ifndef FRONTEND
+	// XXX: this is trying to distinguish between invalid an unsupported algorithms?
+	if (strcmp(in, "zlib") == 0 && false)
+		GUC_check_errdetail("Compression method is not supported by this build.");
+	else {
+		StringInfoData all_methods;
+
+		initStringInfo(&all_methods);
+		for (int idx=0; idx < lengthof(wal_compression_options); ++idx)
+		{
+			if (idx > 0)
+				appendStringInfoString(&all_methods, ", ");
+			appendStringInfoString(&all_methods, wal_compression_options[idx].name);
+		}
+
+		GUC_check_errdetail("Supported compression methods are: %s", all_methods.data);
+		pfree(all_methods.data);
+	}
+#endif
+	return -1;
 }
 
 /*
