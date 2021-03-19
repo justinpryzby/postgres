@@ -3936,6 +3936,25 @@ ExecLookupResultRelByOid(ModifyTableState *node, Oid resultoid,
 }
 
 /*
+ * Determine if a ModifyTable has volatile functions in its where clause.
+ * This works only for INSERT.
+ */
+static bool has_volatile_where(ModifyTable *node)
+{
+	ListCell *lc;
+	Plan	*plan = outerPlan(node);
+
+	foreach (lc, plan->qual)
+	{
+		Node *clause = lfirst(lc);
+		if (contain_volatile_functions(clause))
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * Determine if a table has volatile column defaults which are used by a given
  * planned statement (if the column is not specified or specified as DEFAULT).
  * This works only for INSERT.
@@ -4216,6 +4235,15 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 		 * triggers on the table.
 		 */
 		mtstate->miinfo = NULL;
+	else if (has_volatile_where(node))
+	{
+		/*
+		 * Can't support multi-inserts if there are any volatile function
+		 * expressions in WHERE clause.  Similarly to the trigger case above,
+		 * such expressions may query the table we're inserting into.
+		 */
+		mtstate->miinfo = NULL;
+	}
 	else if (node->rootRelation > 0 &&
 			mtstate->rootResultRelInfo->ri_TrigDesc != NULL &&
 			 mtstate->rootResultRelInfo->ri_TrigDesc->trig_insert_new_table)
@@ -4236,12 +4264,6 @@ ExecInitModifyTable(ModifyTable *node, EState *estate, int eflags)
 				mtstate->mt_transition_capture,
 				estate, GetCurrentCommandId(true), 0);
 	}
-
-	/*
-	 * XXX: Can't support multi-inserts if there are any volatile function
-	 * expressions in WHERE clause.  Similarly to the trigger case above,
-	 * such expressions may query the table we're inserting into.
-	 */
 
 	/* Get the root target relation */
 	rel = mtstate->rootResultRelInfo->ri_RelationDesc;
