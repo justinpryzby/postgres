@@ -211,6 +211,9 @@ lz4_decompress_datum(const struct varlena *value)
 
 /*
  * Decompress part of a varlena that was compressed using LZ4.
+ *
+ * If slice decompression is not supported, the full datum is decompressed, and
+ * then sliced by detoast_attr_slice.
  */
 struct varlena *
 lz4_decompress_datum_slice(const struct varlena *value, int32 slicelength)

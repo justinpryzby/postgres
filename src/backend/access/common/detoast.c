@@ -498,6 +498,9 @@ toast_decompress_datum(struct varlena *attr)
  * Decompress the front of a compressed version of a varlena datum.
  * offset handling happens in detoast_attr_slice.
  * Here we just decompress a slice from the front.
+ *
+ * If slice decompression is not supported, the full datum is decompressed, and
+ * then sliced by detoast_attr_slice.
  */
 static struct varlena *
 toast_decompress_datum_slice(struct varlena *attr, int32 slicelength)
