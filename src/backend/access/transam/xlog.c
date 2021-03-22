@@ -923,9 +923,6 @@ static void AdvanceXLInsertBuffer(XLogRecPtr upto, TimeLineID tli,
 								  bool opportunistic);
 static bool XLogCheckpointNeeded(XLogSegNo new_segno);
 static void XLogWrite(XLogwrtRqst WriteRqst, TimeLineID tli, bool flexible);
-static bool InstallXLogFileSegment(XLogSegNo *segno, char *tmppath,
-								   bool find_free, XLogSegNo max_segno,
-								   TimeLineID tli);
 static int	XLogFileRead(XLogSegNo segno, int emode, TimeLineID tli,
 						 XLogSource source, bool notfoundOk);
 static int	XLogFileReadAnyTLI(XLogSegNo segno, int emode, XLogSource source);
@@ -3700,7 +3697,7 @@ XLogFileCopy(TimeLineID destTLI, XLogSegNo destsegno,
  * max_segno limit was exceeded, the startup process has disabled this
  * function for now, or an error occurred while renaming the file into place.
  */
-static bool
+bool
 InstallXLogFileSegment(XLogSegNo *segno, char *tmppath,
 					   bool find_free, XLogSegNo max_segno, TimeLineID tli)
 {
