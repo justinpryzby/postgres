@@ -10385,6 +10385,9 @@ SELECT date_trunc('hour', INTERVAL '3 days 02:47:33');
     timestamp into the specified interval (the <firstterm>stride</firstterm>)
     aligned with a specified origin.
    </para>
+<synopsis>
+date_trunc(<replaceable>stride</replaceable>, <replaceable>timestamp</replaceable>, <replaceable>origin</replaceable>)
+</synopsis>
 
    <para>
 <synopsis>
