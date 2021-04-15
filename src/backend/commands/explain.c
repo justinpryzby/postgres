@@ -118,6 +118,8 @@ static void show_instrumentation_count(const char *qlabel, int which,
 									   PlanState *planstate, ExplainState *es);
 static void show_foreignscan_info(ForeignScanState *fsstate, ExplainState *es);
 static void show_eval_params(Bitmapset *bms_params, ExplainState *es);
+static void show_loop_info(Instrumentation *instrument, bool isworker,
+		ExplainState *es);
 static const char *explain_get_index_name(Oid indexId);
 static void show_buffer_usage(ExplainState *es, const BufferUsage *usage,
 							  bool planning);
@@ -1615,36 +1617,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 
 	if (es->analyze &&
 		planstate->instrument && planstate->instrument->nloops > 0)
-	{
-		double		nloops = planstate->instrument->nloops;
-		double		startup_ms = 1000.0 * planstate->instrument->startup / nloops;
-		double		total_ms = 1000.0 * planstate->instrument->total / nloops;
-		double		rows = planstate->instrument->ntuples / nloops;
-
-		if (es->format == EXPLAIN_FORMAT_TEXT)
-		{
-			if (es->timing)
-				appendStringInfo(es->str,
-								 " (actual time=%.3f..%.3f rows=%.0f loops=%.0f)",
-								 startup_ms, total_ms, rows, nloops);
-			else
-				appendStringInfo(es->str,
-								 " (actual rows=%.0f loops=%.0f)",
-								 rows, nloops);
-		}
-		else
-		{
-			if (es->timing)
-			{
-				ExplainPropertyFloat("Actual Startup Time", "ms", startup_ms,
-									 3, es);
-				ExplainPropertyFloat("Actual Total Time", "ms", total_ms,
-									 3, es);
-			}
-			ExplainPropertyFloat("Actual Rows", NULL, rows, 0, es);
-			ExplainPropertyFloat("Actual Loops", NULL, nloops, 0, es);
-		}
-	}
+		show_loop_info(planstate->instrument, false, es);
 	else if (es->analyze)
 	{
 		if (es->format == EXPLAIN_FORMAT_TEXT)
@@ -1673,44 +1646,14 @@ ExplainNode(PlanState *planstate, List *ancestors,
 		for (int n = 0; n < w->num_workers; n++)
 		{
 			Instrumentation *instrument = &w->instrument[n];
-			double		nloops = instrument->nloops;
-			double		startup_ms;
-			double		total_ms;
-			double		rows;
 
-			if (nloops <= 0)
+			if (instrument->nloops <= 0)
 				continue;
-			startup_ms = 1000.0 * instrument->startup / nloops;
-			total_ms = 1000.0 * instrument->total / nloops;
-			rows = instrument->ntuples / nloops;
 
 			ExplainOpenWorker(n, es);
-
+			show_loop_info(instrument, true, es);
 			if (es->format == EXPLAIN_FORMAT_TEXT)
-			{
-				ExplainIndentText(es);
-				if (es->timing)
-					appendStringInfo(es->str,
-									 "actual time=%.3f..%.3f rows=%.0f loops=%.0f\n",
-									 startup_ms, total_ms, rows, nloops);
-				else
-					appendStringInfo(es->str,
-									 "actual rows=%.0f loops=%.0f\n",
-									 rows, nloops);
-			}
-			else
-			{
-				if (es->timing)
-				{
-					ExplainPropertyFloat("Actual Startup Time", "ms",
-										 startup_ms, 3, es);
-					ExplainPropertyFloat("Actual Total Time", "ms",
-										 total_ms, 3, es);
-				}
-				ExplainPropertyFloat("Actual Rows", NULL, rows, 0, es);
-				ExplainPropertyFloat("Actual Loops", NULL, nloops, 0, es);
-			}
-
+				appendStringInfoChar(es->str, '\n');
 			ExplainCloseWorker(n, es);
 		}
 	}
@@ -4097,6 +4040,47 @@ show_modifytable_info(ModifyTableState *mtstate, List *ancestors,
 
 	if (labeltargets)
 		ExplainCloseGroup("Target Tables", "Target Tables", false, es);
+}
+
+void
+show_loop_info(Instrumentation *instrument, bool isworker, ExplainState *es)
+{
+	double		nloops = instrument->nloops;
+	double		startup_ms = 1000.0 * instrument->startup / nloops;
+	double		total_ms = 1000.0 * instrument->total / nloops;
+	double		rows = instrument->ntuples / nloops;
+
+	if (es->format == EXPLAIN_FORMAT_TEXT)
+	{
+		if (isworker)
+			ExplainIndentText(es);
+		else
+			appendStringInfo(es->str, " (");
+
+		if (es->timing)
+			appendStringInfo(es->str,
+							 "actual time=%.3f..%.3f rows=%.0f loops=%.0f",
+							 startup_ms, total_ms, rows, nloops);
+		else
+			appendStringInfo(es->str,
+							 "actual rows=%.0f loops=%.0f",
+							 rows, nloops);
+
+		if (!isworker)
+			appendStringInfoChar(es->str, ')');
+	}
+	else
+	{
+		if (es->timing)
+		{
+			ExplainPropertyFloat("Actual Startup Time", "ms", startup_ms,
+								 3, es);
+			ExplainPropertyFloat("Actual Total Time", "ms", total_ms,
+								 3, es);
+		}
+		ExplainPropertyFloat("Actual Rows", NULL, rows, 0, es);
+		ExplainPropertyFloat("Actual Loops", NULL, nloops, 0, es);
+	}
 }
 
 /*
