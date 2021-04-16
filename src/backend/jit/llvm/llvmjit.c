@@ -94,6 +94,7 @@ static bool llvm_session_initialized = false;
 static size_t llvm_generation = 0;
 static const char *llvm_triple = NULL;
 static const char *llvm_layout = NULL;
+static LLVMContextRef llvm_context;
 
 
 static LLVMTargetRef llvm_targetref;
@@ -238,7 +239,7 @@ llvm_mutable_module(LLVMJitContext *context)
 	{
 		context->compiled = false;
 		context->module_generation = llvm_generation++;
-		context->module = LLVMModuleCreateWithName("pg");
+		context->module = LLVMModuleCreateWithNameInContext("pg", llvm_context);
 		LLVMSetTarget(context->module, llvm_triple);
 		LLVMSetDataLayout(context->module, llvm_layout);
 	}
@@ -798,6 +799,8 @@ llvm_session_initialize(void)
 	LLVMInitializeNativeAsmPrinter();
 	LLVMInitializeNativeAsmParser();
 
+	llvm_context = LLVMContextCreate();
+
 	/*
 	 * Synchronize types early, as that also includes inferring the target
 	 * triple.
@@ -992,9 +995,9 @@ llvm_create_types(void)
 	}
 
 	/* eagerly load contents, going to need it all */
-	if (LLVMParseBitcode2(buf, &llvm_types_module))
+	if (LLVMParseBitcodeInContext2(llvm_context, buf, &llvm_types_module))
 	{
-		elog(ERROR, "LLVMParseBitcode2 of %s failed", path);
+		elog(ERROR, "LLVMParseBitcodeInContext2 of %s failed", path);
 	}
 	LLVMDisposeMemoryBuffer(buf);
 
