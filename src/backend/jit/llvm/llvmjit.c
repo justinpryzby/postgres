@@ -42,6 +42,10 @@
 #include "utils/memutils.h"
 #include "utils/resowner_private.h"
 
+
+#define LLVMJIT_LLVM_CONTEXT_REUSE_MAX 10000
+
+
 /* Handle of a module emitted via ORC JIT */
 typedef struct LLVMJitHandle
 {
@@ -81,6 +85,10 @@ static LLVMModuleRef llvm_types_module = NULL;
 
 static bool llvm_session_initialized = false;
 static size_t llvm_generation = 0;
+/* number of LLVMJitContexts that currently are in use */
+static size_t llvm_jit_context_in_use_count = 0;
+/* how many times has the current LLVMContextRef been used */
+static size_t llvm_llvm_context_reuse_count = 0;
 static const char *llvm_triple = NULL;
 static const char *llvm_layout = NULL;
 static LLVMContextRef llvm_context;
@@ -141,6 +149,55 @@ llvm_create_context(int jitFlags)
 
 	llvm_session_initialize();
 
+	/*
+	 * Every now and then create a new LLVMContextRef. Unfortunately, during
+	 * every round of inlining, types may "leak" (they can still be found/used
+	 * via the context, but new types will be created the next time in
+	 * inlining is performed). To prevent that from slowly accumulating
+	 * problematic amounts of memory, recreate the LLVMContextRef we use. We
+	 * don't want to do so too often, as that implies some overhead
+	 * (particularly re-loading the module summaries / modules is fairly
+	 * expensive).
+	 *
+	 * We can only safely recreate the LLVM context if no other code is being
+	 * JITed, otherwise we'd release the types in use for that.
+	 *
+	 * FIXME: Extract into helper function.
+	 */
+	if (llvm_jit_context_in_use_count == 0 &&
+		llvm_llvm_context_reuse_count > LLVMJIT_LLVM_CONTEXT_REUSE_MAX)
+	{
+		llvm_llvm_context_reuse_count = 0;
+
+		Assert(llvm_context != NULL);
+
+		/*
+		 * Need to reset the modules that the inlining code caches before
+		 * disposing of the context. LLVM modules exist within a specific LLVM
+		 * context, therefore disposing of the context before resetting the
+		 * cache would cause dangling pointers to modules.
+		 */
+		llvm_inline_reset_caches();
+
+		if (llvm_context != NULL)
+			LLVMContextDispose(llvm_context);
+		llvm_context = LLVMContextCreate();
+
+		/*
+		 * Re-build cached type information, so code generation code can rely
+		 * on that information to be present (also prevents the variables to
+		 * be dangling references).
+		 *
+		 * FIXME: should split the handling of llvm_triple / llvm_layout out
+		 * of llvm_create_types() - that doesn't need to be redone.
+		 */
+		llvm_create_types();
+	}
+	else
+	{
+		llvm_llvm_context_reuse_count++;
+	}
+
 	ResourceOwnerEnlargeJIT(CurrentResourceOwner);
 
 	context = MemoryContextAllocZero(TopMemoryContext,
@@ -150,6 +207,8 @@ llvm_create_context(int jitFlags)
 	/* ensure cleanup */
 	context->base.resowner = CurrentResourceOwner;
 	ResourceOwnerRememberJIT(CurrentResourceOwner, PointerGetDatum(context));
+
+	llvm_jit_context_in_use_count++;
 
 	return context;
 }
@@ -162,6 +221,12 @@ llvm_release_context(JitContext *context)
 {
 	LLVMJitContext *llvm_context = (LLVMJitContext *) context;
 	ListCell   *lc;
+
+	/*
+	 * Consider as cleaned up even if we skip doing so below, that way we can
+	 * verify the tracking is correct (see llvm_shutdown()).
+	 */
+	llvm_jit_context_in_use_count--;
 
 	/*
 	 * When this backend is exiting, don't clean up LLVM. As an error might
@@ -891,6 +956,10 @@ llvm_shutdown(int code, Datum arg)
 		return;
 	}
 
+	if (llvm_jit_context_in_use_count != 0)
+		elog(PANIC, "LLVMJitContext in use count not 0 at exit (is %zu)",
+			 llvm_jit_context_in_use_count);
+
 #if LLVM_VERSION_MAJOR > 11
 	{
 		if (llvm_opt3_orc)
@@ -994,8 +1063,11 @@ llvm_create_types(void)
 	 * Load triple & layout from clang emitted file so we're guaranteed to be
 	 * compatible.
 	 */
-	llvm_triple = pstrdup(LLVMGetTarget(llvm_types_module));
-	llvm_layout = pstrdup(LLVMGetDataLayoutStr(llvm_types_module));
+	if (llvm_triple == NULL)
+	{
+		llvm_triple = pstrdup(LLVMGetTarget(llvm_types_module));
+		llvm_layout = pstrdup(LLVMGetDataLayoutStr(llvm_types_module));
+	}
 
 	TypeSizeT = llvm_pg_var_type("TypeSizeT");
 	TypeParamBool = load_return_type(llvm_types_module, "FunctionReturningBool");

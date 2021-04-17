@@ -152,6 +152,18 @@ summaries_for_guid(const InlineSearchPath& path, llvm::GlobalValue::GUID guid);
 #endif
 
 /*
+ * Reset inlining related state. This needs to be called before the currently
+ * used LLVMContextRef is disposed (and a new one create), otherwise we would
+ * have dangling references to deleted modules.
+ */
+void
+llvm_inline_reset_caches(void)
+{
+	module_cache->clear();
+	summary_cache->clear();
+}
+
+/*
  * Perform inlining of external function references in M based on a simple
  * cost based analysis.
  */
