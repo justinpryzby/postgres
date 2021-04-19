@@ -43,7 +43,7 @@
 #include "utils/resowner_private.h"
 
 
-#define LLVMJIT_LLVM_CONTEXT_REUSE_MAX 10000
+#define LLVMJIT_LLVM_CONTEXT_REUSE_MAX 1
 
 
 /* Handle of a module emitted via ORC JIT */
@@ -167,9 +167,9 @@ llvm_create_context(int jitFlags)
 	if (llvm_jit_context_in_use_count == 0 &&
 		llvm_llvm_context_reuse_count > LLVMJIT_LLVM_CONTEXT_REUSE_MAX)
 	{
-		llvm_llvm_context_reuse_count = 0;
-
 		Assert(llvm_context != NULL);
+		elog(DEBUG1, "recreating LLVM context after %zu uses", llvm_llvm_context_reuse_count);
+		llvm_llvm_context_reuse_count = 0;
 
 		/*
 		 * Need to reset the modules that the inlining code caches before
