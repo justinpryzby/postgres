@@ -195,6 +195,7 @@ void
 PmemXLogFlush(XLogRecPtr start, XLogRecPtr end)
 {
 	Size		off;
+	instr_time	start_time;
 
 	Assert(wal_pmem_map);
 	Assert(start < end);
@@ -203,22 +204,68 @@ PmemXLogFlush(XLogRecPtr start, XLogRecPtr end)
 	Assert(XLByteInPrevSeg(end, mappedSegNo, wal_segment_size));
 
 	off = XLogSegmentOffset(start, wal_segment_size);
+
+	/* Measure I/O timing to write WAL data */
+	if (track_wal_io_timing)
+		INSTR_TIME_SET_CURRENT(start_time);
+
+	pgstat_report_wait_start(WAIT_EVENT_WAL_WRITE);
 	pmem_flush(mappedPages + off, end - start);
+	pgstat_report_wait_end();
+
+	/*
+	 * Increment the I/O timing and the number of times WAL data
+	 * were written out to disk.
+	 */
+	if (track_wal_io_timing)
+	{
+		instr_time	duration;
+
+		INSTR_TIME_SET_CURRENT(duration);
+		INSTR_TIME_SUBTRACT(duration, start_time);
+		WalStats.m_wal_write_time += INSTR_TIME_GET_MICROSEC(duration);
+	}
+
+	WalStats.m_wal_write++;
 }
 
 /*
  * Wait for cache-flush to finish.
+ *
+ * See also issue_xlog_fsync in xlog.c.
  */
 void
 PmemXLogSync(void)
 {
+	instr_time	start;
+
 	Assert(wal_pmem_map);
 
 	/* Fast return */
 	if (!enableFsync)
 		return;
 
+	/* Measure I/O timing to sync the WAL file */
+	if (track_wal_io_timing)
+		INSTR_TIME_SET_CURRENT(start);
+
+	pgstat_report_wait_start(WAIT_EVENT_WAL_SYNC);
 	pmem_drain();
+	pgstat_report_wait_end();
+
+	/*
+	 * Increment the I/O timing and the number of times WAL files were synced.
+	 */
+	if (track_wal_io_timing)
+	{
+		instr_time	duration;
+
+		INSTR_TIME_SET_CURRENT(duration);
+		INSTR_TIME_SUBTRACT(duration, start);
+		WalStats.m_wal_sync_time += INSTR_TIME_GET_MICROSEC(duration);
+	}
+
+	WalStats.m_wal_sync++;
 }
 
 /*
