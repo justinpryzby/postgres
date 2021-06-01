@@ -2049,7 +2049,9 @@ GetXLogBuffer(XLogRecPtr ptr, TimeLineID tli)
 	{
 		openLogTLI = tli;
 		openLogSegNo = PmemXLogEnsurePrevMapped(endptr, tli);
-		cachedPos = PmemXLogGetBufferPages() + idx * (Size) XLOG_BLCKSZ;
+		cachedPos = PmemXLogGetBufferPages() +
+					(Size) XLogSegmentOffset(endptr - XLOG_BLCKSZ,
+											 wal_segment_size);
 	}
 	else
 		cachedPos = XLogCtl->pages + idx * (Size) XLOG_BLCKSZ;
@@ -2290,7 +2292,9 @@ AdvanceXLInsertBuffer(XLogRecPtr upto, TimeLineID tli, bool opportunistic)
 		{
 			openLogTLI = tli;
 			openLogSegNo = PmemXLogEnsurePrevMapped(NewPageEndPtr, tli);
-			NewPage = (XLogPageHeader) (PmemXLogGetBufferPages() + nextidx * (Size) XLOG_BLCKSZ);
+			NewPage = (XLogPageHeader)
+				(PmemXLogGetBufferPages() +
+				 (Size) XLogSegmentOffset(NewPageBeginPtr, wal_segment_size));
 		}
 		else
 			NewPage = (XLogPageHeader) (XLogCtl->pages + nextidx * (Size) XLOG_BLCKSZ);
@@ -5275,15 +5279,25 @@ XLOGShmemSize(void)
 	/*
 	 * If we use WAL segment files as WAL buffers, we don't use the given
 	 * value of wal_buffers. Instead, we set it to the value based on the
-	 * segment size and the page size. This should be done before calculating
+	 * min_wal_size and the page size. This should be done before calculating
 	 * the size of xlblocks array.
+	 *
+	 * TODO Do not allow changing min_wal_size by SIGHUP if wal_pmem_map=true.
+	 *
+	 * TODO Move validations to check_hook functions.
 	 */
 	if (wal_pmem_map)
 	{
 		int			npages;
 		char		buf[32];
 
-		npages = wal_segment_size / XLOG_BLCKSZ;
+		if (min_wal_size_mb % (wal_segment_size / (1024 * 1024)) != 0)
+			elog(PANIC, "min_wal_size should be multiple of wal_segment_size when wal_pmem_map=true");
+
+		if (min_wal_size_mb / (XLOG_BLCKSZ / 1024) > INT_MAX / 1024)
+			elog(PANIC, "too many wal buffer pages");
+
+		npages = min_wal_size_mb / (XLOG_BLCKSZ / 1024) * 1024;
 		snprintf(buf, sizeof(buf), "%d", (int) npages);
 		SetConfigOption("wal_buffers", buf, PGC_POSTMASTER, PGC_S_OVERRIDE);
 	}
@@ -8189,7 +8203,8 @@ StartupXLOG(void)
 			 */
 			openLogTLI = newTLI;
 			openLogSegNo = PmemXLogEnsurePrevMapped(EndOfLog, newTLI);
-			page = PmemXLogGetBufferPages() + firstIdx * (Size) XLOG_BLCKSZ;
+			page = PmemXLogGetBufferPages() +
+				   (Size) XLogSegmentOffset(pageBeginPtr, wal_segment_size);
 			len = EndOfLog % XLOG_BLCKSZ;
 			memset(page + len, 0, XLOG_BLCKSZ - len);
 
@@ -8229,7 +8244,10 @@ StartupXLOG(void)
 	/*
 	 * Preallocate additional log files, if wanted.
 	 */
-	PreallocXlogFiles(EndOfLog, newTLI);
+	if (wal_pmem_map)
+		AdvanceXLInsertBuffer(InvalidXLogRecPtr, newTLI, true);
+	else
+		PreallocXlogFiles(EndOfLog, newTLI);
 
 	/*
 	 * Okay, we're officially UP.
