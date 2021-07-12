@@ -712,7 +712,8 @@ check_proper_datallowconn(ClusterInfo *cluster)
 			 */
 			if (strcmp(datallowconn, "f") == 0)
 				pg_fatal("All non-template0 databases must allow connections, "
-						 "i.e. their pg_database.datallowconn must be true\n");
+						 "i.e. their pg_database.datallowconn must be true; "
+						 "database \"%s\" has datallowconn set to false.\n", datname);
 		}
 	}
 
