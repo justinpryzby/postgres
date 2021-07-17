@@ -3012,7 +3012,7 @@ describeOneTableDetails(const char *schemaname,
 						   " FROM pg_catalog.pg_trigger AS u, "
 						   "      pg_catalog.pg_partition_ancestors(t.tgrelid) AS a"
 						   " WHERE u.tgname = t.tgname AND u.tgrelid = a.relid"
-						   "       AND u.tgparentid = 0) AS parent" :
+						   "       AND u.tgparentid = 0 LIMIT 1) AS parent" :
 						   "NULL AS parent"),
 						  oid);
 
