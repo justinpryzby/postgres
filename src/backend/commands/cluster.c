@@ -214,11 +214,15 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 			rvs = get_tables_to_cluster_partitioned(cluster_context, indexOid);
 
 			/*
-			 * For now, partitioned indexes are not actually marked clustered.
+			 * Indexes are marked clustered, and then actually clustered.
+			 * If it's interrupted, then some indexes may not be actually
+			 * clustered, but that's not preserved during DML anyway.
 			 */
 			check_index_is_clusterable(rel, indexOid, true, AccessShareLock);
+			mark_index_clustered(rel, indexOid, true);
 
 			/* close relation, releasing lock on parent table */
+			/* XXX: need to acquire a ShareLock and check the rel hasn't changed */
 			table_close(rel, AccessExclusiveLock);
 
 			/* Do the job. */
@@ -503,6 +507,9 @@ check_index_is_clusterable(Relation OldHeap, Oid indexOid, bool recheck, LOCKMOD
 	 * the worst consequence of following broken HOT chains would be that we
 	 * might put recently-dead tuples out-of-order in the new table, and there
 	 * is little harm in that.)
+	 *
+	 * This also refuses to cluster on an "incomplete" partitioned index
+	 * created with "ON ONLY".
 	 */
 	if (!OldIndex->rd_index->indisvalid)
 		ereport(ERROR,
@@ -526,12 +533,6 @@ mark_index_clustered(Relation rel, Oid indexOid, bool is_internal)
 	Form_pg_index indexForm;
 	Relation	pg_index;
 	ListCell   *index;
-
-	/* Disallow applying to a partitioned table */
-	if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
-		ereport(ERROR,
-				(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
-				 errmsg("cannot mark index clustered in partitioned table")));
 
 	/*
 	 * If the index is already marked clustered, no need to do anything.
