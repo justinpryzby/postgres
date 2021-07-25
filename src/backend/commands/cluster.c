@@ -32,6 +32,7 @@
 #include "catalog/index.h"
 #include "catalog/namespace.h"
 #include "catalog/objectaccess.h"
+#include "catalog/partition.h"
 #include "catalog/pg_am.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/toasting.h"
@@ -73,6 +74,7 @@ static void rebuild_relation(Relation OldHeap, Oid indexOid, bool verbose);
 static void copy_table_data(Oid OIDNewHeap, Oid OIDOldHeap, Oid OIDOldIndex,
 							bool verbose, bool *pSwapToastByContent,
 							TransactionId *pFreezeXid, MultiXactId *pCutoffMulti);
+static void set_indisclustered(Oid indexOid, bool isclustered, Relation pg_index);
 static List *get_tables_to_cluster(MemoryContext cluster_context);
 static List *get_tables_to_cluster_partitioned(MemoryContext cluster_context,
 		Oid indexOid);
@@ -521,65 +523,88 @@ check_index_is_clusterable(Relation OldHeap, Oid indexOid, bool recheck, LOCKMOD
 }
 
 /*
+ * Helper for mark_index_clustered
+ * Mark a single index as clustered or not.
+ * pg_index is passed by caller to avoid repeatedly re-opening it.
+ */
+static void
+set_indisclustered(Oid indexOid, bool isclustered, Relation pg_index)
+{
+	HeapTuple	indexTuple;
+	Form_pg_index indexForm;
+
+	indexTuple = SearchSysCacheCopy1(INDEXRELID,
+									ObjectIdGetDatum(indexOid));
+	if (!HeapTupleIsValid(indexTuple))
+		elog(ERROR, "cache lookup failed for index %u", indexOid);
+	indexForm = (Form_pg_index) GETSTRUCT(indexTuple);
+
+	/* this was checked earlier, but let's be real sure */
+	if (isclustered && !indexForm->indisvalid)
+		elog(ERROR, "cannot cluster on invalid index %u", indexOid);
+
+	indexForm->indisclustered = isclustered;
+	CatalogTupleUpdate(pg_index, &indexTuple->t_self, indexTuple);
+	heap_freetuple(indexTuple);
+}
+
+/*
  * mark_index_clustered: mark the specified index as the one clustered on
  *
- * With indexOid == InvalidOid, will mark all indexes of rel not-clustered.
+ * With indexOid == InvalidOid, mark all indexes of rel not-clustered.
+ * Otherwise, mark children of the clustered index as clustered, and parents of
+ * other indexes as unclustered.
+ * We wish to maintain the following properties:
+ * 1) Only one index on a relation can be marked clustered at once
+ * 2) If a partitioned index is clustered, then all its children must be
+ *     clustered.
  */
 void
 mark_index_clustered(Relation rel, Oid indexOid, bool is_internal)
 {
-	HeapTuple	indexTuple;
-	Form_pg_index indexForm;
-	Relation	pg_index;
-	ListCell   *index;
-
-	/*
-	 * If the index is already marked clustered, no need to do anything.
-	 */
-	if (OidIsValid(indexOid))
-	{
-		if (get_index_isclustered(indexOid))
-			return;
-	}
+	ListCell	*lc, *lc2;
+	List		*indexes;
+	Relation	pg_index = table_open(IndexRelationId, RowExclusiveLock);
+	List		*inh = find_all_inheritors(RelationGetRelid(rel),
+											ShareRowExclusiveLock, NULL);
 
 	/*
 	 * Check each index of the relation and set/clear the bit as needed.
+	 * Iterate over the relation's children rather than the index's children
+	 * since we need to unset cluster for indexes on intermediate children,
+	 * too.
 	 */
-	pg_index = table_open(IndexRelationId, RowExclusiveLock);
-
-	foreach(index, RelationGetIndexList(rel))
+	foreach(lc, inh)
 	{
-		Oid			thisIndexOid = lfirst_oid(index);
+		Oid			inhrelid = lfirst_oid(lc);
+		Relation	thisrel = table_open(inhrelid, ShareRowExclusiveLock);
 
-		indexTuple = SearchSysCacheCopy1(INDEXRELID,
-										 ObjectIdGetDatum(thisIndexOid));
-		if (!HeapTupleIsValid(indexTuple))
-			elog(ERROR, "cache lookup failed for index %u", thisIndexOid);
-		indexForm = (Form_pg_index) GETSTRUCT(indexTuple);
-
-		/*
-		 * Unset the bit if set.  We know it's wrong because we checked this
-		 * earlier.
-		 */
-		if (indexForm->indisclustered)
+		indexes = RelationGetIndexList(thisrel);
+		foreach (lc2, indexes)
 		{
-			indexForm->indisclustered = false;
-			CatalogTupleUpdate(pg_index, &indexTuple->t_self, indexTuple);
-		}
-		else if (thisIndexOid == indexOid)
-		{
-			/* this was checked earlier, but let's be real sure */
-			if (!indexForm->indisvalid)
-				elog(ERROR, "cannot cluster on invalid index %u", indexOid);
-			indexForm->indisclustered = true;
-			CatalogTupleUpdate(pg_index, &indexTuple->t_self, indexTuple);
+			bool	isclustered;
+			Oid		thisIndexOid = lfirst_oid(lc2);
+			List	*parentoids = get_rel_relispartition(thisIndexOid) ?
+				get_partition_ancestors(thisIndexOid) : NIL;
+
+			/*
+			 * A child of the clustered index must be set clustered;
+			 * indexes which are not children of the clustered index are
+			 * set unclustered
+			 */
+			isclustered = (thisIndexOid == indexOid) ||
+					list_member_oid(parentoids, indexOid);
+			Assert(OidIsValid(indexOid) || !isclustered);
+			set_indisclustered(thisIndexOid, isclustered, pg_index);
+
+			InvokeObjectPostAlterHookArg(IndexRelationId, thisIndexOid, 0,
+										 InvalidOid, is_internal);
 		}
 
-		InvokeObjectPostAlterHookArg(IndexRelationId, thisIndexOid, 0,
-									 InvalidOid, is_internal);
-
-		heap_freetuple(indexTuple);
+		list_free(indexes);
+		table_close(thisrel, ShareRowExclusiveLock);
 	}
+	list_free(inh);
 
 	table_close(pg_index, RowExclusiveLock);
 }
