@@ -651,9 +651,8 @@ rebuild_relation(Relation OldHeap, Oid indexOid, bool verbose)
 	TransactionId frozenXid;
 	MultiXactId cutoffMulti;
 
-	if (OidIsValid(indexOid))
-		/* Mark the correct index as clustered */
-		mark_index_clustered(OldHeap, indexOid, true);
+	/* Mark the correct index as clustered */
+	mark_index_clustered(OldHeap, indexOid, true);
 
 	/* Remember info about rel before closing OldHeap */
 	relpersistence = OldHeap->rd_rel->relpersistence;
