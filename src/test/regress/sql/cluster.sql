@@ -222,8 +222,22 @@ SELECT relname, old.level, old.relkind, old.relfilenode = new.relfilenode FROM o
 -- Check that clustering sets new indisclustered:
 \d clstrpart
 CLUSTER clstrpart;
+SELECT relname, relkind, indisclustered FROM pg_partition_tree('clstrpart_idx'::regclass) AS tree JOIN pg_index i ON i.indexrelid=tree.relid JOIN pg_class c ON c.oid=indexrelid ORDER BY relname COLLATE "C";
+CLUSTER clstrpart1 USING clstrpart1_a_idx; -- partition which is itself partitioned
+CLUSTER clstrpart12 USING clstrpart12_a_idx; -- partition which is itself partitioned, no childs
+CLUSTER clstrpart2 USING clstrpart2_a_idx; -- leaf
+\d clstrpart
+-- Test that it recurses to grandchildren:
+\d clstrpart33
 ALTER TABLE clstrpart SET WITHOUT CLUSTER;
+\d clstrpart33
 ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+\d clstrpart33
+-- Check that only one child is marked clustered after marking clustered on a different parent
+CREATE INDEX clstrpart1_idx_2 ON clstrpart1(a);
+ALTER TABLE clstrpart CLUSTER ON clstrpart_idx;
+ALTER TABLE clstrpart1 CLUSTER ON clstrpart1_idx_2;
+\d clstrpart1
 
 -- Test CLUSTER with external tuplesorting
 
