@@ -692,8 +692,11 @@ do_analyze_rel(Relation onerel, VacuumParams *params,
 	 * columns; otherwise, there is still work for auto-analyze to do.
 	 */
 	if (!inh)
+	{
+		Assert(onerel->rd_rel->relkind != RELKIND_PARTITIONED_TABLE);
 		pgstat_report_analyze(onerel, totalrows, totaldeadrows,
 							  (va_cols == NIL));
+	}
 	else if (onerel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
 		pgstat_report_analyze(onerel, 0, 0, (va_cols == NIL));
 

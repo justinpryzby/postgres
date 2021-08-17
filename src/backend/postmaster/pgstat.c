@@ -1708,16 +1708,22 @@ pgstat_report_analyze(Relation rel,
 	{
 		PgStat_TableXactStatus *trans;
 
-		for (trans = rel->pgstat_info->trans; trans; trans = trans->upper)
+		if (rel->rd_rel->relkind == RELKIND_PARTITIONED_TABLE)
+			/* If this rel is partitioned, skip modifying */
+			livetuples = deadtuples = 0;
+		else
 		{
-			livetuples -= trans->tuples_inserted - trans->tuples_deleted;
-			deadtuples -= trans->tuples_updated + trans->tuples_deleted;
+			for (trans = rel->pgstat_info->trans; trans; trans = trans->upper)
+			{
+				livetuples -= trans->tuples_inserted - trans->tuples_deleted;
+				deadtuples -= trans->tuples_updated + trans->tuples_deleted;
+			}
+			/* count stuff inserted by already-aborted subxacts, too */
+			deadtuples -= rel->pgstat_info->t_counts.t_delta_dead_tuples;
+			/* Since ANALYZE's counts are estimates, we could have underflowed */
+			livetuples = Max(livetuples, 0);
+			deadtuples = Max(deadtuples, 0);
 		}
-		/* count stuff inserted by already-aborted subxacts, too */
-		deadtuples -= rel->pgstat_info->t_counts.t_delta_dead_tuples;
-		/* Since ANALYZE's counts are estimates, we could have underflowed */
-		livetuples = Max(livetuples, 0);
-		deadtuples = Max(deadtuples, 0);
 	}
 
 	pgstat_setheader(&msg.m_hdr, PGSTAT_MTYPE_ANALYZE);
