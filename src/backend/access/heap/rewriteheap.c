@@ -424,6 +424,8 @@ rewrite_set_vm_flags(RewriteState state)
 	map[mapByte] |= (flags << mapOffset);
 }
 
+// rewrite_update_vm_flags(state, new_tuple);
+
 /*
  * Update rs_all_visible and rs_all_frozen flags according to the tuple.  We
  * use simplified check assuming that HeapTupleSatisfiesVacuum() should already
@@ -475,11 +477,12 @@ rewrite_update_vm_flags(RewriteState state, HeapTuple tuple)
  * it had better be temp storage not a pointer to the original tuple.
  *
  * state		opaque state as returned by begin_heap_rewrite
+ * is_live		whether the currently processed tuple is live
  * old_tuple	original tuple in the old heap
  * new_tuple	new, rewritten tuple to be inserted to new heap
  */
 void
-rewrite_heap_tuple(RewriteState state,
+rewrite_heap_tuple(RewriteState state, bool is_live,
 				   HeapTuple old_tuple, HeapTuple new_tuple)
 {
 	MemoryContext old_cxt;
@@ -593,7 +596,12 @@ rewrite_heap_tuple(RewriteState state,
 
 		/* Insert the tuple and find out where it's put in new_heap */
 		raw_heap_insert(state, new_tuple);
-		rewrite_update_vm_flags(state, new_tuple);
+
+		heap_page_update_vm_flags(new_tuple, state->rs_oldest_xmin,
+								 is_live, true,
+								 &(state->rs_all_visible),
+								 &(state->rs_all_frozen));
+
 		new_tid = new_tuple->t_self;
 
 		logical_rewrite_heap_tuple(state, old_tid, new_tuple);
