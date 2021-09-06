@@ -6304,10 +6304,22 @@ SCRAM-SHA-256$<replaceable>&lt;iteration count&gt;</replaceable>:<replaceable>&l
 
      <row>
       <entry role="catalog_table_entry"><para role="column_definition">
+<<<<<<< HEAD
       <structfield>prqual</structfield> <type>pg_node_tree</type>
       </para>
       <para>Expression tree (in <function>nodeToString()</function>
       representation) for the relation's qualifying condition</para></entry>
+=======
+       <structfield>prattrs</structfield> <type>int2vector</type>
+       (references <link linkend="catalog-pg-attribute"><structname>pg_attribute</structname></link>.<structfield>attnum</structfield>)
+      </para>
+      <para>
+       This is an array of values that indicates which table columns are
+       part of the publication.  For example a value of <literal>1 3</literal>
+       would mean that the first and the third table columns are published.
+       A null value indicates that all attributes are published.
+      </para></entry>
+>>>>>>> Support column lists for logical replication of tables
      </row>
     </tbody>
    </tgroup>

@@ -3644,6 +3644,7 @@ typedef struct PublicationTable
 	NodeTag		type;
 	RangeVar   *relation;		/* relation to be published */
 	Node	   *whereClause;	/* qualifications */
+	List	   *columns;		/* List of columns in a publication table */
 } PublicationTable;
 
 /*
@@ -3680,7 +3681,8 @@ typedef enum AlterPublicationAction
 {
 	AP_AddObjects,				/* add objects to publication */
 	AP_DropObjects,				/* remove objects from publication */
-	AP_SetObjects				/* set list of objects */
+	AP_SetObjects,				/* set list of objects */
+	AP_SetColumns				/* change list of columns for a table */
 } AlterPublicationAction;
 
 typedef struct AlterPublicationStmt
