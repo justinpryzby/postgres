@@ -17,6 +17,7 @@
 #include "catalog/partition.h"
 #include "catalog/pg_publication.h"
 #include "catalog/pg_publication_rel.h"
+#include "catalog/pg_publication_rel_d.h"
 #include "commands/defrem.h"
 #include "fmgr.h"
 #include "nodes/nodeFuncs.h"
@@ -34,6 +35,7 @@
 #include "utils/lsyscache.h"
 #include "utils/memutils.h"
 #include "utils/snapmgr.h"
+#include "utils/rel.h"
 #include "utils/syscache.h"
 #include "utils/varlena.h"
 
@@ -90,7 +92,8 @@ static List *LoadPublications(List *pubnames);
 static void publication_invalidation_cb(Datum arg, int cacheid,
 										uint32 hashvalue);
 static void send_relation_and_attrs(Relation relation, TransactionId xid,
-									LogicalDecodingContext *ctx);
+									LogicalDecodingContext *ctx,
+									Bitmapset *columns);
 static void send_repl_origin(LogicalDecodingContext *ctx,
 							 RepOriginId origin_id, XLogRecPtr origin_lsn,
 							 bool send_origin);
@@ -177,6 +180,13 @@ typedef struct RelationSyncEntry
 	 * having identical TupleDesc.
 	 */
 	TupleConversionMap *map;
+
+	/*
+	 * Set of columns included in the publication, or NULL if all columns are
+	 * included implicitly.  Note that the attnums in this list are not
+	 * shifted by FirstLowInvalidHeapAttributeNumber.
+	 */
+	Bitmapset  *columns;
 } RelationSyncEntry;
 
 /* Map used to remember which relation schemas we sent. */
@@ -626,11 +636,11 @@ maybe_send_schema(LogicalDecodingContext *ctx,
 		}
 
 		MemoryContextSwitchTo(oldctx);
-		send_relation_and_attrs(ancestor, xid, ctx);
+		send_relation_and_attrs(ancestor, xid, ctx, relentry->columns);
 		RelationClose(ancestor);
 	}
 
-	send_relation_and_attrs(relation, xid, ctx);
+	send_relation_and_attrs(relation, xid, ctx, relentry->columns);
 
 	if (in_streaming)
 		set_schema_sent_in_streamed_txn(relentry, topxid);
@@ -643,7 +653,8 @@ maybe_send_schema(LogicalDecodingContext *ctx,
  */
 static void
 send_relation_and_attrs(Relation relation, TransactionId xid,
-						LogicalDecodingContext *ctx)
+						LogicalDecodingContext *ctx,
+						Bitmapset *columns)
 {
 	TupleDesc	desc = RelationGetDescr(relation);
 	int			i;
@@ -666,13 +677,17 @@ send_relation_and_attrs(Relation relation, TransactionId xid,
 		if (att->atttypid < FirstGenbkiObjectId)
 			continue;
 
+		/* Skip this attribute if it's not present in the column list */
+		if (columns != NULL && !bms_is_member(att->attnum, columns))
+			continue;
+
 		OutputPluginPrepareWrite(ctx, false);
 		logicalrep_write_typ(ctx->out, xid, att->atttypid);
 		OutputPluginWrite(ctx, false);
 	}
 
 	OutputPluginPrepareWrite(ctx, false);
-	logicalrep_write_rel(ctx->out, xid, relation);
+	logicalrep_write_rel(ctx->out, xid, relation, columns);
 	OutputPluginWrite(ctx, false);
 }
 
@@ -1262,7 +1277,7 @@ pgoutput_change(LogicalDecodingContext *ctx, ReorderBufferTXN *txn,
 
 				OutputPluginPrepareWrite(ctx, true);
 				logicalrep_write_insert(ctx->out, xid, relation, new_slot,
-										data->binary);
+										data->binary, relentry->columns);
 				OutputPluginWrite(ctx, true);
 				break;
 			}
@@ -1321,13 +1336,14 @@ pgoutput_change(LogicalDecodingContext *ctx, ReorderBufferTXN *txn,
 				{
 					case REORDER_BUFFER_CHANGE_INSERT:
 						logicalrep_write_insert(ctx->out, xid, relation,
-												new_slot, data->binary);
+												new_slot, data->binary, NULL);
 						break;
 					case REORDER_BUFFER_CHANGE_UPDATE:
 					{
 						LogicalRepFilter filter = {
 							.oldslot = relentry->old_slot,
 							.newslot = relentry->new_slot,
+							.columns = relentry->columns,
 						};
 
 						logicalrep_write_update(ctx->out, xid, relation,
@@ -1769,6 +1785,7 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 {
 	RelationSyncEntry *entry;
 	bool		found;
+	Oid			ancestor_id;
 	MemoryContext oldctx;
 
 	Assert(RelationSyncCache != NULL);
@@ -1794,6 +1811,7 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 		memset(entry->exprstate, 0, sizeof(entry->exprstate));
 		entry->cache_expr_cxt = NULL;
 		entry->publish_as_relid = InvalidOid;
+		entry->columns = NULL;
 		entry->map = NULL;		/* will be set by maybe_send_schema() if
 								 * needed */
 	}
@@ -1829,13 +1847,16 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 
 		/*
 		 * Build publication cache. We can't use one provided by relcache as
-		 * relcache considers all publications given relation is in, but here
-		 * we only need to consider ones that the subscriber requested.
+		 * relcache considers all publications that the given relation is in,
+		 * but here we only need to consider ones that the subscriber
+		 * requested.
 		 */
 		foreach(lc, data->publications)
 		{
 			Publication *pub = lfirst(lc);
 			bool		publish = false;
+			bool		ancestor_published = false;
+			bool		all_columns = false;
 
 			if (pub->alltables)
 			{
@@ -1846,8 +1867,6 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 
 			if (!publish)
 			{
-				bool		ancestor_published = false;
-
 				/*
 				 * For a partition, check if any of the ancestors are
 				 * published.  If so, note down the topmost ancestor that is
@@ -1864,9 +1883,20 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 
 					if (ancestor != InvalidOid)
 					{
-						ancestor_published = true;
+						// ancestor_published = true;
 						if (pub->pubviaroot)
 							publish_as_relid = ancestor;
+
+						if (list_member_oid(GetRelationPublications(ancestor),
+											pub->oid) ||
+							list_member_oid(GetSchemaPublications(get_rel_namespace(ancestor)),
+											pub->oid))
+						{
+							ancestor_published = true;
+							ancestor_id = ancestor;
+							if (pub->pubviaroot)
+								publish_as_relid = ancestor;
+						}
 					}
 				}
 
@@ -1877,9 +1907,13 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 			}
 
 			/*
+			 * If the relation is to be published, determine actions to
+			 * publish, and list of columns, if appropriate.
+			 *
 			 * Don't publish changes for partitioned tables, because
-			 * publishing those of its partitions suffices, unless partition
-			 * changes won't be published due to pubviaroot being set.
+			 * publishing those of its partitions suffices.  (However, ignore
+			 * this if partition changes are not to published due to
+			 * pubviaroot being set.)
 			 */
 			if (publish &&
 				(relkind != RELKIND_PARTITIONED_TABLE || pub->pubviaroot))
@@ -1888,10 +1922,70 @@ get_rel_sync_entry(PGOutputData *data, Oid relid)
 				entry->pubactions.pubupdate |= pub->pubactions.pubupdate;
 				entry->pubactions.pubdelete |= pub->pubactions.pubdelete;
 				entry->pubactions.pubtruncate |= pub->pubactions.pubtruncate;
+
+				/*
+				 * Obtain columns published by this publication, and add them
+				 * to the list for this rel.  Note that if at least one
+				 * publication has a empty column list, that means to publish
+				 * everything; so if we saw a publication that includes all
+				 * columns, skip this.
+				 */
+				if (!all_columns)
+				{
+					HeapTuple	pub_rel_tuple;
+					Oid			relid;
+
+					relid = ancestor_published ? ancestor_id : publish_as_relid;
+
+					pub_rel_tuple = SearchSysCache2(PUBLICATIONRELMAP,
+													ObjectIdGetDatum(relid),
+													ObjectIdGetDatum(pub->oid));
+
+					if (HeapTupleIsValid(pub_rel_tuple))
+					{
+						Datum		pub_rel_cols;
+						bool		isnull;
+
+						pub_rel_cols = SysCacheGetAttr(PUBLICATIONRELMAP,
+													   pub_rel_tuple,
+													   Anum_pg_publication_rel_prattrs,
+													   &isnull);
+						if (isnull)
+						{
+							/*
+							 * If we see a publication with no columns, reset the
+							 * list and ignore further ones.
+							 */
+							all_columns = true;
+							bms_free(entry->columns);
+							entry->columns = NULL;
+						}
+						else if (!isnull)
+						{
+							ArrayType  *arr;
+							int			nelems;
+							int16	   *elems;
+
+							arr = DatumGetArrayTypeP(pub_rel_cols);
+							nelems = ARR_DIMS(arr)[0];
+							elems = (int16 *) ARR_DATA_PTR(arr);
+
+							/* XXX is there a danger of memory leak here? beware */
+							oldctx = MemoryContextSwitchTo(CacheMemoryContext);
+							for (int i = 0; i < nelems; i++)
+								entry->columns = bms_add_member(entry->columns,
+																elems[i]);
+							MemoryContextSwitchTo(oldctx);
+						}
+
+						ReleaseSysCache(pub_rel_tuple);
+					}
+				}
 			}
 
 			if (entry->pubactions.pubinsert && entry->pubactions.pubupdate &&
-				entry->pubactions.pubdelete && entry->pubactions.pubtruncate)
+				entry->pubactions.pubdelete && entry->pubactions.pubtruncate &&
+				all_columns)
 				break;
 		}
 
@@ -1988,6 +2082,8 @@ rel_sync_cache_relation_cb(Datum arg, Oid relid)
 		entry->schema_sent = false;
 		list_free(entry->streamed_txns);
 		entry->streamed_txns = NIL;
+		bms_free(entry->columns);
+		entry->columns = NULL;
 		if (entry->map)
 		{
 			/*

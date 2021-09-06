@@ -9740,13 +9740,14 @@ CreatePublicationStmt:
  * relation_expr here.
  */
 PublicationObjSpec:
-			TABLE relation_expr OptWhereClause
+			TABLE relation_expr OptWhereClause opt_column_list
 				{
 					$$ = makeNode(PublicationObjSpec);
 					$$->pubobjtype = PUBLICATIONOBJ_TABLE;
 					$$->pubtable = makeNode(PublicationTable);
 					$$->pubtable->relation = $2;
 					$$->pubtable->whereClause = $3;
+					$$->pubtable->columns = $4;
 				}
 			| ALL TABLES IN_P SCHEMA ColId
 				{
@@ -9761,11 +9762,11 @@ PublicationObjSpec:
 					$$->pubobjtype = PUBLICATIONOBJ_TABLES_IN_CUR_SCHEMA;
 					$$->location = @5;
 				}
-			| ColId OptWhereClause
+			| ColId OptWhereClause opt_column_list
 				{
 					$$ = makeNode(PublicationObjSpec);
 					$$->pubobjtype = PUBLICATIONOBJ_CONTINUATION;
-					if ($2)
+					if ($2 || $3)
 					{
 						/*
 						 * The OptWhereClause must be stored here but it is
@@ -9776,6 +9777,8 @@ PublicationObjSpec:
 						$$->pubtable = makeNode(PublicationTable);
 						$$->pubtable->relation = makeRangeVar(NULL, $1, @1);
 						$$->pubtable->whereClause = $2;
+						$$->pubtable->columns = $3;
+						$$->name = NULL;
 					}
 					else
 					{
@@ -9783,23 +9786,25 @@ PublicationObjSpec:
 					}
 					$$->location = @1;
 				}
-			| ColId indirection OptWhereClause
+			| ColId indirection opt_column_list OptWhereClause
 				{
 					$$ = makeNode(PublicationObjSpec);
 					$$->pubobjtype = PUBLICATIONOBJ_CONTINUATION;
 					$$->pubtable = makeNode(PublicationTable);
 					$$->pubtable->relation = makeRangeVarFromQualifiedName($1, $2, @1, yyscanner);
-					$$->pubtable->whereClause = $3;
+					$$->pubtable->columns = $3;
+					$$->pubtable->whereClause = $4;
 					$$->location = @1;
 				}
 			/* grammar like tablename * , ONLY tablename, ONLY ( tablename ) */
-			| extended_relation_expr OptWhereClause
+			| extended_relation_expr opt_column_list OptWhereClause
 				{
 					$$ = makeNode(PublicationObjSpec);
 					$$->pubobjtype = PUBLICATIONOBJ_CONTINUATION;
 					$$->pubtable = makeNode(PublicationTable);
 					$$->pubtable->relation = $1;
-					$$->pubtable->whereClause = $2;
+					$$->pubtable->columns = $2;
+					$$->pubtable->whereClause = $3;
 				}
 			| CURRENT_SCHEMA
 				{
@@ -9824,6 +9829,9 @@ pub_obj_list: 	PublicationObjSpec
  * ALTER PUBLICATION name DROP pub_obj [, ...]
  *
  * ALTER PUBLICATION name SET pub_obj [, ...]
+ *
+ * ALTER PUBLICATION name SET COLUMNS table_name (column[, ...])
+ * ALTER PUBLICATION name SET COLUMNS table_name ALL
  *
  * pub_obj is one of:
  *
@@ -9857,6 +9865,32 @@ AlterPublicationStmt:
 					preprocess_pubobj_list(n->pubobjects, yyscanner);
 					n->action = AP_SetObjects;
 					$$ = (Node *)n;
+				}
+			| ALTER PUBLICATION name ALTER TABLE relation_expr SET COLUMNS '(' columnList ')'
+				{
+					AlterPublicationStmt *n = makeNode(AlterPublicationStmt);
+					PublicationObjSpec *obj = makeNode(PublicationObjSpec);
+					obj->pubobjtype = PUBLICATIONOBJ_TABLE;
+					obj->pubtable = makeNode(PublicationTable);
+					obj->pubtable->relation = $6;
+					obj->pubtable->columns = $10;
+					n->pubname = $3;
+					n->pubobjects = list_make1(obj);
+					n->action = AP_SetColumns;
+					$$ = (Node *) n;
+				}
+			| ALTER PUBLICATION name ALTER TABLE relation_expr SET COLUMNS ALL
+				{
+					AlterPublicationStmt *n = makeNode(AlterPublicationStmt);
+					PublicationObjSpec *obj = makeNode(PublicationObjSpec);
+					obj->pubobjtype = PUBLICATIONOBJ_TABLE;
+					obj->pubtable = makeNode(PublicationTable);
+					obj->pubtable->relation = $6;
+					obj->pubtable->columns = NIL;
+					n->pubname = $3;
+					n->pubobjects = list_make1(obj);
+					n->action = AP_SetColumns;
+					$$ = (Node *) n;
 				}
 			| ALTER PUBLICATION name DROP pub_obj_list
 				{
@@ -17468,6 +17502,16 @@ preprocess_pubobj_list(List *pubobjspec_list, core_yyscan_t yyscanner)
 				ereport(ERROR,
 						errcode(ERRCODE_SYNTAX_ERROR),
 						errmsg("WHERE clause for schema not allowed"),
+						parser_errposition(pubobj->location));
+
+			/*
+			 * This can happen if a column list is specified in a continuation
+			 * for a schema entry; reject it.
+			 */
+			if (pubobj->pubtable)
+				ereport(ERROR,
+						errcode(ERRCODE_SYNTAX_ERROR),
+						errmsg("column specification not allowed for schemas"),
 						parser_errposition(pubobj->location));
 
 			/*
