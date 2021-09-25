@@ -190,6 +190,8 @@ static char *convert_string_datum(Datum value, Oid typid, Oid collid,
 								  bool *failure);
 static double convert_timevalue_to_scalar(Datum value, Oid typid,
 										  bool *failure);
+static void recheck_parent_acl(PlannerInfo *root, VariableStatData *vardata,
+							   RelOptInfo *onerel, RangeTblEntry *rte);
 static void examine_simple_variable(PlannerInfo *root, Var *var,
 									VariableStatData *vardata);
 static bool get_variable_range(PlannerInfo *root, VariableStatData *vardata,
@@ -5130,18 +5132,6 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 		 */
 		ListCell   *ilist;
 		ListCell   *slist;
-		Oid			userid;
-
-		/*
-		 * Determine the user ID to use for privilege checks: either
-		 * onerel->userid if it's set (e.g., in case we're accessing the table
-		 * via a view), or the current user otherwise.
-		 *
-		 * If we drill down to child relations, we keep using the same userid:
-		 * it's going to be the same anyway, due to how we set up the relation
-		 * tree (q.v. build_simple_rel).
-		 */
-		userid = OidIsValid(onerel->userid) ? onerel->userid : GetUserId();
 
 		foreach(ilist, onerel->indexlist)
 		{
@@ -5216,63 +5206,7 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 								rte = planner_rt_fetch(index->rel->relid, root);
 								Assert(rte->rtekind == RTE_RELATION);
 
-								/*
-								 * For simplicity, we insist on the whole
-								 * table being selectable, rather than trying
-								 * to identify which column(s) the index
-								 * depends on.  Also require all rows to be
-								 * selectable --- there must be no
-								 * securityQuals from security barrier views
-								 * or RLS policies.
-								 */
-								vardata->acl_ok =
-									rte->securityQuals == NIL &&
-									(pg_class_aclcheck(rte->relid, userid,
-													   ACL_SELECT) == ACLCHECK_OK);
-
-								/*
-								 * If the user doesn't have permissions to
-								 * access an inheritance child relation, check
-								 * the permissions of the table actually
-								 * mentioned in the query, since most likely
-								 * the user does have that permission.  Note
-								 * that whole-table select privilege on the
-								 * parent doesn't quite guarantee that the
-								 * user could read all columns of the child.
-								 * But in practice it's unlikely that any
-								 * interesting security violation could result
-								 * from allowing access to the expression
-								 * index's stats, so we allow it anyway.  See
-								 * similar code in examine_simple_variable()
-								 * for additional comments.
-								 */
-								if (!vardata->acl_ok &&
-									root->append_rel_array != NULL)
-								{
-									AppendRelInfo *appinfo;
-									Index		varno = index->rel->relid;
-
-									appinfo = root->append_rel_array[varno];
-									while (appinfo &&
-										   planner_rt_fetch(appinfo->parent_relid,
-															root)->rtekind == RTE_RELATION)
-									{
-										varno = appinfo->parent_relid;
-										appinfo = root->append_rel_array[varno];
-									}
-									if (varno != index->rel->relid)
-									{
-										/* Repeat access check on this rel */
-										rte = planner_rt_fetch(varno, root);
-										Assert(rte->rtekind == RTE_RELATION);
-
-										vardata->acl_ok =
-											rte->securityQuals == NIL &&
-											(pg_class_aclcheck(rte->relid,
-															   userid,
-															   ACL_SELECT) == ACLCHECK_OK);
-									}
-								}
+								recheck_parent_acl(root, vardata, index->rel, rte);
 							}
 							else
 							{
@@ -5341,65 +5275,80 @@ examine_variable(PlannerInfo *root, Node *node, int varRelid,
 
 					vardata->freefunc = ReleaseDummy;
 
-					/*
-					 * For simplicity, we insist on the whole table being
-					 * selectable, rather than trying to identify which
-					 * column(s) the statistics object depends on.  Also
-					 * require all rows to be selectable --- there must be no
-					 * securityQuals from security barrier views or RLS
-					 * policies.
-					 */
-					vardata->acl_ok =
-						rte->securityQuals == NIL &&
-						(pg_class_aclcheck(rte->relid, userid,
-										   ACL_SELECT) == ACLCHECK_OK);
-
-					/*
-					 * If the user doesn't have permissions to access an
-					 * inheritance child relation, check the permissions of
-					 * the table actually mentioned in the query, since most
-					 * likely the user does have that permission.  Note that
-					 * whole-table select privilege on the parent doesn't
-					 * quite guarantee that the user could read all columns of
-					 * the child. But in practice it's unlikely that any
-					 * interesting security violation could result from
-					 * allowing access to the expression stats, so we allow it
-					 * anyway.  See similar code in examine_simple_variable()
-					 * for additional comments.
-					 */
-					if (!vardata->acl_ok &&
-						root->append_rel_array != NULL)
-					{
-						AppendRelInfo *appinfo;
-						Index		varno = onerel->relid;
-
-						appinfo = root->append_rel_array[varno];
-						while (appinfo &&
-							   planner_rt_fetch(appinfo->parent_relid,
-												root)->rtekind == RTE_RELATION)
-						{
-							varno = appinfo->parent_relid;
-							appinfo = root->append_rel_array[varno];
-						}
-						if (varno != onerel->relid)
-						{
-							/* Repeat access check on this rel */
-							rte = planner_rt_fetch(varno, root);
-							Assert(rte->rtekind == RTE_RELATION);
-
-							vardata->acl_ok =
-								rte->securityQuals == NIL &&
-								(pg_class_aclcheck(rte->relid,
-												   userid,
-												   ACL_SELECT) == ACLCHECK_OK);
-						}
-					}
-
+					recheck_parent_acl(root, vardata, onerel, rte);
 					break;
 				}
 
 				pos++;
 			}
+		}
+	}
+}
+
+/*
+ * Check table's ACL and if it fails, the ACL of its parent table, if any.
+ */
+static void
+recheck_parent_acl(PlannerInfo *root, VariableStatData *vardata,
+					RelOptInfo *onerel, RangeTblEntry *rte)
+{
+	Oid			userid;
+
+	/*
+	 * Determine the user ID to use for privilege checks: either
+	 * onerel->userid if it's set (e.g., in case we're accessing the table
+	 * via a view), or the current user otherwise.
+	 *
+	 * If we drill down to child relations, we keep using the same userid:
+	 * it's going to be the same anyway, due to how we set up the relation
+	 * tree (q.v. build_simple_rel).
+	 */
+	userid = OidIsValid(onerel->userid) ? onerel->userid : GetUserId();
+
+	/*
+	 * For simplicity, we insist on the whole table being selectable, rather
+	 * than trying to identify which column(s) the index or statistics object
+	 * depends on.  Also require all rows to be selectable --- there must be
+	 * no securityQuals from security barrier views or RLS policies.
+	 */
+	vardata->acl_ok = rte->securityQuals == NIL &&
+		(pg_class_aclcheck(rte->relid, userid, ACL_SELECT) == ACLCHECK_OK);
+
+	/*
+	 * If the user doesn't have permissions to access an inheritance child
+	 * relation, check the permissions of the table actually mentioned in the
+	 * query, since most likely the user does have that permission.  Note that
+	 * whole-table select privilege on the parent doesn't quite guarantee that
+	 * the user could read all columns of the child.  But in practice it's
+	 * unlikely that any interesting security violation could result from
+	 * allowing access to the index or expression stats, so we allow it
+	 * anyway.  See similar code in examine_simple_variable() for additional
+	 * comments.
+	 */
+
+	if (!vardata->acl_ok && root->append_rel_array != NULL)
+	{
+		AppendRelInfo *appinfo;
+		Index		varno = onerel->relid;
+
+		appinfo = root->append_rel_array[varno];
+		while (appinfo &&
+			   planner_rt_fetch(appinfo->parent_relid,
+								root)->rtekind == RTE_RELATION)
+		{
+			varno = appinfo->parent_relid;
+			appinfo = root->append_rel_array[varno];
+		}
+
+		if (varno != onerel->relid)
+		{
+			/* Repeat access check on this rel */
+			rte = planner_rt_fetch(varno, root);
+			Assert(rte->rtekind == RTE_RELATION);
+
+			vardata->acl_ok = rte->securityQuals == NIL &&
+				(pg_class_aclcheck(rte->relid, userid,
+								   ACL_SELECT) == ACLCHECK_OK);
 		}
 	}
 }
