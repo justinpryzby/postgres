@@ -312,6 +312,7 @@ extern XLogRecPtr GetInsertRecPtr(void);
 extern XLogRecPtr GetFlushRecPtr(TimeLineID *insertTLI);
 extern TimeLineID GetWALInsertionTimeLine(void);
 extern XLogRecPtr GetLastImportantRecPtr(void);
+extern bool RedoRecPtrChanged(XLogRecPtr comparator_ptr);
 extern void RemovePromoteSignalFiles(void);
 
 extern bool PromoteIsTriggered(void);
