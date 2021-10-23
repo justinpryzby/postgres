@@ -1602,14 +1602,15 @@ RestoreBlockImage(XLogReaderState *record, uint8 block_id, char *page)
 	{
 		/* If a backup block image is compressed, decompress it */
 		bool		decomp_success = true;
+		int			compressid = BKPIMAGE_COMPRESSION(bkpb->bimg_info);
 
-		if ((bkpb->bimg_info & BKPIMAGE_COMPRESS_PGLZ) != 0)
+		if (compressid == WAL_COMPRESSION_PGLZ)
 		{
 			if (pglz_decompress(ptr, bkpb->bimg_len, tmp.data,
 								BLCKSZ - bkpb->hole_length, true) < 0)
 				decomp_success = false;
 		}
-		else if ((bkpb->bimg_info & BKPIMAGE_COMPRESS_LZ4) != 0)
+		else if (compressid == WAL_COMPRESSION_LZ4)
 		{
 #ifdef USE_LZ4
 			if (LZ4_decompress_safe(ptr, tmp.data,
@@ -1623,7 +1624,7 @@ RestoreBlockImage(XLogReaderState *record, uint8 block_id, char *page)
 			return false;
 #endif
 		}
-		else if ((bkpb->bimg_info & BKPIMAGE_COMPRESS_ZSTD) != 0)
+		else if (compressid == WAL_COMPRESSION_ZSTD)
 		{
 #ifdef USE_ZSTD
 			size_t decomp_result = ZSTD_decompress(tmp.data,
