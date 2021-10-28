@@ -1945,6 +1945,23 @@ GetXLogBuffer(XLogRecPtr ptr, TimeLineID tli)
 	 */
 	if (ptr / XLOG_BLCKSZ == cachedPage)
 	{
+		/*
+		 * Ensure WAL mappings before assersion.
+		 *
+		 * cachedPos should be recaluculated because it has been probably
+		 * invalidated due to WAL remapping. This should be done even if
+		 * openLogSegNo seems not to change because the address of the
+		 * mapping could have changed (ABA problem).
+		 */
+		if (wal_pmem_map)
+		{
+			endptr = ptr - ptr % XLOG_BLCKSZ + XLOG_BLCKSZ;
+			openLogSegNo = PmemXLogEnsurePrevMapped(endptr, tli);
+			cachedPos = PmemXLogGetBufferPages() +
+						(Size) XLogSegmentOffset(endptr - XLOG_BLCKSZ,
+												 wal_segment_size);
+		}
+
 		Assert(((XLogPageHeader) cachedPos)->xlp_magic == XLOG_PAGE_MAGIC);
 		Assert(((XLogPageHeader) cachedPos)->xlp_pageaddr == ptr - (ptr % XLOG_BLCKSZ));
 		return cachedPos + ptr % XLOG_BLCKSZ;
