@@ -8,7 +8,24 @@
 #include <stdint.h>		/* uintptr_t */
 #include <unistd.h>		/* getpid, unlink */
 
+/*
+ * On Windows, we will have two ported but conflicting mode_t:
+ *
+ * mode_t in libpmem:
+ *     libpmem.h -> pmemcompat.h -> typedef int mode_t
+ * mode_t in PostgreSQL:
+ *     c.h -> port.h -> win32_port.h -> typedef unsigned short mode_t
+ *
+ * We want to use PostgreSQL's one, so conseal libpmem's one.
+ */
+#if defined(WIN32) && !defined(__CYGWIN__)
+#define mode_t unused_libpmem_mode_t
 #include <libpmem.h>
+#undef mode_t
+/* On other platforms, simply include libpmem.h */
+#else
+#include <libpmem.h>
+#endif
 
 #include "c.h"						/* bool, Size */
 #include "access/xlog.h"
@@ -242,7 +259,11 @@ PmemMapFile(const char *path, size_t expected_len, int flags, bool try_open)
 
 	mapped_len = 0;
 	is_pmem = 0;
+#if defined(WIN32) && !defined(__CYGWIN__)
+	addr = pmem_map_fileU(path, param_len, flags, mode, &mapped_len, &is_pmem);
+#else
 	addr = pmem_map_file(path, param_len, flags, mode, &mapped_len, &is_pmem);
+#endif
 
 	if (addr == NULL)
 	{
