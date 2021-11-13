@@ -67,8 +67,8 @@ ExecMerge(ModifyTableState *mtstate, ResultRelInfo *resultRelInfo,
 	 * target table and a set of candidate source rows that do not have a
 	 * matching row in the target table. If the join returns a tuple with the
 	 * target relation's row-ID set, that implies that the join found a
-	 * matching row for the given source tuple. This case triggers the WHEN
-	 * MATCHED clause of the MERGE. Whereas a NULL in the target relation's
+	 * matching row for the given source tuple. This case triggers the
+	 * WHEN MATCHED clause of the MERGE. Whereas a NULL in the target relation's
 	 * row-ID column indicates a NOT MATCHED case.
 	 */
 	datum = ExecGetJunkAttribute(slot,
