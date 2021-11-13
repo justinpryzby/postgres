@@ -96,10 +96,11 @@ CREATE POLICY <replaceable class="parameter">name</replaceable> ON <replaceable 
   </para>
 
   <para>
-   No separate policy exists for <command>MERGE</command>. Instead policies
+   No separate policy exists for <command>MERGE</command>. Instead, the policies
    defined for <command>SELECT</command>, <command>INSERT</command>,
    <command>UPDATE</command> and <command>DELETE</command> are applied
-   while executing <command>MERGE</command>, depending on the actions that are activated.
+   while executing <command>MERGE</command>, depending on the actions that are
+   performed.
   </para>
  </refsect1>
 

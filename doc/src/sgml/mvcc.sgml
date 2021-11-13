@@ -441,16 +441,16 @@ COMMIT;
     can specify several actions and they can be conditional, the
     conditions for each action are re-evaluated on the updated version of
     the row, starting from the first action, even if the action that had
-    originally matched was later in the list of actions.
+    originally matched appears later in the list of actions.
     On the other hand, if the row is concurrently updated or deleted so
     that the join condition fails, then <command>MERGE</command> will
-    evaluate the conditions <literal>NOT MATCHED</literal> actions next,
+    evaluate the condition's <literal>NOT MATCHED</literal> actions next,
     and execute the first one that succeeds.
     If <command>MERGE</command> attempts an <command>INSERT</command>
     and a unique index is present and a duplicate row is concurrently
-    inserted then a uniqueness violation is raised.
+    inserted, then a uniqueness violation is raised.
     <command>MERGE</command> does not attempt to avoid the
-    <literal>ERROR</literal> by attempting an <command>UPDATE</command>.
+    <literal>ERROR</literal> by executing an <command>UPDATE</command>.
    </para>
 
    <para>

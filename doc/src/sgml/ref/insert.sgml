@@ -592,7 +592,7 @@ INSERT <replaceable>oid</replaceable> <replaceable class="parameter">count</repl
 
   <para>
    You may also wish to consider using <command>MERGE</command>, since that
-   allows mixed <command>INSERT</command>, <command>UPDATE</command> and
+   allows mixing <command>INSERT</command>, <command>UPDATE</command> and
    <command>DELETE</command> within a single statement.
    See <xref linkend="sql-merge"/>.
   </para>

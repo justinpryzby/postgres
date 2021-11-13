@@ -966,7 +966,7 @@ ROLLBACK;
 DROP TABLE pa_source;
 DROP TABLE pa_target CASCADE;
 
--- Sub-partitionin
+-- Sub-partitioning
 CREATE TABLE pa_target (logts timestamp, tid integer, balance float, val text)
 	PARTITION BY RANGE (logts);
 
@@ -1020,7 +1020,7 @@ INSERT INTO cj_source2 VALUES (1, 'initial source2');
 INSERT INTO cj_source2 VALUES (2, 'initial source2');
 INSERT INTO cj_source2 VALUES (3, 'initial source2');
 
--- source relation is an unalised join
+-- source relation is an unaliased join
 MERGE INTO cj_target t
 USING cj_source1 s1
 	INNER JOIN cj_source2 s2 ON sid1 = sid2
