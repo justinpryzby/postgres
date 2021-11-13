@@ -73,11 +73,11 @@ DELETE
    from <replaceable class="parameter">data_source</replaceable> to
    <replaceable class="parameter">target_table_name</replaceable>
    producing zero or more candidate change rows.  For each candidate change
-   row the status of <literal>MATCHED</literal> or <literal>NOT MATCHED</literal>
+   row, the status of <literal>MATCHED</literal> or <literal>NOT MATCHED</literal>
    is set just once, after which <literal>WHEN</literal> clauses are evaluated
-   in the order specified.  The first clause to match each candidate change
-   row is executed.  No more than one <literal>WHEN</literal> clause is
-   executed for any candidate change row.  
+   in the order specified.  For each candidate change row, the first clause to
+   evaluate as true executed.  No more than one <literal>WHEN</literal> clause
+   is executed for any candidate change row.  
   </para>
 
   <para>
@@ -85,14 +85,14 @@ DELETE
    regular <command>UPDATE</command>, <command>INSERT</command>, or
    <command>DELETE</command> commands of the same names. The syntax of
    those commands is different, notably that there is no <literal>WHERE</literal>
-   clause and no tablename is specified.  All actions refer to the
+   clause and no table name is specified.  All actions refer to the
    <replaceable class="parameter">target_table_name</replaceable>,
    though modifications to other tables may be made using triggers.
   </para>
 
   <para>
-   When <literal>DO NOTHING</literal> action is specified, the source row is
-   skipped. Since actions are evaluated in the given order, <literal>DO
+   When <literal>DO NOTHING</literal> is specified, the source row is
+   skipped. Since actions are evaluated in their specified order, <literal>DO
    NOTHING</literal> can be handy to skip non-interesting source rows before
    more fine-grained handling.
   </para>
@@ -178,7 +178,7 @@ DELETE
     <listitem>
      <para>
       A substitute name for the data source. When an alias is
-      provided, it completely hides whether table or query was specified.
+      provided, it completely hides the actual name of the table or query.
      </para>
     </listitem>
    </varlistentry>
@@ -202,7 +202,7 @@ DELETE
        rows should appear in <replaceable class="parameter">join_condition</replaceable>.
        <replaceable class="parameter">join_condition</replaceable> subexpressions that
        only reference <replaceable class="parameter">target_table_name</replaceable>
-       columns can only affect which action is taken, often in surprising ways.
+       columns can affect which action is taken, often in surprising ways.
       </para>
      </warning>
     </listitem>
@@ -226,7 +226,7 @@ DELETE
       Conversely, if the <literal>WHEN</literal> clause specifies
       <literal>WHEN NOT MATCHED</literal>
       and the candidate change row does not match a row in the
-      <replaceable class="parameter">target_table_name</replaceable>
+      <replaceable class="parameter">target_table_name</replaceable>,
       the <literal>WHEN</literal> clause is executed if the
       <replaceable class="parameter">condition</replaceable> is
       absent or it evaluates to <literal>true</literal>.
@@ -240,8 +240,8 @@ DELETE
      <para>
       An expression that returns a value of type <type>boolean</type>.
       If this expression for a <literal>WHEN</literal> clause
-      returns <literal>true</literal> then the action for that clause
-      clause is executed for that row.
+      returns <literal>true</literal>, then the action for that clause
+      is executed for that row.
      </para>
      <para>
       A condition on a <literal>WHEN MATCHED</literal> clause can refer to columns
@@ -277,8 +277,8 @@ DELETE
       is a partitioned table, each row is routed to the appropriate partition
       and inserted into it.
       If <replaceable class="parameter">target_table_name</replaceable>
-      is a partition, an error will occur if one of the input rows violates
-      the partition constraint.
+      is a partition, an error will occur if any input row violates the
+      partition constraint.
      </para>
      <para>
       Column names may not be specified more than once.
@@ -301,7 +301,7 @@ DELETE
       Column names may not be specified more than once.
      </para>
      <para>
-      A table name and <literal>WHERE</literal> clause are not allowed.
+      Neither a table name nor a <literal>WHERE</literal> clause are allowed.
      </para>
     </listitem>
    </varlistentry>
@@ -312,8 +312,8 @@ DELETE
      <para>
       Specifies a <literal>DELETE</literal> action that deletes the current row
       of the <replaceable class="parameter">target_table_name</replaceable>.
-      Do not include the tablename or any other clauses, as you would normally
-      do with an <xref linkend="sql-delete"/> command.
+      Do not include the table name or any other clauses, as you would normally
+      do with a <xref linkend="sql-delete"/> command.
      </para>
     </listitem>
    </varlistentry>
@@ -326,8 +326,8 @@ DELETE
       class="parameter">target_table_name</replaceable>.  The column name
       can be qualified with a subfield name or array subscript, if
       needed.  (Inserting into only some fields of a composite
-      column leaves the other fields null.)  When referencing a
-      column, do not include the table's name in the specification
+      column leaves the other fields null.)
+      Do not include the table's name in the specification
       of a target column.
      </para>
     </listitem>
@@ -434,14 +434,14 @@ MERGE <replaceable class="parameter">total-count</replaceable>
       <para>
        Perform any <literal>BEFORE STATEMENT</literal> triggers for all
        actions specified, whether or not their <literal>WHEN</literal>
-       clauses are executed.
+       clauses match.
       </para>
      </listitem>
      <listitem>
       <para>
        Perform a join from source to target table.
        The resulting query will be optimized normally and will produce
-       a set of candidate change row. For each candidate change row,
+       a set of candidate change rows. For each candidate change row,
        <orderedlist>
         <listitem>
          <para>
@@ -467,7 +467,7 @@ MERGE <replaceable class="parameter">total-count</replaceable>
            </listitem>
            <listitem>
             <para>
-             Apply the action specified, invoking any check constraints on the
+             Perform the specified action, invoking any check constraints on the
              target table.
              <!-- This seems wrong.  Maybe it's better to raise an error if
              MERGE specifies an action for which rules exist. -->
@@ -513,8 +513,8 @@ MERGE <replaceable class="parameter">total-count</replaceable>
    This can also occur if row triggers make changes to the target table
    and the rows so modified are then subsequently also modified by
    <command>MERGE</command>.
-   If the repeated action is an <command>INSERT</command> this will
-   cause a uniqueness violation while a repeated <command>UPDATE</command>
+   If the repeated action is an <command>INSERT</command>, this will
+   cause a uniqueness violation, while a repeated <command>UPDATE</command>
    or <command>DELETE</command> will cause a cardinality violation; the
    latter behavior is required by the <acronym>SQL</acronym> standard.
    This differs from historical <productname>PostgreSQL</productname>
