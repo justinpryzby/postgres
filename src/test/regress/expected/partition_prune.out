@@ -1922,17 +1922,13 @@ explain (analyze, costs off, summary off, timing off) select * from list_part wh
  Append (actual rows=0 loops=1)
    ->  Seq Scan on list_part1 list_part_1 (actual rows=0 loops=1)
          Filter: (a = (list_part_fn(1) + a))
-         Rows Removed by Filter: 1
    ->  Seq Scan on list_part2 list_part_2 (actual rows=0 loops=1)
          Filter: (a = (list_part_fn(1) + a))
-         Rows Removed by Filter: 1
    ->  Seq Scan on list_part3 list_part_3 (actual rows=0 loops=1)
          Filter: (a = (list_part_fn(1) + a))
-         Rows Removed by Filter: 1
    ->  Seq Scan on list_part4 list_part_4 (actual rows=0 loops=1)
          Filter: (a = (list_part_fn(1) + a))
-         Rows Removed by Filter: 1
-(13 rows)
+(9 rows)
 
 rollback;
 drop table list_part;
@@ -1957,7 +1953,6 @@ begin
     loop
         ln := regexp_replace(ln, 'Workers Launched: \d+', 'Workers Launched: N');
         ln := regexp_replace(ln, 'actual rows=\d+ loops=\d+', 'actual rows=N loops=N');
-        ln := regexp_replace(ln, 'Rows Removed by Filter: \d+', 'Rows Removed by Filter: N');
         return next ln;
     end loop;
 end;
@@ -2196,7 +2191,6 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                ->  Nested Loop (actual rows=N loops=N)
                      ->  Parallel Seq Scan on lprt_a a (actual rows=N loops=N)
                            Filter: (a = ANY ('{1,0,0}'::integer[]))
-                           Rows Removed by Filter: N
                      ->  Append (actual rows=N loops=N)
                            ->  Index Scan using ab_a1_b1_a_idx on ab_a1_b1 ab_1 (actual rows=N loops=N)
                                  Index Cond: (a = a.a)
@@ -2216,7 +2210,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                                  Index Cond: (a = a.a)
                            ->  Index Scan using ab_a3_b3_a_idx on ab_a3_b3 ab_9 (never executed)
                                  Index Cond: (a = a.a)
-(28 rows)
+(27 rows)
 
 delete from lprt_a where a = 1;
 select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on ab.a = a.a where a.a in(1, 0, 0)');
@@ -2230,7 +2224,6 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                ->  Nested Loop (actual rows=N loops=N)
                      ->  Parallel Seq Scan on lprt_a a (actual rows=N loops=N)
                            Filter: (a = ANY ('{1,0,0}'::integer[]))
-                           Rows Removed by Filter: N
                      ->  Append (actual rows=N loops=N)
                            ->  Index Scan using ab_a1_b1_a_idx on ab_a1_b1 ab_1 (never executed)
                                  Index Cond: (a = a.a)
@@ -2250,7 +2243,7 @@ select explain_parallel_append('select avg(ab.a) from ab inner join lprt_a a on 
                                  Index Cond: (a = a.a)
                            ->  Index Scan using ab_a3_b3_a_idx on ab_a3_b3 ab_9 (never executed)
                                  Index Cond: (a = a.a)
-(28 rows)
+(27 rows)
 
 reset enable_hashjoin;
 reset enable_mergejoin;
@@ -2437,14 +2430,13 @@ explain (analyze, costs off, summary off, timing off) execute ab_q6(1);
          Filter: ((a = $1) AND (b = $0))
    ->  Seq Scan on xy_1 (actual rows=0 loops=1)
          Filter: ((x = $1) AND (y = $0))
-         Rows Removed by Filter: 1
    ->  Seq Scan on ab_a1_b1 ab_4 (never executed)
          Filter: ((a = $1) AND (b = $0))
    ->  Seq Scan on ab_a1_b2 ab_5 (never executed)
          Filter: ((a = $1) AND (b = $0))
    ->  Seq Scan on ab_a1_b3 ab_6 (never executed)
          Filter: ((a = $1) AND (b = $0))
-(19 rows)
+(18 rows)
 
 -- Ensure we see just the xy_1 row.
 execute ab_q6(100);
@@ -3052,12 +3044,11 @@ select * from boolp where a = (select value from boolvalues where value);
    InitPlan 1 (returns $0)
      ->  Seq Scan on boolvalues (actual rows=1 loops=1)
            Filter: value
-           Rows Removed by Filter: 1
    ->  Seq Scan on boolp_f boolp_1 (never executed)
          Filter: (a = $0)
    ->  Seq Scan on boolp_t boolp_2 (actual rows=0 loops=1)
          Filter: (a = $0)
-(9 rows)
+(8 rows)
 
 explain (analyze, costs off, summary off, timing off)
 select * from boolp where a = (select value from boolvalues where not value);
@@ -3067,12 +3058,11 @@ select * from boolp where a = (select value from boolvalues where not value);
    InitPlan 1 (returns $0)
      ->  Seq Scan on boolvalues (actual rows=1 loops=1)
            Filter: (NOT value)
-           Rows Removed by Filter: 1
    ->  Seq Scan on boolp_f boolp_1 (actual rows=0 loops=1)
          Filter: (a = $0)
    ->  Seq Scan on boolp_t boolp_2 (never executed)
          Filter: (a = $0)
-(9 rows)
+(8 rows)
 
 drop table boolp;
 --
@@ -3096,11 +3086,9 @@ explain (analyze, costs off, summary off, timing off) execute mt_q1(15);
    Subplans Removed: 1
    ->  Index Scan using ma_test_p2_b_idx on ma_test_p2 ma_test_1 (actual rows=1 loops=1)
          Filter: ((a >= $1) AND ((a % 10) = 5))
-         Rows Removed by Filter: 9
    ->  Index Scan using ma_test_p3_b_idx on ma_test_p3 ma_test_2 (actual rows=1 loops=1)
          Filter: ((a >= $1) AND ((a % 10) = 5))
-         Rows Removed by Filter: 9
-(9 rows)
+(7 rows)
 
 execute mt_q1(15);
  a  
@@ -3117,8 +3105,7 @@ explain (analyze, costs off, summary off, timing off) execute mt_q1(25);
    Subplans Removed: 2
    ->  Index Scan using ma_test_p3_b_idx on ma_test_p3 ma_test_1 (actual rows=1 loops=1)
          Filter: ((a >= $1) AND ((a % 10) = 5))
-         Rows Removed by Filter: 9
-(6 rows)
+(5 rows)
 
 execute mt_q1(25);
  a  

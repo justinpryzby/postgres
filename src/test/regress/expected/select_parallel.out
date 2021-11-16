@@ -551,14 +551,12 @@ explain (analyze, timing off, summary off, costs off)
    ->  Nested Loop (actual rows=98000 loops=1)
          ->  Seq Scan on tenk2 (actual rows=10 loops=1)
                Filter: (thousand = 0)
-               Rows Removed by Filter: 9990
          ->  Gather (actual rows=9800 loops=10)
                Workers Planned: 4
                Workers Launched: 4
                ->  Parallel Seq Scan on tenk1 (actual rows=1960 loops=50)
                      Filter: (hundred > 1)
-                     Rows Removed by Filter: 40
-(11 rows)
+(9 rows)
 
 alter table tenk2 reset (parallel_workers);
 reset work_mem;
