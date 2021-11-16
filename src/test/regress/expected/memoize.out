@@ -39,14 +39,13 @@ WHERE t2.unique1 < 1000;', false);
    ->  Nested Loop (actual rows=1000 loops=N)
          ->  Seq Scan on tenk1 t2 (actual rows=1000 loops=N)
                Filter: (unique1 < 1000)
-               Rows Removed by Filter: 9000
          ->  Memoize (actual rows=1 loops=N)
                Cache Key: t2.twenty
                Cache Mode: logical
                Hits: 980  Misses: 20  Evictions: Zero  Overflows: 0
                ->  Index Only Scan using tenk1_unique1 on tenk1 t1 (actual rows=1 loops=N)
                      Index Cond: (unique1 = t2.twenty)
-(11 rows)
+(10 rows)
 
 -- And check we get the expected results.
 SELECT COUNT(*),AVG(t1.unique1) FROM tenk1 t1
@@ -68,14 +67,13 @@ WHERE t1.unique1 < 1000;', false);
    ->  Nested Loop (actual rows=1000 loops=N)
          ->  Seq Scan on tenk1 t1 (actual rows=1000 loops=N)
                Filter: (unique1 < 1000)
-               Rows Removed by Filter: 9000
          ->  Memoize (actual rows=1 loops=N)
                Cache Key: t1.twenty
                Cache Mode: logical
                Hits: 980  Misses: 20  Evictions: Zero  Overflows: 0
                ->  Index Only Scan using tenk1_unique1 on tenk1 t2 (actual rows=1 loops=N)
                      Index Cond: (unique1 = t1.twenty)
-(11 rows)
+(10 rows)
 
 -- And check we get the expected results.
 SELECT COUNT(*),AVG(t2.unique1) FROM tenk1 t1,
@@ -102,14 +100,13 @@ WHERE t2.unique1 < 1200;', true);
    ->  Nested Loop (actual rows=1200 loops=N)
          ->  Seq Scan on tenk1 t2 (actual rows=1200 loops=N)
                Filter: (unique1 < 1200)
-               Rows Removed by Filter: 8800
          ->  Memoize (actual rows=1 loops=N)
                Cache Key: t2.thousand
                Cache Mode: logical
                Hits: N  Misses: N  Evictions: N  Overflows: 0
                ->  Index Only Scan using tenk1_unique1 on tenk1 t1 (actual rows=1 loops=N)
                      Index Cond: (unique1 = t2.thousand)
-(11 rows)
+(10 rows)
 
 CREATE TABLE flt (f float);
 CREATE INDEX flt_f_idx ON flt (f);
