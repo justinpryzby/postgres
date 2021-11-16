@@ -1839,7 +1839,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 				if (gather->initParam)
 					show_eval_params(gather->initParam, es);
 
-				if (es->analyze)
+				if (es->analyze && es->machine)
 				{
 					int			nworkers;
 
@@ -1867,7 +1867,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 				if (gm->initParam)
 					show_eval_params(gm->initParam, es);
 
-				if (es->analyze)
+				if (es->analyze && es->machine)
 				{
 					int			nworkers;
 
