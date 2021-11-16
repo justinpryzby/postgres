@@ -461,7 +461,6 @@ begin
         execute format('explain (analyze, costs off, summary off, timing off) %s',
             $1)
     loop
-        ln := regexp_replace(ln, 'Workers Launched: \d+', 'Workers Launched: N');
         ln := regexp_replace(ln, 'actual rows=\d+ loops=\d+', 'actual rows=N loops=N');
         return next ln;
     end loop;

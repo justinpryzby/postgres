@@ -553,10 +553,9 @@ explain (analyze, timing off, summary off, costs off)
                Filter: (thousand = 0)
          ->  Gather (actual rows=9800 loops=10)
                Workers Planned: 4
-               Workers Launched: 4
                ->  Parallel Seq Scan on tenk1 (actual rows=1960 loops=50)
                      Filter: (hundred > 1)
-(9 rows)
+(8 rows)
 
 alter table tenk2 reset (parallel_workers);
 reset work_mem;
@@ -570,7 +569,6 @@ select * from
    ->  Values Scan on "*VALUES*" (actual rows=3 loops=1)
    ->  Gather Merge (actual rows=10000 loops=3)
          Workers Planned: 4
-         Workers Launched: 4
          ->  Sort (actual rows=2000 loops=15)
                Sort Key: tenk1.ten
                Sort Method: quicksort
@@ -580,7 +578,7 @@ select * from
                Worker 3:  Sort Method: quicksort
                ->  Parallel Seq Scan on tenk1 (actual rows=2000 loops=15)
                      Filter: (ten < 100)
-(14 rows)
+(13 rows)
 
 reset enable_indexscan;
 reset enable_hashjoin;
@@ -1032,9 +1030,8 @@ EXPLAIN (analyze, timing off, summary off, costs off) SELECT * FROM tenk1;
 -------------------------------------------------------------
  Gather (actual rows=10000 loops=1)
    Workers Planned: 4
-   Workers Launched: 4
    ->  Parallel Seq Scan on tenk1 (actual rows=2000 loops=5)
-(4 rows)
+(3 rows)
 
 ROLLBACK TO SAVEPOINT settings;
 -- provoke error in worker
