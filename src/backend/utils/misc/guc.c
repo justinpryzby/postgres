@@ -1246,7 +1246,7 @@ static struct config_bool ConfigureNamesBool[] =
 		{"fsync", PGC_SIGHUP, WAL_SETTINGS,
 			gettext_noop("Forces synchronization of updates to disk."),
 			gettext_noop("The server will use the fsync() system call in several places to make "
-						 "sure that updates are physically written to disk. This insures "
+						 "sure that updates are physically written to disk. This ensures "
 						 "that a database cluster will recover to a consistent state after "
 						 "an operating system or hardware crash.")
 		},
@@ -1285,9 +1285,9 @@ static struct config_bool ConfigureNamesBool[] =
 	},
 	{
 		{"ignore_invalid_pages", PGC_POSTMASTER, DEVELOPER_OPTIONS,
-			gettext_noop("Continues recovery after an invalid pages failure."),
-			gettext_noop("Detection of WAL records having references to "
-						 "invalid pages during recovery causes PostgreSQL to "
+			gettext_noop("Continues recovery after an invalid page failure."),
+			gettext_noop("Detection of WAL records which reference "
+						 "an invalid page during recovery normally causes PostgreSQL to "
 						 "raise a PANIC-level error, aborting the recovery. "
 						 "Setting ignore_invalid_pages to true causes "
 						 "the system to ignore invalid page references "
@@ -1306,10 +1306,10 @@ static struct config_bool ConfigureNamesBool[] =
 		{"full_page_writes", PGC_SIGHUP, WAL_SETTINGS,
 			gettext_noop("Writes full pages to WAL when first modified after a checkpoint."),
 			gettext_noop("A page write in process during an operating system crash might be "
-						 "only partially written to disk.  During recovery, the row changes "
-						 "stored in WAL are not enough to recover.  This option writes "
-						 "pages when first modified after a checkpoint to WAL so full recovery "
-						 "is possible.")
+						 "only partially written to disk.  Storing individual row changes "
+						 "to WAL is not enough to allow recovery.  To guarantee successful recovery, "
+						 "this option writes entire pages to WAL following their first modification after each"
+						 "checkpoint.")
 		},
 		&fullPageWrites,
 		true,
@@ -1366,7 +1366,7 @@ static struct config_bool ConfigureNamesBool[] =
 	},
 	{
 		{"log_disconnections", PGC_SU_BACKEND, LOGGING_WHAT,
-			gettext_noop("Logs end of a session, including duration."),
+			gettext_noop("Logs end of sessions, including duration."),
 			NULL
 		},
 		&Log_disconnections,
@@ -1535,7 +1535,7 @@ static struct config_bool ConfigureNamesBool[] =
 	{
 		{"track_activities", PGC_SUSET, STATS_COLLECTOR,
 			gettext_noop("Collects information about executing commands."),
-			gettext_noop("Enables the collection of information on the currently "
+			gettext_noop("Enables the collection of information about the currently "
 						 "executing command of each session, along with "
 						 "the time at which that command began execution.")
 		},
@@ -1761,7 +1761,7 @@ static struct config_bool ConfigureNamesBool[] =
 	{
 		{"array_nulls", PGC_USERSET, COMPAT_OPTIONS_PREVIOUS,
 			gettext_noop("Enable input of NULL elements in arrays."),
-			gettext_noop("When turned on, unquoted NULL in an array input "
+			gettext_noop("When turned on, an unquoted NULL in an array input "
 						 "value means a null value; "
 						 "otherwise it is taken literally.")
 		},
@@ -1954,7 +1954,7 @@ static struct config_bool ConfigureNamesBool[] =
 
 	{
 		{"allow_system_table_mods", PGC_SUSET, DEVELOPER_OPTIONS,
-			gettext_noop("Allows modifications of the structure of system tables."),
+			gettext_noop("Allows modifications to the structure of system tables."),
 			NULL,
 			GUC_NOT_IN_SAMPLE
 		},
@@ -2417,8 +2417,8 @@ static struct config_int ConfigureNamesInt[] =
 						 "permission set. The parameter value is expected "
 						 "to be a numeric mode specification in the form "
 						 "accepted by the chmod and umask system calls. "
-						 "(To use the customary octal format the number must "
-						 "start with a 0 (zero).)")
+						 "To use the customary octal format, the number must "
+						 "start with a 0 (zero).")
 		},
 		&Unix_socket_permissions,
 		0777, 0000, 0777,
@@ -2431,8 +2431,8 @@ static struct config_int ConfigureNamesInt[] =
 			gettext_noop("The parameter value is expected "
 						 "to be a numeric mode specification in the form "
 						 "accepted by the chmod and umask system calls. "
-						 "(To use the customary octal format the number must "
-						 "start with a 0 (zero).)")
+						 "To use the customary octal format, the number must "
+						 "start with a 0 (zero).")
 		},
 		&Log_file_mode,
 		0600, 0000, 0777,
@@ -2443,10 +2443,7 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"data_directory_mode", PGC_INTERNAL, PRESET_OPTIONS,
 			gettext_noop("Shows the mode of the data directory."),
-			gettext_noop("The parameter value is a numeric mode specification "
-						 "in the form accepted by the chmod and umask system "
-						 "calls. (To use the customary octal format the number "
-						 "must start with a 0 (zero).)"),
+			gettext_noop("The parameter value is shown in the customary octal format."),
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_RUNTIME_COMPUTED
 		},
 		&data_directory_mode,
@@ -2508,7 +2505,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"temp_file_limit", PGC_SUSET, RESOURCES_DISK,
-			gettext_noop("Limits the total size of all temporary files used by each process."),
+			gettext_noop("Limits the total size of all temporary files used by each server process."),
 			gettext_noop("-1 means no limit."),
 			GUC_UNIT_KB
 		},
@@ -2755,7 +2752,7 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"max_pred_locks_per_relation", PGC_SIGHUP, LOCK_MANAGEMENT,
 			gettext_noop("Sets the maximum number of predicate-locked pages and tuples per relation."),
-			gettext_noop("If more than this total of pages and tuples in the same relation are locked "
+			gettext_noop("If more than this total number of pages and tuples in the same relation are locked "
 						 "by a connection, those locks are replaced by a relation-level lock.")
 		},
 		&max_predicate_locks_per_relation,
@@ -2811,8 +2808,8 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"min_wal_size", PGC_SIGHUP, WAL_CHECKPOINTS,
-			gettext_noop("Sets the minimum size to shrink the WAL to."),
-			NULL,
+			gettext_noop("Sets the minimum size of the WAL."),
+			gettext_noop("The WAL will not shrink below this size."),
 			GUC_UNIT_MB
 		},
 		&min_wal_size_mb,
@@ -2872,7 +2869,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"wal_buffers", PGC_POSTMASTER, WAL_SETTINGS,
-			gettext_noop("Sets the number of disk-page buffers in shared memory for WAL."),
+			gettext_noop("Sets the number of WAL buffers to keep in shared memory."),
 			NULL,
 			GUC_UNIT_XBLOCKS
 		},
@@ -3230,7 +3227,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"block_size", PGC_INTERNAL, PRESET_OPTIONS,
-			gettext_noop("Shows the size of a disk block."),
+			gettext_noop("Shows the size of a disk block in bytes."),
 			NULL,
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
 		},
@@ -3252,7 +3249,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"wal_block_size", PGC_INTERNAL, PRESET_OPTIONS,
-			gettext_noop("Shows the block size in the write ahead log."),
+			gettext_noop("Shows the block size of the write ahead log in bytes."),
 			NULL,
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
 		},
@@ -3481,7 +3478,7 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"min_parallel_table_scan_size", PGC_USERSET, QUERY_TUNING_COST,
 			gettext_noop("Sets the minimum amount of table data for a parallel scan."),
-			gettext_noop("If the planner estimates that it will read a number of table pages too small to reach this limit, a parallel scan will not be considered."),
+			gettext_noop("If the planner estimates that it will read fewer than this number of table pages, a parallel scan will not be considered."),
 			GUC_UNIT_BLOCKS | GUC_EXPLAIN,
 		},
 		&min_parallel_table_scan_size,
@@ -3492,7 +3489,7 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"min_parallel_index_scan_size", PGC_USERSET, QUERY_TUNING_COST,
 			gettext_noop("Sets the minimum amount of index data for a parallel scan."),
-			gettext_noop("If the planner estimates that it will read a number of index pages too small to reach this limit, a parallel scan will not be considered."),
+			gettext_noop("If the planner estimates that it will read fewer than this number of index pages, a parallel scan will not be considered."),
 			GUC_UNIT_BLOCKS | GUC_EXPLAIN,
 		},
 		&min_parallel_index_scan_size,
@@ -3592,7 +3589,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"client_connection_check_interval", PGC_USERSET, CONN_AUTH_SETTINGS,
-			gettext_noop("Sets the time interval between checks for disconnection while running queries."),
+			gettext_noop("Sets the time interval between checks for client disconnection while running queries."),
 			NULL,
 			GUC_UNIT_MS
 		},
@@ -3853,7 +3850,7 @@ static struct config_real ConfigureNamesReal[] =
 
 	{
 		{"checkpoint_completion_target", PGC_SIGHUP, WAL_CHECKPOINTS,
-			gettext_noop("Time spent flushing dirty buffers during checkpoint, as fraction of checkpoint interval."),
+			gettext_noop("Target fraction of checkpoint interval to spend writing dirty buffers to disk."),
 			NULL
 		},
 		&CheckPointCompletionTarget,
@@ -3873,7 +3870,7 @@ static struct config_real ConfigureNamesReal[] =
 
 	{
 		{"log_transaction_sample_rate", PGC_SUSET, LOGGING_WHEN,
-			gettext_noop("Sets the fraction of transactions from which to log all statements."),
+			gettext_noop("Sets the fraction of transactions for which all statements are logged."),
 			gettext_noop("Use a value between 0.0 (never log) and 1.0 (log all "
 						 "statements for all transactions).")
 		},
@@ -4074,7 +4071,7 @@ static struct config_string ConfigureNamesString[] =
 
 	{
 		{"default_tablespace", PGC_USERSET, CLIENT_CONN_STATEMENT,
-			gettext_noop("Sets the default tablespace to create tables and indexes in."),
+			gettext_noop("Sets the default tablespace where tables and indexes are created."),
 			gettext_noop("An empty string selects the database's default tablespace."),
 			GUC_IS_NAME
 		},
@@ -4693,8 +4690,8 @@ static struct config_enum ConfigureNamesEnum[] =
 	{
 		{"client_min_messages", PGC_USERSET, CLIENT_CONN_STATEMENT,
 			gettext_noop("Sets the message levels that are sent to the client."),
-			gettext_noop("Each level includes all the levels that follow it. The later"
-						 " the level, the fewer messages are sent.")
+			gettext_noop("Each level includes all the levels that follow it. Later"
+						 " levels send fewer messages.")
 		},
 		&client_min_messages,
 		NOTICE, client_message_level_options,
@@ -4713,9 +4710,9 @@ static struct config_enum ConfigureNamesEnum[] =
 
 	{
 		{"constraint_exclusion", PGC_USERSET, QUERY_TUNING_OTHER,
-			gettext_noop("Enables the planner to use constraints to optimize queries."),
-			gettext_noop("Table scans will be skipped if their constraints"
-						 " guarantee that no rows match the query."),
+			gettext_noop("Enables the planner's use of constraints to optimize queries."),
+			gettext_noop("Allows a table's scan to be skipped if its constraints"
+						 " guarantee that none of its rows match the query."),
 			GUC_EXPLAIN
 		},
 		&constraint_exclusion,
@@ -4779,8 +4776,8 @@ static struct config_enum ConfigureNamesEnum[] =
 	{
 		{"log_min_messages", PGC_SUSET, LOGGING_WHEN,
 			gettext_noop("Sets the message levels that are logged."),
-			gettext_noop("Each level includes all the levels that follow it. The later"
-						 " the level, the fewer messages are sent.")
+			gettext_noop("Each level includes all the levels that follow it. Later"
+						 " levels log fewer messages.")
 		},
 		&log_min_messages,
 		WARNING, server_message_level_options,
@@ -4789,9 +4786,9 @@ static struct config_enum ConfigureNamesEnum[] =
 
 	{
 		{"log_min_error_statement", PGC_SUSET, LOGGING_WHEN,
-			gettext_noop("Causes all statements generating error at or above this level to be logged."),
-			gettext_noop("Each level includes all the levels that follow it. The later"
-						 " the level, the fewer messages are sent.")
+			gettext_noop("Causes statements generating messages at or above this level to be logged."),
+			gettext_noop("Each level includes all the levels that follow it. Later"
+						 " levels log fewer messages.")
 		},
 		&log_min_error_statement,
 		ERROR, server_message_level_options,
@@ -4866,8 +4863,8 @@ static struct config_enum ConfigureNamesEnum[] =
 	{
 		{"trace_recovery_messages", PGC_SIGHUP, DEVELOPER_OPTIONS,
 			gettext_noop("Enables logging of recovery-related debugging information."),
-			gettext_noop("Each level includes all the levels that follow it. The later"
-						 " the level, the fewer messages are sent."),
+			gettext_noop("Each level includes all the levels that follow it. Later"
+						 " levels log fewer messages."),
 			GUC_NOT_IN_SAMPLE,
 		},
 		&trace_recovery_messages,
@@ -4963,7 +4960,7 @@ static struct config_enum ConfigureNamesEnum[] =
 
 	{
 		{"huge_pages", PGC_POSTMASTER, RESOURCES_MEM,
-			gettext_noop("Use of huge pages on Linux or Windows."),
+			gettext_noop("Enable use of huge pages on Linux or Windows."),
 			NULL
 		},
 		&huge_pages,
@@ -4974,7 +4971,7 @@ static struct config_enum ConfigureNamesEnum[] =
 	{
 		{"force_parallel_mode", PGC_USERSET, DEVELOPER_OPTIONS,
 			gettext_noop("Forces use of parallel query facilities."),
-			gettext_noop("If possible, run query using a parallel worker and with parallel restrictions."),
+			gettext_noop("If possible, run queries using a parallel worker and with parallel restrictions."),
 			GUC_NOT_IN_SAMPLE | GUC_EXPLAIN
 		},
 		&force_parallel_mode,
@@ -4994,7 +4991,7 @@ static struct config_enum ConfigureNamesEnum[] =
 
 	{
 		{"plan_cache_mode", PGC_USERSET, QUERY_TUNING_OTHER,
-			gettext_noop("Controls the planner's selection of custom or generic plan."),
+			gettext_noop("Controls the planner's selection of custom or generic plans."),
 			gettext_noop("Prepared statements can have custom and generic plans, and the planner "
 						 "will attempt to choose which is better.  This can be set to override "
 						 "the default behavior."),
