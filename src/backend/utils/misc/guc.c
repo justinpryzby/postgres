@@ -3067,7 +3067,8 @@ static struct config_int ConfigureNamesInt[] =
 	{
 		{"bgwriter_lru_maxpages", PGC_SIGHUP, RESOURCES_BGWRITER,
 			gettext_noop("Background writer maximum number of LRU pages to flush per round."),
-			NULL
+			NULL,
+			GUC_UNIT_BLOCKS
 		},
 		&bgwriter_lru_maxpages,
 		100, 0, INT_MAX / 2,	/* Same upper limit as shared_buffers */
@@ -3218,7 +3219,7 @@ static struct config_int ConfigureNamesInt[] =
 		{"max_identifier_length", PGC_INTERNAL, PRESET_OPTIONS,
 			gettext_noop("Shows the maximum identifier length."),
 			NULL,
-			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE // GUC_UNIT_BYTE
 		},
 		&max_identifier_length,
 		NAMEDATALEN - 1, NAMEDATALEN - 1, NAMEDATALEN - 1,
@@ -3229,7 +3230,7 @@ static struct config_int ConfigureNamesInt[] =
 		{"block_size", PGC_INTERNAL, PRESET_OPTIONS,
 			gettext_noop("Shows the size of a disk block."),
 			NULL,
-			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE // XXX GUC_UNIT_BYTE
 		},
 		&block_size,
 		BLCKSZ, BLCKSZ, BLCKSZ,
@@ -3251,7 +3252,7 @@ static struct config_int ConfigureNamesInt[] =
 		{"wal_block_size", PGC_INTERNAL, PRESET_OPTIONS,
 			gettext_noop("Shows the block size of the write ahead log."),
 			NULL,
-			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
+			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE | GUC_UNIT_BYTE
 		},
 		&wal_block_size,
 		XLOG_BLCKSZ, XLOG_BLCKSZ, XLOG_BLCKSZ,
