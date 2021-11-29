@@ -2494,7 +2494,7 @@ static struct config_int ConfigureNamesInt[] =
 	 */
 	{
 		{"max_stack_depth", PGC_SUSET, RESOURCES_MEM,
-			gettext_noop("Sets the maximum stack depth, in kilobytes."),
+			gettext_noop("Sets the maximum stack depth."),
 			NULL,
 			GUC_UNIT_KB
 		},
@@ -3227,7 +3227,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"block_size", PGC_INTERNAL, PRESET_OPTIONS,
-			gettext_noop("Shows the size of a disk block in bytes."),
+			gettext_noop("Shows the size of a disk block."),
 			NULL,
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
 		},
@@ -3249,7 +3249,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"wal_block_size", PGC_INTERNAL, PRESET_OPTIONS,
-			gettext_noop("Shows the block size of the write ahead log in bytes."),
+			gettext_noop("Shows the block size of the write ahead log."),
 			NULL,
 			GUC_NOT_IN_SAMPLE | GUC_DISALLOW_IN_FILE
 		},
@@ -3511,7 +3511,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"log_temp_files", PGC_SUSET, LOGGING_WHAT,
-			gettext_noop("Log the use of temporary files larger than this number of kilobytes."),
+			gettext_noop("Log the use of temporary files larger than this size."),
 			gettext_noop("Zero logs all files. The default is -1 (turning this feature off)."),
 			GUC_UNIT_KB
 		},
@@ -3522,7 +3522,7 @@ static struct config_int ConfigureNamesInt[] =
 
 	{
 		{"track_activity_query_size", PGC_POSTMASTER, STATS_COLLECTOR,
-			gettext_noop("Sets the size reserved for pg_stat_activity.query, in bytes."),
+			gettext_noop("Sets the size reserved for pg_stat_activity.query."),
 			NULL,
 			GUC_UNIT_BYTE
 		},
@@ -3798,7 +3798,7 @@ static struct config_real ConfigureNamesReal[] =
 
 	{
 		{"vacuum_cost_delay", PGC_USERSET, RESOURCES_VACUUM_DELAY,
-			gettext_noop("Vacuum cost delay in milliseconds."),
+			gettext_noop("Vacuum cost delay."),
 			NULL,
 			GUC_UNIT_MS
 		},
@@ -3809,7 +3809,7 @@ static struct config_real ConfigureNamesReal[] =
 
 	{
 		{"autovacuum_vacuum_cost_delay", PGC_SIGHUP, AUTOVACUUM,
-			gettext_noop("Vacuum cost delay in milliseconds, for autovacuum."),
+			gettext_noop("Vacuum cost delay, for autovacuum."),
 			NULL,
 			GUC_UNIT_MS
 		},
