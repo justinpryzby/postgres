@@ -9635,6 +9635,36 @@ GetConfigOptionByName(const char *name, const char **varname, bool missing_ok)
 }
 
 /*
+ * Return an text[] array of the given flags (or a useful subset?) XXX
+ */
+static char *
+get_flags_array_text(int flags)
+{
+	StringInfoData ret;
+
+	initStringInfo(&ret);
+	appendStringInfoChar(&ret, '{');
+
+	if (flags & GUC_NO_SHOW_ALL)
+		appendStringInfo(&ret, "NO_SHOW_ALL,");
+	if (flags & GUC_NO_RESET_ALL)
+		appendStringInfo(&ret, "NO_RESET_ALL,");
+	if (flags & GUC_NOT_IN_SAMPLE)
+		appendStringInfo(&ret, "NOT_IN_SAMPLE,");
+	if (flags & GUC_EXPLAIN)
+		appendStringInfo(&ret, "EXPLAIN,");
+	if (flags & GUC_RUNTIME_COMPUTED)
+		appendStringInfo(&ret, "RUNTIME_COMPUTED,");
+
+	/* Remove trailing comma, if any */
+	if (ret.len > 1)
+		ret.data[--ret.len] = '\0';
+
+	appendStringInfoChar(&ret, '}');
+	return ret.data;
+}
+
+/*
  * Return GUC variable value by variable number; optionally return canonical
  * form of name.  Return value is palloc'd.
  */
@@ -9861,6 +9891,9 @@ GetConfigOptionByNum(int varnum, const char **values, bool *noshow)
 	}
 
 	values[16] = (conf->status & GUC_PENDING_RESTART) ? "t" : "f";
+
+	/* flags */
+	values[17] = get_flags_array_text(conf->flags);
 }
 
 /*
@@ -9916,7 +9949,7 @@ show_config_by_name_missing_ok(PG_FUNCTION_ARGS)
  * show_all_settings - equiv to SHOW ALL command but implemented as
  * a Table Function.
  */
-#define NUM_PG_SETTINGS_ATTS	17
+#define NUM_PG_SETTINGS_ATTS	18
 
 Datum
 show_all_settings(PG_FUNCTION_ARGS)
@@ -9978,6 +10011,8 @@ show_all_settings(PG_FUNCTION_ARGS)
 						   INT4OID, -1, 0);
 		TupleDescInitEntry(tupdesc, (AttrNumber) 17, "pending_restart",
 						   BOOLOID, -1, 0);
+		TupleDescInitEntry(tupdesc, (AttrNumber) 18, "flags",
+						   TEXTARRAYOID, -1, 0);
 
 		/*
 		 * Generate attribute metadata needed later to produce tuples from raw

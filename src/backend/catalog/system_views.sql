@@ -580,7 +580,24 @@ FROM
     JOIN pg_authid rol ON l.classoid = rol.tableoid AND l.objoid = rol.oid;
 
 CREATE VIEW pg_settings AS
-    SELECT * FROM pg_show_all_settings() AS A;
+    SELECT a.name,
+    a.setting,
+    a.unit,
+    a.category,
+    a.short_desc,
+    a.extra_desc,
+    a.context,
+    a.vartype,
+    a.source,
+    a.min_val,
+    a.max_val,
+    a.enumvals,
+    a.boot_val,
+    a.reset_val,
+    a.sourcefile,
+    a.sourceline,
+    a.pending_restart
+    FROM pg_show_all_settings() AS A;
 
 CREATE RULE pg_settings_u AS
     ON UPDATE TO pg_settings
