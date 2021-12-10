@@ -3238,6 +3238,28 @@ dumpSearchPath(Archive *AH)
 	destroyPQExpBuffer(path);
 }
 
+/*
+ * Return a strdup of the input string, which is also cached for future use.
+ * The returned strings may not be freed.
+ */
+char *
+xpg_strdup(char *in)
+{
+	static char *strcache[99] = {0};
+	char *ret;
+	int i;
+	for (i=0; i < lengthof(strcache) && strcache[i] != NULL; ++i)
+	{
+		if (strcmp(in, strcache[i]) != 0)
+			continue;
+		return strcache[i];
+	}
+
+	ret = strdup(in);
+	if (i < lengthof(strcache))
+		strcache[i] = ret;
+	return ret;
+}
 
 /*
  * getBlobs:
@@ -3287,9 +3309,9 @@ getBlobs(Archive *fout)
 		binfo[i].dobj.catId.oid = atooid(PQgetvalue(res, i, i_oid));
 		AssignDumpId(&binfo[i].dobj);
 
-		binfo[i].dobj.name = pg_strdup(PQgetvalue(res, i, i_oid));
-		binfo[i].dacl.acl = pg_strdup(PQgetvalue(res, i, i_lomacl));
-		binfo[i].dacl.acldefault = pg_strdup(PQgetvalue(res, i, i_acldefault));
+		binfo[i].dobj.name = xpg_strdup(PQgetvalue(res, i, i_oid));
+		binfo[i].dacl.acl = xpg_strdup(PQgetvalue(res, i, i_lomacl));
+		binfo[i].dacl.acldefault = xpg_strdup(PQgetvalue(res, i, i_acldefault));
 		binfo[i].dacl.privtype = 0;
 		binfo[i].dacl.initprivs = NULL;
 		binfo[i].rolname = getRoleName(PQgetvalue(res, i, i_lomowner));
@@ -3409,7 +3431,7 @@ dumpBlobs(Archive *fout, const void *arg)
 	ExecuteSqlStatement(fout, blobQry);
 
 	/* Command to fetch from cursor */
-	blobFetchQry = "FETCH 1000 IN bloboid";
+	blobFetchQry = "FETCH 10000 IN bloboid";
 
 	do
 	{
