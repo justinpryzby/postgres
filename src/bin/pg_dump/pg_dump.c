@@ -3238,6 +3238,35 @@ dumpSearchPath(Archive *AH)
 	destroyPQExpBuffer(path);
 }
 
+char *
+ypg_strdup(char *in)
+{
+	static char *allocated = NULL;
+	static int pos = 0;
+	int len = strlen(in);
+	char *ret;
+
+	// If the input string is long
+	if (len > 999)
+		return strdup(in);
+
+	if (allocated == NULL)
+		allocated = pg_malloc(1000);
+
+	// If there's not enough room in the current allocation
+	if (pos + len > 999)
+	{
+		allocated = pg_malloc(1000);
+		pos = 0;
+	}
+
+	ret = allocated+pos;
+	memcpy(ret, in, len);
+	pos += len+1;
+	allocated[pos] = '\0';
+	return ret;
+}
+
 /*
  * Return a strdup of the input string, which is also cached for future use.
  * The returned strings may not be freed.
@@ -3248,6 +3277,7 @@ xpg_strdup(char *in)
 	static char *strcache[99] = {0};
 	char *ret;
 	int i;
+
 	for (i=0; i < lengthof(strcache) && strcache[i] != NULL; ++i)
 	{
 		if (strcmp(in, strcache[i]) != 0)
@@ -3255,7 +3285,8 @@ xpg_strdup(char *in)
 		return strcache[i];
 	}
 
-	ret = strdup(in);
+	// fprintf(stderr, "not cached: %s: %d\n", in, i);
+	ret = ypg_strdup(in);
 	if (i < lengthof(strcache))
 		strcache[i] = ret;
 	return ret;
@@ -3308,6 +3339,7 @@ getBlobs(Archive *fout)
 		 * Each large object has its own BLOB archive entry.
 		 */
 		binfo = (BlobInfo *) pg_malloc(ntups * sizeof(BlobInfo));
+		// fprintf(stderr, "alloc %zd\n", ntups * sizeof(BlobInfo));
 
 		for (i = 0; i < ntups; i++)
 		{
