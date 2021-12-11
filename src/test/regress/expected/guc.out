@@ -887,9 +887,10 @@ WHERE guc_explain AND NOT category ~ '^Query Tuning|^Resource Usage'
 ORDER BY 1;
         name         |                    category                     | no_show_all | no_reset_all | not_in_sample | guc_explain | guc_computed 
 ---------------------+-------------------------------------------------+-------------+--------------+---------------+-------------+--------------
+ explain_regress     | Developer Options                               | f           | f            | t             | t           | f
  force_parallel_mode | Developer Options                               | f           | f            | t             | t           | f
  search_path         | Client Connection Defaults / Statement Behavior | f           | f            | f             | t           | f
-(2 rows)
+(3 rows)
 
 -- GUCs flagged RUNTIME are Preset
 SELECT * FROM pg_settings_flags
