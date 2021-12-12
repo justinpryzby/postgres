@@ -131,6 +131,19 @@ PostgreSQL documentation
      </varlistentry>
 
      <varlistentry>
+      <term><option>-l</option></term>
+      <term><option>--logdir</option></term>
+      <listitem><para>Directory where SQL and log files will be written.
+      The directory will be created and must not exist before calling
+      <command>pg_upgrade</command>.
+      It will be removed after a successful upgrade unless
+      <option>--retain</option> is specified.
+      The default is <literal>pg_upgrade_output.d</literal> in the current
+      working directory.
+      </para></listitem>
+     </varlistentry>
+
+     <varlistentry>
       <term><option>-N</option></term>
       <term><option>--no-sync</option></term>
       <listitem>
@@ -768,7 +781,7 @@ psql --username=postgres --file=script.sql postgres
 
   <para>
    <application>pg_upgrade</application> creates various working files, such
-   as schema dumps, in the current working directory.  For security, be sure
+   as schema dumps, below the current working directory.  For security, be sure
    that that directory is not readable or writable by any other users.
   </para>
 

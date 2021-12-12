@@ -784,7 +784,8 @@ check_for_isn_and_int8_passing_mismatch(ClusterInfo *cluster)
 		return;
 	}
 
-	snprintf(output_path, sizeof(output_path),
+	snprintf(output_path, sizeof(output_path), "%s/%s",
+			 log_opts.basedir,
 			 "contrib_isn_and_int8_pass_by_value.txt");
 
 	for (dbnum = 0; dbnum < cluster->dbarr.ndbs; dbnum++)
@@ -861,7 +862,8 @@ check_for_user_defined_postfix_ops(ClusterInfo *cluster)
 
 	prep_status("Checking for user-defined postfix operators");
 
-	snprintf(output_path, sizeof(output_path),
+	snprintf(output_path, sizeof(output_path), "%s/%s",
+			 log_opts.basedir,
 			 "postfix_ops.txt");
 
 	/* Find any user defined postfix operators */
@@ -960,7 +962,8 @@ check_for_tables_with_oids(ClusterInfo *cluster)
 
 	prep_status("Checking for tables WITH OIDS");
 
-	snprintf(output_path, sizeof(output_path),
+	snprintf(output_path, sizeof(output_path), "%s/%s",
+			 log_opts.basedir,
 			 "tables_with_oids.txt");
 
 	/* Find any tables declared WITH OIDS */
@@ -1215,7 +1218,8 @@ check_for_user_defined_encoding_conversions(ClusterInfo *cluster)
 
 	prep_status("Checking for user-defined encoding conversions");
 
-	snprintf(output_path, sizeof(output_path),
+	snprintf(output_path, sizeof(output_path), "%s/%s",
+			 log_opts.basedir,
 			 "encoding_conversions.txt");
 
 	/* Find any user defined encoding conversions */

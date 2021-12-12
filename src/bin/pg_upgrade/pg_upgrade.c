@@ -84,9 +84,9 @@ main(int argc, char **argv)
 	/* Set default restrictive mask until new cluster permissions are read */
 	umask(PG_MODE_MASK_OWNER);
 
-	parseCommandLine(argc, argv);
-
 	get_restricted_token();
+
+	parseCommandLine(argc, argv);
 
 	adjust_data_dir(&old_cluster);
 	adjust_data_dir(&new_cluster);
@@ -305,8 +305,9 @@ prepare_new_globals(void)
 	prep_status("Restoring global objects in the new cluster");
 
 	exec_prog(UTILITY_LOG_FILE, NULL, true, true,
-			  "\"%s/psql\" " EXEC_PSQL_ARGS " %s -f \"%s\"",
+			  "\"%s/psql\" " EXEC_PSQL_ARGS " %s -f \"%s/dump/%s\"",
 			  new_cluster.bindir, cluster_conn_opts(&new_cluster),
+			  log_opts.basedir,
 			  GLOBALS_DUMP_FILE);
 	check_ok();
 }
@@ -351,10 +352,11 @@ create_new_objects(void)
 				  true,
 				  true,
 				  "\"%s/pg_restore\" %s %s --exit-on-error --verbose "
-				  "--dbname postgres \"%s\"",
+				  "--dbname postgres \"%s/dump/%s\"",
 				  new_cluster.bindir,
 				  cluster_conn_opts(&new_cluster),
 				  create_opts,
+				  log_opts.basedir,
 				  sql_file_name);
 
 		break;					/* done once we've processed template1 */
@@ -388,10 +390,11 @@ create_new_objects(void)
 		parallel_exec_prog(log_file_name,
 						   NULL,
 						   "\"%s/pg_restore\" %s %s --exit-on-error --verbose "
-						   "--dbname template1 \"%s\"",
+						   "--dbname template1 \"%s/dump/%s\"",
 						   new_cluster.bindir,
 						   cluster_conn_opts(&new_cluster),
 						   create_opts,
+						   log_opts.basedir,
 						   sql_file_name);
 	}
 
@@ -688,28 +691,5 @@ cleanup(void)
 
 	/* Remove dump and log files? */
 	if (!log_opts.retain)
-	{
-		int			dbnum;
-		char	  **filename;
-
-		for (filename = output_files; *filename != NULL; filename++)
-			unlink(*filename);
-
-		/* remove dump files */
-		unlink(GLOBALS_DUMP_FILE);
-
-		if (old_cluster.dbarr.dbs)
-			for (dbnum = 0; dbnum < old_cluster.dbarr.ndbs; dbnum++)
-			{
-				char		sql_file_name[MAXPGPATH],
-							log_file_name[MAXPGPATH];
-				DbInfo	   *old_db = &old_cluster.dbarr.dbs[dbnum];
-
-				snprintf(sql_file_name, sizeof(sql_file_name), DB_DUMP_FILE_MASK, old_db->db_oid);
-				unlink(sql_file_name);
-
-				snprintf(log_file_name, sizeof(log_file_name), DB_DUMP_LOG_FILE_MASK, old_db->db_oid);
-				unlink(log_file_name);
-			}
-	}
+		rmtree(log_opts.basedir, true);
 }

@@ -57,6 +57,7 @@ parseCommandLine(int argc, char *argv[])
 		{"socketdir", required_argument, NULL, 's'},
 		{"verbose", no_argument, NULL, 'v'},
 		{"clone", no_argument, NULL, 1},
+		{"logdir", required_argument, NULL, 'l'},
 
 		{NULL, 0, NULL, 0}
 	};
@@ -66,6 +67,7 @@ parseCommandLine(int argc, char *argv[])
 	FILE	   *fp;
 	char	  **filename;
 	time_t		run_time = time(NULL);
+	char		filename_path[MAXPGPATH];
 
 	user_opts.do_sync = true;
 	user_opts.transfer_mode = TRANSFER_MODE_COPY;
@@ -134,6 +136,10 @@ parseCommandLine(int argc, char *argv[])
 
 			case 'k':
 				user_opts.transfer_mode = TRANSFER_MODE_LINK;
+				break;
+
+			case 'l':
+				log_opts.basedir = pg_strdup(optarg);
 				break;
 
 			case 'N':
@@ -208,8 +214,23 @@ parseCommandLine(int argc, char *argv[])
 	if (optind < argc)
 		pg_fatal("too many command-line arguments (first is \"%s\")\n", argv[optind]);
 
-	if ((log_opts.internal = fopen_priv(INTERNAL_LOG_FILE, "a")) == NULL)
-		pg_fatal("could not open log file \"%s\": %m\n", INTERNAL_LOG_FILE);
+	if (log_opts.basedir == NULL)
+		log_opts.basedir = "pg_upgrade_output.d";
+
+	if (mkdir(log_opts.basedir, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", log_opts.basedir);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/log", log_opts.basedir);
+	if (mkdir(filename_path, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/dump", log_opts.basedir);
+	if (mkdir(filename_path, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/log/%s", log_opts.basedir, INTERNAL_LOG_FILE);
+	if ((log_opts.internal = fopen_priv(filename_path, "a")) == NULL)
+		pg_fatal("could not open log file \"%s\": %m\n", filename_path);
 
 	if (log_opts.verbose)
 		pg_log(PG_REPORT, "Running in verbose mode\n");
@@ -217,8 +238,10 @@ parseCommandLine(int argc, char *argv[])
 	/* label start of upgrade in logfiles */
 	for (filename = output_files; *filename != NULL; filename++)
 	{
-		if ((fp = fopen_priv(*filename, "a")) == NULL)
-			pg_fatal("could not write to log file \"%s\": %m\n", *filename);
+		snprintf(filename_path, sizeof(filename_path), "%s/log/%s",
+				log_opts.basedir, *filename);
+		if ((fp = fopen_priv(filename_path, "a")) == NULL)
+			pg_fatal("could not write to log file \"%s\": %m\n", filename_path);
 
 		/* Start with newline because we might be appending to a file. */
 		fprintf(fp, "\n"

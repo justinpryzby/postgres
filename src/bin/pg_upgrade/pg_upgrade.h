@@ -269,6 +269,7 @@ typedef struct
 	FILE	   *internal;		/* internal log FILE */
 	bool		verbose;		/* true -> be verbose in messages */
 	bool		retain;			/* retain log files on success */
+	char		*basedir;		/* Dir to create logfiles */
 } LogOpts;
 
 
