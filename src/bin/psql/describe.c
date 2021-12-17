@@ -246,17 +246,15 @@ describeTablespaces(const char *pattern, int verbose)
 		printACLColumn(&buf, "spcacl");
 
 		appendPQExpBuffer(&buf,
-						  ",\n  spcoptions AS \"%s\"",
-						  gettext_noop("Options"));
+						  ",\n  spcoptions AS \"%s\""
+						  ",\n  pg_catalog.shobj_description(oid, 'pg_tablespace') AS \"%s\"",
+						  gettext_noop("Options"),
+						  gettext_noop("Description"));
 
 		if (verbose > 1)
 			appendPQExpBuffer(&buf,
 							  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_tablespace_size(oid)) AS \"%s\"",
 							  gettext_noop("Size"));
-
-		appendPQExpBuffer(&buf,
-						  ",\n  pg_catalog.shobj_description(oid, 'pg_tablespace') AS \"%s\"",
-						  gettext_noop("Description"));
 	}
 
 	appendPQExpBufferStr(&buf,
@@ -1008,13 +1006,6 @@ listAllDbs(const char *pattern, int verbose)
 						  gettext_noop("ICU Rules"));
 	appendPQExpBufferStr(&buf, "  ");
 	printACLColumn(&buf, "d.datacl");
-	if (verbose > 1)
-		appendPQExpBuffer(&buf,
-						  ",\n  CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')\n"
-						  "       THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))\n"
-						  "       ELSE 'No Access'\n"
-						  "  END as \"%s\"",
-						  gettext_noop("Size"));
 
 	if (verbose > 0)
 		appendPQExpBuffer(&buf,
@@ -1022,6 +1013,14 @@ listAllDbs(const char *pattern, int verbose)
 						  ",\n  pg_catalog.shobj_description(d.oid, 'pg_database') as \"%s\"",
 						  gettext_noop("Tablespace"),
 						  gettext_noop("Description"));
+
+	if (verbose > 1)
+		appendPQExpBuffer(&buf,
+						  ",\n  CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')\n"
+						  "       THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))\n"
+						  "       ELSE 'No Access'\n"
+						  "  END as \"%s\"",
+						  gettext_noop("Size"));
 
 	appendPQExpBufferStr(&buf,
 						 "\nFROM pg_catalog.pg_database d\n");
@@ -4110,10 +4109,13 @@ listTables(const char *tabtypes, const char *pattern, int verbose, bool showSyst
 							  gettext_noop("Access method"));
 
 		appendPQExpBuffer(&buf,
-						  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_table_size(c.oid)) as \"%s\""
 						  ",\n  pg_catalog.obj_description(c.oid, 'pg_class') as \"%s\"",
-						  gettext_noop("Size"),
 						  gettext_noop("Description"));
+
+		if (verbose > 1)
+			appendPQExpBuffer(&buf,
+							  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_table_size(c.oid)) as \"%s\"",
+							  gettext_noop("Size"));
 	}
 
 	appendPQExpBufferStr(&buf,
@@ -4296,6 +4298,11 @@ listPartitionedTables(const char *reltypes, const char *pattern, int verbose)
 						  gettext_noop("Table"));
 
 	if (verbose > 0)
+		appendPQExpBuffer(&buf,
+						  ",\n  pg_catalog.obj_description(c.oid, 'pg_class') as \"%s\"",
+						  gettext_noop("Description"));
+
+	if (verbose > 1)
 	{
 		/*
 		 * Table access methods were introduced in v12, and can be set on
@@ -4319,9 +4326,6 @@ listPartitionedTables(const char *reltypes, const char *pattern, int verbose)
 							  ",\n  s.tps as \"%s\"",
 							  gettext_noop("Total size"));
 
-		appendPQExpBuffer(&buf,
-						  ",\n  pg_catalog.obj_description(c.oid, 'pg_class') as \"%s\"",
-						  gettext_noop("Description"));
 	}
 
 	appendPQExpBufferStr(&buf,
