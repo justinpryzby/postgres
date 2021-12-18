@@ -3102,7 +3102,6 @@ dead_items_reset(LVRelState *vacrel)
 
 		pgstat_progress_update_multi_param(1, progress_inds, progress_vals);
 	}
-	vacrel->dead_items = dead_items;
 }
 
 /*
