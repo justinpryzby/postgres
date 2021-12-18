@@ -128,12 +128,12 @@ describeAggregates(const char *pattern, bool verbose, bool showSystem)
  * Takes an optional regexp to select particular access methods
  */
 bool
-describeAccessMethods(const char *pattern, bool verbose)
+describeAccessMethods(const char *pattern, int verbose)
 {
 	PQExpBufferData buf;
 	PGresult   *res;
 	printQueryOpt myopt = pset.popt;
-	static const bool translate_columns[] = {false, true, false, false};
+	static const bool translate_columns[] = {false, true, false, false, false};
 
 	if (pset.sversion < 90600)
 	{
@@ -165,6 +165,11 @@ describeAccessMethods(const char *pattern, bool verbose)
 						  "  pg_catalog.obj_description(oid, 'pg_am') AS \"%s\"",
 						  gettext_noop("Handler"),
 						  gettext_noop("Description"));
+
+		if (verbose > 1 && pset.sversion >= 150000)
+			appendPQExpBuffer(&buf,
+							  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_am_size(oid)) AS \"%s\"",
+							  gettext_noop("Size"));
 	}
 
 	appendPQExpBufferStr(&buf,
@@ -198,7 +203,7 @@ describeAccessMethods(const char *pattern, bool verbose)
  * Takes an optional regexp to select particular tablespaces
  */
 bool
-describeTablespaces(const char *pattern, bool verbose)
+describeTablespaces(const char *pattern, int verbose)
 {
 	PQExpBufferData buf;
 	PGresult   *res;
@@ -218,12 +223,16 @@ describeTablespaces(const char *pattern, bool verbose)
 	{
 		appendPQExpBufferStr(&buf, ",\n  ");
 		printACLColumn(&buf, "spcacl");
+
+		if (verbose > 1)
+			appendPQExpBuffer(&buf,
+							  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_tablespace_size(oid)) AS \"%s\"",
+							  gettext_noop("Size"));
+
 		appendPQExpBuffer(&buf,
 						  ",\n  spcoptions AS \"%s\""
-						  ",\n  pg_catalog.pg_size_pretty(pg_catalog.pg_tablespace_size(oid)) AS \"%s\""
 						  ",\n  pg_catalog.shobj_description(oid, 'pg_tablespace') AS \"%s\"",
 						  gettext_noop("Options"),
-						  gettext_noop("Size"),
 						  gettext_noop("Description"));
 	}
 
@@ -877,7 +886,7 @@ describeOperators(const char *oper_pattern,
  * for \l, \list, and -l switch
  */
 bool
-listAllDbs(const char *pattern, bool verbose)
+listAllDbs(const char *pattern, int verbose)
 {
 	PGresult   *res;
 	PQExpBufferData buf;
@@ -898,7 +907,7 @@ listAllDbs(const char *pattern, bool verbose)
 					  gettext_noop("Ctype"));
 	appendPQExpBufferStr(&buf, "       ");
 	printACLColumn(&buf, "d.datacl");
-	if (verbose)
+	if (verbose > 1)
 		appendPQExpBuffer(&buf,
 						  ",\n       CASE WHEN pg_catalog.has_database_privilege(d.datname, 'CONNECT')\n"
 						  "            THEN pg_catalog.pg_size_pretty(pg_catalog.pg_database_size(d.datname))\n"
@@ -4665,7 +4674,7 @@ listCollations(const char *pattern, bool verbose, bool showSystem)
  * Describes schemas (namespaces)
  */
 bool
-listSchemas(const char *pattern, bool verbose, bool showSystem)
+listSchemas(const char *pattern, int verbose, bool showSystem)
 {
 	PQExpBufferData buf;
 	PGresult   *res;
@@ -4687,6 +4696,11 @@ listSchemas(const char *pattern, bool verbose, bool showSystem)
 		appendPQExpBuffer(&buf,
 						  ",\n  pg_catalog.obj_description(n.oid, 'pg_namespace') AS \"%s\"",
 						  gettext_noop("Description"));
+
+		if (verbose > 1 && pset.sversion >= 150000)
+			appendPQExpBuffer(&buf,
+							  ",\n  pg_catalog.pg_size_pretty(pg_namespace_size(n.oid)) AS \"%s\"",
+							  gettext_noop("Size"));
 	}
 
 	appendPQExpBufferStr(&buf,
