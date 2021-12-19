@@ -182,7 +182,7 @@ lookup_external_function(void *filehandle, const char *funcname)
  * If it fails, issue an error as specified and return NULL.
  */
 void *
-try_open_library(const char *libname, int errlevel)
+try_open_library(const char *libname, int errlevel) // , char *gucname
 {
 	void *dlh;
 	PGModuleMagicFunction magic_func;
@@ -205,9 +205,7 @@ try_open_library(const char *libname, int errlevel)
 			PG_MAGIC_FUNCTION_NAME_STRING);
 	if (magic_func == NULL)
 	{
-		/* try to close library */
 		dlclose(dlh);
-		/* complain */
 		ereport(errlevel,
 				(errmsg("incompatible library \"%s\": missing magic block",
 						libname),
