@@ -75,7 +75,7 @@ static DynamicFileList *file_tail = NULL;
 
 char	   *Dynamic_library_path;
 
-static void *internal_load_library(const char *libname);
+static void *internal_load_library(const char *libname, const char *gucname);
 static void incompatible_module_error(const char *libname,
 									  const Pg_magic_struct *module_magic_data) pg_attribute_noreturn();
 static bool file_exists(const char *name);
@@ -113,7 +113,7 @@ load_external_function(const char *filename, const char *funcname,
 	fullname = expand_dynamic_library_name(filename);
 
 	/* Load the shared library, unless we already did */
-	lib_handle = internal_load_library(fullname);
+	lib_handle = internal_load_library(fullname, NULL);
 
 	/* Return handle if caller wants it */
 	if (filehandle)
@@ -143,6 +143,15 @@ load_external_function(const char *filename, const char *funcname,
 void
 load_file(const char *filename, bool restricted)
 {
+	load_file_guc(filename, restricted, NULL);
+}
+
+/*
+ * Also accepts a GUC arg, for error reports
+ */
+void
+load_file_guc(const char *filename, bool restricted, const char *gucname)
+{
 	char	   *fullname;
 
 	/* Apply security restriction if requested */
@@ -153,7 +162,7 @@ load_file(const char *filename, bool restricted)
 	fullname = expand_dynamic_library_name(filename);
 
 	/* Load the shared library */
-	(void) internal_load_library(fullname);
+	(void) internal_load_library(fullname, gucname);
 
 	pfree(fullname);
 }
@@ -172,6 +181,7 @@ lookup_external_function(void *filehandle, const char *funcname)
 /*
  * Load the specified dynamic-link library file, unless it already is
  * loaded.  Return the pg_dl* handle for the file.
+ * gucname may be passed for error reports.
  *
  * Note: libname is expected to be an exact name for the library file.
  *
@@ -181,7 +191,7 @@ lookup_external_function(void *filehandle, const char *funcname)
  * perhaps other things that are definitely unsafe currently.
  */
 static void *
-internal_load_library(const char *libname)
+internal_load_library(const char *libname, const char *gucname)
 {
 	DynamicFileList *file_scanner;
 	PGModuleMagicFunction magic_func;
@@ -206,6 +216,7 @@ internal_load_library(const char *libname)
 		if (stat(libname, &stat_buf) == -1)
 			ereport(ERROR,
 					(errcode_for_file_access(),
+					 gucname ? errcontext("while loading shared libraries for setting \"%s\"", gucname) : 0,
 					 errmsg("could not access file \"%s\": %m",
 							libname)));
 
@@ -694,7 +705,7 @@ RestoreLibraryState(char *start_address)
 {
 	while (*start_address != '\0')
 	{
-		internal_load_library(start_address);
+		internal_load_library(start_address, NULL);
 		start_address += strlen(start_address) + 1;
 	}
 }
