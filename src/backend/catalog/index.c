@@ -2052,6 +2052,7 @@ index_constraint_create(Relation heapRelation,
 		HeapTuple	indexTuple;
 		Form_pg_index indexForm;
 		bool		dirty = false;
+		bool		primary_marked = false;
 
 		pg_index = table_open(IndexRelationId, RowExclusiveLock);
 
@@ -2065,6 +2066,7 @@ index_constraint_create(Relation heapRelation,
 		{
 			indexForm->indisprimary = true;
 			dirty = true;
+			primary_marked = true;
 		}
 
 		if (deferrable && indexForm->indimmediate)
@@ -2079,6 +2081,13 @@ index_constraint_create(Relation heapRelation,
 
 			InvokeObjectPostAlterHookArg(IndexRelationId, indexRelationId, 0,
 										 InvalidOid, is_internal);
+
+			/*
+			 * Invalidate the relcache for the table, so that after we commit
+			 * all sessions will refresh the table's primary key.
+			 */
+			if (primary_marked)
+				CacheInvalidateRelcache(heapRelation);
 		}
 
 		heap_freetuple(indexTuple);
