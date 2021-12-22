@@ -110,6 +110,15 @@ typedef struct PlannerGlobal
 	List	   *partPruneInfos;		/* List of PartitionPruneInfo contained in
 									 * the plan */
 
+	bool		containsInitialPruning;	/* Do any of those PartitionPruneInfos
+										 * have initial (pre-exec) pruning
+										 * steps in them? */
+
+	Bitmapset  *minLockRelids;	/* Indexes of all range table entries minus
+								 * indexes of range table entries of the leaf
+								 * partitions scanned by prunable subplans;
+								 * see AcquireExecutorLocks() */
+
 	List	   *relationOids;	/* OIDs of relations the plan depends on */
 
 	List	   *invalItems;		/* other dependencies, as PlanInvalItems */

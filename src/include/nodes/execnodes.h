@@ -986,6 +986,34 @@ typedef struct DomainConstraintState
  */
 typedef TupleTableSlot *(*ExecProcNodeMtd) (struct PlanState *pstate);
 
+/*----------------
+ * PartitionPruneResult
+ *
+ * The result of performing ExecutorDoInitialPruning() invocation on a given
+ * PlannedStmt.
+ *
+ * Contains a list of Bitmapset of the indexes of the subplans remaining after
+ * performing initial pruning by calling ExecFindMatchingSubPlans() for every
+ * PartitionPruneInfos found in PlannedStmt.partPruneInfos.  RT indexes of the
+ * leaf partitions scanned by those subplans across all PartitionPruneInfos
+ * are added into scan_leafpart_rtis.
+ *
+ * This is used by GetCachedPlan() to inform its callers of the pruning
+ * decisions made when performing AcquireExecutorLocks() on a given cached
+ * PlannedStmt, which the callers then pass onto the executor.  The executor
+ * refers to this node when made available when initializing the plan nodes to
+ * which those PartitionPruneInfos apply so that the same set of qualifying
+ * subplans are initialized, rather than deriving that set again by redoing
+ * initial pruning.
+ */
+typedef struct PartitionPruneResult
+{
+	NodeTag		type;
+
+	List		   *valid_subplan_offs_list;
+	Bitmapset	   *scan_leafpart_rtis;
+} PartitionPruneResult;
+
 /* ----------------
  *		PlanState node
  *

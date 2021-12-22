@@ -322,7 +322,9 @@ _outPlannedStmt(StringInfo str, const PlannedStmt *node)
 	WRITE_INT_FIELD(jitFlags);
 	WRITE_NODE_FIELD(planTree);
 	WRITE_NODE_FIELD(partPruneInfos);
+	WRITE_BOOL_FIELD(containsInitialPruning);
 	WRITE_NODE_FIELD(rtable);
+	WRITE_BITMAPSET_FIELD(minLockRelids);
 	WRITE_NODE_FIELD(resultRelations);
 	WRITE_NODE_FIELD(appendRelations);
 	WRITE_NODE_FIELD(subplans);
@@ -1017,6 +1019,8 @@ _outPartitionPruneInfo(StringInfo str, const PartitionPruneInfo *node)
 	WRITE_NODE_TYPE("PARTITIONPRUNEINFO");
 
 	WRITE_NODE_FIELD(prune_infos);
+	WRITE_BOOL_FIELD(needs_init_pruning);
+	WRITE_BOOL_FIELD(needs_exec_pruning);
 	WRITE_BITMAPSET_FIELD(other_subplans);
 }
 
@@ -1031,6 +1035,7 @@ _outPartitionedRelPruneInfo(StringInfo str, const PartitionedRelPruneInfo *node)
 	WRITE_INT_ARRAY(subplan_map, node->nparts);
 	WRITE_INT_ARRAY(subpart_map, node->nparts);
 	WRITE_OID_ARRAY(relid_map, node->nparts);
+	WRITE_INDEX_ARRAY(rti_map, node->nparts);
 	WRITE_NODE_FIELD(initial_pruning_steps);
 	WRITE_NODE_FIELD(exec_pruning_steps);
 	WRITE_BITMAPSET_FIELD(execparamids);
@@ -2436,6 +2441,8 @@ _outPlannerGlobal(StringInfo str, const PlannerGlobal *node)
 	WRITE_NODE_FIELD(resultRelations);
 	WRITE_NODE_FIELD(appendRelations);
 	WRITE_NODE_FIELD(partPruneInfos);
+	WRITE_BOOL_FIELD(containsInitialPruning);
+	WRITE_BITMAPSET_FIELD(minLockRelids);
 	WRITE_NODE_FIELD(relationOids);
 	WRITE_NODE_FIELD(invalItems);
 	WRITE_NODE_FIELD(paramExecTypes);
@@ -2855,6 +2862,21 @@ _outExtensibleNode(StringInfo str, const ExtensibleNode *node)
 
 	/* serialize the private fields */
 	methods->nodeOut(str, node);
+}
+
+/*****************************************************************************
+ *
+ *	Stuff from execnodes.h
+ *
+ *****************************************************************************/
+
+static void
+_outPartitionPruneResult(StringInfo str, const PartitionPruneResult *node)
+{
+	WRITE_NODE_TYPE("PARTITIONPRUNERESULT");
+
+	WRITE_NODE_FIELD(valid_subplan_offs_list);
+	WRITE_BITMAPSET_FIELD(scan_leafpart_rtis);
 }
 
 /*****************************************************************************
@@ -4764,6 +4786,13 @@ outNode(StringInfo str, const void *obj)
 				break;
 			case T_JsonTableSibling:
 				_outJsonTableSibling(str, obj);
+				break;
+
+				/*
+				 * EXECUTION NODES
+				 */
+			case T_PartitionPruneResult:
+				_outPartitionPruneResult(str, obj);
 				break;
 
 			default:
