@@ -742,6 +742,9 @@ cleanup(void)
 	if (rmdir(filename_path))
 		pg_log(PG_WARNING, "failed to rmdir: %s: %m\n", filename_path);
 
-	if (rmdir(log_opts.basedir))
-		pg_log(PG_WARNING, "failed to rmdir: %s: %m\n", log_opts.basedir);
+	if (strcmp(".", log_opts.basedir) != 0)
+	{
+		if (rmdir(log_opts.basedir))
+			pg_log(PG_WARNING, "failed to rmdir: %s: %m\n", log_opts.basedir);
+	}
 }

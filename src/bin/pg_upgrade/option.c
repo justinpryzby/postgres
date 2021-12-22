@@ -215,14 +215,18 @@ parseCommandLine(int argc, char *argv[])
 		pg_fatal("too many command-line arguments (first is \"%s\")\n", argv[optind]);
 
 	if (log_opts.basedir == NULL)
-		log_opts.basedir = "pg_upgrade_output.d";
+		log_opts.basedir = "."; // pg_upgrade_output.d";
 
-	if (mkdir(log_opts.basedir, 00700))
-		pg_fatal("could not create directory \"%s\": %m\n", log_opts.basedir);
+	if (strcmp(".", log_opts.basedir) != 0)
+	{
+		if (mkdir(log_opts.basedir, 00700))
+			pg_fatal("could not create directory \"%s\": %m\n", log_opts.basedir);
+	}
 
 	snprintf(filename_path, sizeof(filename_path), "%s/log", log_opts.basedir);
-	if (mkdir(filename_path, 00700))
-		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
+	if (mkdir(filename_path, 00700) && errno != EEXIST)
+		/* XXX: created by test.sh */
+		 pg_fatal("could not create directory \"%s\": %m\n", filename_path);
 
 	snprintf(filename_path, sizeof(filename_path), "%s/dump", log_opts.basedir);
 	if (mkdir(filename_path, 00700))
