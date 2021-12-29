@@ -2428,6 +2428,7 @@ statext_expressions_load(Oid stxoid, int idx)
 	ItemPointerSetInvalid(&(tmptup.t_self));
 	tmptup.t_tableOid = InvalidOid;
 	tmptup.t_data = td;
+	HeapTupleSetZeroBase(&tmptup);
 
 	tup = heap_copytuple(&tmptup);
 

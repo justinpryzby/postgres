@@ -116,6 +116,10 @@ int			wal_retrieve_retry_interval = 5000;
 int			max_slot_wal_keep_size_mb = -1;
 bool		track_wal_io_timing = false;
 
+TransactionId   start_xid = 0;
+MultiXactId     start_mx_id = 0;
+MultiXactOffset   start_mx_offset = 0;
+
 #ifdef WAL_DEBUG
 bool		XLOG_DEBUG = false;
 #endif
@@ -5395,13 +5399,13 @@ BootStrapXLOG(void)
 	checkPoint.PrevTimeLineID = BootstrapTimeLineID;
 	checkPoint.fullPageWrites = fullPageWrites;
 	checkPoint.nextXid =
-		FullTransactionIdFromEpochAndXid(0, FirstNormalTransactionId);
+		FullTransactionIdFromXid(Max(FirstNormalTransactionId + 1, start_xid));
 	checkPoint.nextOid = FirstGenbkiObjectId;
-	checkPoint.nextMulti = FirstMultiXactId;
-	checkPoint.nextMultiOffset = 0;
-	checkPoint.oldestXid = FirstNormalTransactionId;
+	checkPoint.nextMulti = Max(FirstMultiXactId + 1, start_mx_id);
+	checkPoint.nextMultiOffset = start_mx_offset;
+	checkPoint.oldestXid = XidFromFullTransactionId(checkPoint.nextXid) - 1;
 	checkPoint.oldestXidDB = TemplateDbOid;
-	checkPoint.oldestMulti = FirstMultiXactId;
+	checkPoint.oldestMulti = checkPoint.nextMulti - 1;
 	checkPoint.oldestMultiDB = TemplateDbOid;
 	checkPoint.oldestCommitTsXid = InvalidTransactionId;
 	checkPoint.newestCommitTsXid = InvalidTransactionId;
@@ -6048,14 +6052,14 @@ recoveryStopsBefore(XLogReaderState *record)
 		if (isCommit)
 		{
 			ereport(LOG,
-					(errmsg("recovery stopping before commit of transaction %u, time %s",
+					(errmsg("recovery stopping before commit of transaction %" PRIu64 ", time %s",
 							recoveryStopXid,
 							timestamptz_to_str(recoveryStopTime))));
 		}
 		else
 		{
 			ereport(LOG,
-					(errmsg("recovery stopping before abort of transaction %u, time %s",
+					(errmsg("recovery stopping before abort of transaction %" PRIu64 ", time %s",
 							recoveryStopXid,
 							timestamptz_to_str(recoveryStopTime))));
 		}
@@ -6193,7 +6197,7 @@ recoveryStopsAfter(XLogReaderState *record)
 				xact_info == XLOG_XACT_COMMIT_PREPARED)
 			{
 				ereport(LOG,
-						(errmsg("recovery stopping after commit of transaction %u, time %s",
+						(errmsg("recovery stopping after commit of transaction %" PRIu64 ", time %s",
 								recoveryStopXid,
 								timestamptz_to_str(recoveryStopTime))));
 			}
@@ -6201,7 +6205,7 @@ recoveryStopsAfter(XLogReaderState *record)
 					 xact_info == XLOG_XACT_ABORT_PREPARED)
 			{
 				ereport(LOG,
-						(errmsg("recovery stopping after abort of transaction %u, time %s",
+						(errmsg("recovery stopping after abort of transaction %" PRIu64 ", time %s",
 								recoveryStopXid,
 								timestamptz_to_str(recoveryStopTime))));
 			}
@@ -6237,7 +6241,7 @@ getRecoveryStopReason(void)
 
 	if (recoveryTarget == RECOVERY_TARGET_XID)
 		snprintf(reason, sizeof(reason),
-				 "%s transaction %u",
+				 "%s transaction " XID_FMT,
 				 recoveryStopAfter ? "after" : "before",
 				 recoveryStopXid);
 	else if (recoveryTarget == RECOVERY_TARGET_TIME)
@@ -6832,7 +6836,7 @@ StartupXLOG(void)
 					(errmsg("entering standby mode")));
 		else if (recoveryTarget == RECOVERY_TARGET_XID)
 			ereport(LOG,
-					(errmsg("starting point-in-time recovery to XID %u",
+					(errmsg("starting point-in-time recovery to XID %" PRIu64,
 							recoveryTargetXid)));
 		else if (recoveryTarget == RECOVERY_TARGET_TIME)
 			ereport(LOG,
@@ -7129,16 +7133,16 @@ StartupXLOG(void)
 							 U64FromFullTransactionId(checkPoint.nextXid),
 							 checkPoint.nextOid)));
 	ereport(DEBUG1,
-			(errmsg_internal("next MultiXactId: %u; next MultiXactOffset: %u",
+			(errmsg_internal("next MultiXactId: " XID_FMT "; next MultiXactOffset: " INT64_FORMAT,
 							 checkPoint.nextMulti, checkPoint.nextMultiOffset)));
 	ereport(DEBUG1,
-			(errmsg_internal("oldest unfrozen transaction ID: %u, in database %u",
+			(errmsg_internal("oldest unfrozen transaction ID: " XID_FMT ", in database %u",
 							 checkPoint.oldestXid, checkPoint.oldestXidDB)));
 	ereport(DEBUG1,
-			(errmsg_internal("oldest MultiXactId: %u, in database %u",
+			(errmsg_internal("oldest MultiXactId: " XID_FMT ", in database %u",
 							 checkPoint.oldestMulti, checkPoint.oldestMultiDB)));
 	ereport(DEBUG1,
-			(errmsg_internal("commit timestamp Xid oldest/newest: %u/%u",
+			(errmsg_internal("commit timestamp Xid oldest/newest: " XID_FMT "/" XID_FMT,
 							 checkPoint.oldestCommitTsXid,
 							 checkPoint.newestCommitTsXid)));
 	if (!TransactionIdIsNormal(XidFromFullTransactionId(checkPoint.nextXid)))
@@ -9394,7 +9398,7 @@ CreateCheckPoint(int flags)
 	UpdateControlFile();
 	LWLockRelease(ControlFileLock);
 
-	/* Update shared-memory copy of checkpoint XID/epoch */
+	/* Update shared-memory copy of checkpoint XID/base */
 	SpinLockAcquire(&XLogCtl->info_lck);
 	XLogCtl->ckptFullXid = checkPoint.nextXid;
 	SpinLockRelease(&XLogCtl->info_lck);
@@ -10411,7 +10415,7 @@ xlog_redo(XLogReaderState *record)
 		ControlFile->checkPointCopy.nextXid = checkPoint.nextXid;
 		LWLockRelease(ControlFileLock);
 
-		/* Update shared-memory copy of checkpoint XID/epoch */
+		/* Update shared-memory copy of checkpoint XID/base */
 		SpinLockAcquire(&XLogCtl->info_lck);
 		XLogCtl->ckptFullXid = checkPoint.nextXid;
 		SpinLockRelease(&XLogCtl->info_lck);
@@ -10470,7 +10474,7 @@ xlog_redo(XLogReaderState *record)
 		ControlFile->checkPointCopy.nextXid = checkPoint.nextXid;
 		LWLockRelease(ControlFileLock);
 
-		/* Update shared-memory copy of checkpoint XID/epoch */
+		/* Update shared-memory copy of checkpoint XID/base */
 		SpinLockAcquire(&XLogCtl->info_lck);
 		XLogCtl->ckptFullXid = checkPoint.nextXid;
 		SpinLockRelease(&XLogCtl->info_lck);
