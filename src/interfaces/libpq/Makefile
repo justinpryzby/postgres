@@ -35,6 +35,11 @@ LIBS += -llz4
 SHLIB_LINK += -llz4
 endif
 
+ifeq ($(with_zstd),yes)
+LIBS += -lzstd
+SHLIB_LINK += -lzstd
+endif
+
 ifeq ($(with_zlib),yes)
 LIBS += -lz
 SHLIB_LINK += -lz
