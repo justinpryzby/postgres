@@ -9,12 +9,12 @@ exist (starting with empty contents) in every session before using them.
 
 The temporary table implementation in PostgreSQL, known as Local temp tables(LTT),
 did not fully comply with the SQL standard. This version added the support of
-Global Temporary Table .
+Global Temporary Table.
 
 The metadata of Global Temporary Table is persistent and shared among sessions.
-The data stored in the Global temporary table is independent of sessions. This
-means, when a session creates a Global Temporary Table and writes some data.
-Other sessions cannot see those data, but they have an empty Global Temporary
+The data stored in the Global temporary table is specific to each sessions. This
+means that when a session creates a Global Temporary Table and writes some data,
+other sessions cannot see that data, but they have an empty Global Temporary
 Table with same schema.
 
 Like local temporary table, Global Temporary Table supports ON COMMIT PRESERVE ROWS
@@ -24,7 +24,7 @@ cleaned up or preserved automatically when a session exits or a transaction COMM
 Unlike Local Temporary Table, Global Temporary Table does not support
 ON COMMIT DROP clauses.
 
-In following paragraphs, we use GTT for Global Temporary Table and LTT for
+In the following paragraphs, we use GTT for Global Temporary Table and LTT for
 local temporary table.
 
 Main design ideas
@@ -34,20 +34,20 @@ implementation. The storage files for both types of temporary tables are named
 as t_backendid_relfilenode, and the local buffer is used to cache the data.
 
 The schema of GTTs is shared among sessions while their data are not. We build
-a new mechanisms to manage those non-shared data and their statistics.
+a new mechanism to manage those non-shared data and their statistics.
 Here is the summary of changes:
 
 1) CATALOG
-GTTs store session-specific data. The storage information of GTTs'data, their
+GTTs store session-specific data. The storage information of GTTs' data, their
 transaction information, and their statistics are not stored in the catalog.
 
 2) STORAGE INFO & STATISTICS INFO & TRANSACTION INFO
-In order to maintain durability and availability of GTTs'session-specific data,
-their storage information, statistics, and transaction information is managed
+In order to maintain durability and availability of GTTs' session-specific data,
+their storage information, statistics, and transaction information are managed
 in a local hash table tt_storage_local_hash.
 
 3) DDL
-Currently, GTT supports almost all table'DDL except CLUSTER/VACUUM FULL.
+Currently, GTT supports almost all table DDL except CLUSTER/VACUUM FULL.
 Part of the DDL behavior is limited by shared definitions and multiple copies of
 local data, and we added some structures to handle this.
 
@@ -55,12 +55,12 @@ A shared hash table active_gtt_shared_hash is added to track the state of the
 GTT in a different session. This information is recorded in the hash table
 during the DDL execution of the GTT.
 
-The data stored in a GTT can only be modified or accessed by owning session.
-The statements that only modify data in a GTT do not need a high level of
-table locking. The operations making those changes include truncate GTT,
+The data stored in a GTT can only be modified or accessed by the owning session.
+The statements that only modify data in a GTT do not need strong
+table locks. The operations which require strong locks include truncate GTT,
 reindex GTT, and lock GTT.
 
-4) MVCC commit log(clog) cleanup
+4) MVCC Commit Log(clog) Cleanup
 Each GTT in a session has its own piece of data, and they have their own
 transaction information. We set up data structures to track and maintain
 this information. The cleaning of CLOGs also needs to consider the transaction
@@ -138,7 +138,7 @@ concurrently between sessions, unlike normal tables.
 A lock GTT statement does not hold any relation lock.
 
 3.7 CLUSTER GTT/VACUUM FULL GTT
-The current version does not support.
+Not currently supported.
 
 4 MVCC commit log(clog) cleanup
 
@@ -168,5 +168,5 @@ Planner does not produce parallel query plans for SQL related to GTT. Because
 GTT private data cannot be accessed across processes.
 
 5.2 WAL and Logical replication
-Like LTT, the DML on GTT does not record WAL and is not parsed or replay by
-the logical replication.
+Like LTT, the DML on GTT does not record WAL and is not parsed or replayed by
+logical replication.
