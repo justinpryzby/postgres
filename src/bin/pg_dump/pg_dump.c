@@ -3348,7 +3348,7 @@ getBlobs(Archive *fout)
 			binfo[i].dobj.catId.oid = atooid(PQgetvalue(res, i, i_oid));
 			AssignDumpId(&binfo[i].dobj);
 
-			binfo[i].dobj.name = xpg_strdup(PQgetvalue(res, i, i_oid));
+			binfo[i].dobj.name = ""; // xpg_strdup(PQgetvalue(res, i, i_oid));
 			binfo[i].dacl.acl = xpg_strdup(PQgetvalue(res, i, i_lomacl));
 			binfo[i].dacl.acldefault = xpg_strdup(PQgetvalue(res, i, i_acldefault));
 			binfo[i].dacl.privtype = 0;
