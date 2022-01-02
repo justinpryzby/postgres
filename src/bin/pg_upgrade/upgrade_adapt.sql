@@ -84,8 +84,8 @@ DO $stmt$
 \if :oldpgversion_le13
 -- Until v10, operators could only be dropped one at a time, so be careful
 -- to stick with one command for each drop here.
-DROP OPERATOR public.#@# (pg_catalog.int8, NONE);
-DROP OPERATOR public.#%# (pg_catalog.int8, NONE);
-DROP OPERATOR public.!=- (pg_catalog.int8, NONE);
-DROP OPERATOR public.#@%# (pg_catalog.int8, NONE);
+DROP OPERATOR IF EXISTS public.#@# (pg_catalog.int8, NONE);
+DROP OPERATOR IF EXISTS public.#%# (pg_catalog.int8, NONE);
+DROP OPERATOR IF EXISTS public.!=- (pg_catalog.int8, NONE);
+DROP OPERATOR IF EXISTS public.#@%# (pg_catalog.int8, NONE);
 \endif

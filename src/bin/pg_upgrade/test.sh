@@ -24,7 +24,14 @@ standard_initdb() {
 	# without increasing test runtime, run these tests with a custom setting.
 	# Also, specify "-A trust" explicitly to suppress initdb's warning.
 	# --allow-group-access and --wal-segsize have been added in v11.
-	"$1" -N --wal-segsize 1 --allow-group-access -A trust
+	if [ "$oldpgversion" -ge 110000 ]; then
+		"$1" -A trust --no-sync --wal-segsize 1 --allow-group-access
+	elif [ "$oldpgversion" -ge 93000 ]; then
+		"$1" -A trust --no-sync
+	else
+		"$1" -A trust
+	fi
+
 	if [ -n "$TEMP_CONFIG" -a -r "$TEMP_CONFIG" ]
 	then
 		cat "$TEMP_CONFIG" >> "$PGDATA/postgresql.conf"
@@ -82,12 +89,25 @@ mkdir "$temp_root"
 oldsrc=`cd "$oldsrc" && pwd`
 newsrc=`cd ../../.. && pwd`
 
+# See similar logic in pg_upgrade/exec.c
+#oldpgversion0=`"$oldbindir"/pg_ctl --version`
+#oldpgversion=`echo "$oldpgversion0" |awk 'NF>=3 && $3~/^[0-9]+(\.[0-9]+|devel$)/{split($3, a, "\\\\."); print int(a[1])}'`
+#[ -n "$oldpgversion" ] || {
+	#echo "Could not determine version of old cluster: $oldpgversion0";
+	#exit 1
+#}
+oldpgversion=`grep '#define PG_VERSION_NUM' "$oldsrc"/src/include/pg_config.h | awk '{print $3}'`
+
 # We need to make pg_regress use psql from the desired installation
 # (likely a temporary one), because otherwise the installcheck run
 # below would try to use psql from the proper installation directory
 # of the target version, which might be outdated or not exist. But
 # don't override anything else that's already in EXTRA_REGRESS_OPTS.
-EXTRA_REGRESS_OPTS="$EXTRA_REGRESS_OPTS --bindir='$oldbindir'"
+if [ "$oldpgversion" -ge 100000 ]; then
+	EXTRA_REGRESS_OPTS="$EXTRA_REGRESS_OPTS --bindir='$oldbindir'"
+else
+	EXTRA_REGRESS_OPTS="$EXTRA_REGRESS_OPTS --psqldir='$bindir'"
+fi
 export EXTRA_REGRESS_OPTS
 
 # While in normal cases this will already be set up, adding bindir to
@@ -135,7 +155,7 @@ PGCONNECT_TIMEOUT=""; unset PGCONNECT_TIMEOUT
 PGHOSTADDR="";        unset PGHOSTADDR
 
 # Select a non-conflicting port number, similarly to pg_regress.c
-PG_VERSION_NUM=`grep '#define PG_VERSION_NUM' "$newsrc"/src/include/pg_config.h | awk '{print $3}'`
+PG_VERSION_NUM=`grep '#define PG_VERSION_NUM' "$oldsrc"/src/include/pg_config.h | awk '{print $3}'`
 PGPORT=`expr $PG_VERSION_NUM % 16384 + 49152`
 export PGPORT
 
@@ -176,8 +196,6 @@ createdb "regression$dbname3" || createdb_status=$?
 extra_dump_options=""
 
 if "$MAKE" -C "$oldsrc" installcheck-parallel; then
-	oldpgversion=`psql -X -A -t -d regression -c "SHOW server_version_num"`
-
 	# Before dumping, tweak the database of the old instance depending
 	# on its version.
 	if [ "$newsrc" != "$oldsrc" ]; then
@@ -239,16 +257,16 @@ pg_upgrade $PG_UPGRADE_OPTS --no-sync -d "${PGDATA}.old" -D "$PGDATA" -b "$oldbi
 # Windows hosts don't support Unix-y permissions.
 case $testhost in
 	MINGW*|CYGWIN*) ;;
-	*)	if [ `find "$PGDATA" -type f ! -perm 640 | wc -l` -ne 0 ]; then
-			echo "files in PGDATA with permission != 640";
+	*)	if [ `find "$PGDATA" -type f ! -perm 640 ! -perm 600 | wc -l` -ne 0 ]; then
+			echo "files in PGDATA with permission NOT IN (640,600)";
 			exit 1;
 		fi ;;
 esac
 
 case $testhost in
 	MINGW*|CYGWIN*) ;;
-	*)	if [ `find "$PGDATA" -type d ! -perm 750 | wc -l` -ne 0 ]; then
-			echo "directories in PGDATA with permission != 750";
+	*)	if [ `find "$PGDATA" -type d ! -perm 750 ! -perm 700 | wc -l` -ne 0 ]; then
+			echo "directories in PGDATA with permission NOT IN (750,700)";
 			exit 1;
 		fi ;;
 esac
