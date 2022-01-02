@@ -2788,6 +2788,7 @@ dumpDatabase(Archive *fout)
 					  "datcollate, datctype, datfrozenxid, "
 					  "datacl, acldefault('d', datdba) AS acldefault, "
 					  "datistemplate, datconnlimit, ");
+
 	if (fout->remoteVersion >= 90300)
 		appendPQExpBuffer(dbQry, "datminmxid, ");
 	else
@@ -3041,15 +3042,13 @@ dumpDatabase(Archive *fout)
 		 * pg_largeobject
 		 */
 		if (fout->remoteVersion >= 90300)
-			appendPQExpBuffer(loFrozenQry, "SELECT relfrozenxid, relminmxid\n"
-							  "FROM pg_catalog.pg_class\n"
-							  "WHERE oid = %u;\n",
-							  LargeObjectRelationId);
+			appendPQExpBuffer(loFrozenQry, "SELECT relfrozenxid, relminmxid\n");
 		else
-			appendPQExpBuffer(loFrozenQry, "SELECT relfrozenxid, 0 AS relminmxid\n"
-							  "FROM pg_catalog.pg_class\n"
-							  "WHERE oid = %u;\n",
-							  LargeObjectRelationId);
+			appendPQExpBuffer(loFrozenQry, "SELECT relfrozenxid, 0 AS relminmxid\n");
+		appendPQExpBuffer(loFrozenQry,
+						  "FROM pg_catalog.pg_class\n"
+						  "WHERE oid = %u;\n",
+						  LargeObjectRelationId);
 
 		lo_res = ExecuteSqlQueryForSingleRow(fout, loFrozenQry->data);
 
@@ -3778,24 +3777,22 @@ getPublications(Archive *fout, int *numPublications)
 	resetPQExpBuffer(query);
 
 	/* Get the publications. */
+	appendPQExpBuffer(query,
+					  "SELECT p.tableoid, p.oid, p.pubname, "
+					  "p.pubowner, p.puballtables, p.pubinsert, p.pubupdate, p.pubdelete, ");
+
 	if (fout->remoteVersion >= 130000)
 		appendPQExpBuffer(query,
-						  "SELECT p.tableoid, p.oid, p.pubname, "
-						  "p.pubowner, "
-						  "p.puballtables, p.pubinsert, p.pubupdate, p.pubdelete, p.pubtruncate, p.pubviaroot "
-						  "FROM pg_publication p");
+						  "p.pubtruncate, p.pubviaroot ");
 	else if (fout->remoteVersion >= 110000)
 		appendPQExpBuffer(query,
-						  "SELECT p.tableoid, p.oid, p.pubname, "
-						  "p.pubowner, "
-						  "p.puballtables, p.pubinsert, p.pubupdate, p.pubdelete, p.pubtruncate, false AS pubviaroot "
-						  "FROM pg_publication p");
+						  "p.pubtruncate, false AS pubviaroot ");
 	else
 		appendPQExpBuffer(query,
-						  "SELECT p.tableoid, p.oid, p.pubname, "
-						  "p.pubowner, "
-						  "p.puballtables, p.pubinsert, p.pubupdate, p.pubdelete, false AS pubtruncate, false AS pubviaroot "
-						  "FROM pg_publication p");
+						  "false AS pubtruncate, false AS pubviaroot ");
+
+	appendPQExpBuffer(query,
+					  "FROM pg_publication p");
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
@@ -5567,66 +5564,54 @@ getAggregates(Archive *fout, int *numAggs)
 	int			i_aggacl;
 	int			i_acldefault;
 
+	appendPQExpBuffer(query, "SELECT p.tableoid, p.oid, p.proname AS aggname, "
+					  "p.pronamespace AS aggnamespace, "
+					  "p.pronargs, p.proargtypes, "
+					  "p.proowner, "
+					  "p.proacl AS aggacl, "
+					  "acldefault('f', p.proowner) AS acldefault "
+					  "FROM pg_proc p ");
+
 	/*
 	 * Find all interesting aggregates.  See comment in getFuncs() for the
 	 * rationale behind the filtering logic.
 	 */
 	if (fout->remoteVersion >= 90600)
 	{
-		const char *agg_check;
-
-		agg_check = (fout->remoteVersion >= 110000 ? "p.prokind = 'a'"
-					 : "p.proisagg");
-
-		appendPQExpBuffer(query, "SELECT p.tableoid, p.oid, "
-						  "p.proname AS aggname, "
-						  "p.pronamespace AS aggnamespace, "
-						  "p.pronargs, p.proargtypes, "
-						  "p.proowner, "
-						  "p.proacl AS aggacl, "
-						  "acldefault('f', p.proowner) AS acldefault "
-						  "FROM pg_proc p "
+		appendPQExpBuffer(query,
 						  "LEFT JOIN pg_init_privs pip ON "
 						  "(p.oid = pip.objoid "
 						  "AND pip.classoid = 'pg_proc'::regclass "
-						  "AND pip.objsubid = 0) "
-						  "WHERE %s AND ("
-						  "p.pronamespace != "
+						  "AND pip.objsubid = 0) ");
+
+		if (fout->remoteVersion >= 110000)
+			appendPQExpBuffer(query, "WHERE p.prokind = 'a' ");
+		else
+			appendPQExpBuffer(query, "WHERE p.proisagg ");
+
+		appendPQExpBuffer(query,
+						  "AND (p.pronamespace != "
 						  "(SELECT oid FROM pg_namespace "
 						  "WHERE nspname = 'pg_catalog') OR "
-						  "p.proacl IS DISTINCT FROM pip.initprivs",
-						  agg_check);
-		if (dopt->binary_upgrade)
-			appendPQExpBufferStr(query,
-								 " OR EXISTS(SELECT 1 FROM pg_depend WHERE "
-								 "classid = 'pg_proc'::regclass AND "
-								 "objid = p.oid AND "
-								 "refclassid = 'pg_extension'::regclass AND "
-								 "deptype = 'e')");
-		appendPQExpBufferChar(query, ')');
+						  "p.proacl IS DISTINCT FROM pip.initprivs");
 	}
 	else
 	{
-		appendPQExpBuffer(query, "SELECT tableoid, oid, proname AS aggname, "
-						  "pronamespace AS aggnamespace, "
-						  "pronargs, proargtypes, "
-						  "proowner, "
-						  "proacl AS aggacl, "
-						  "acldefault('f', proowner) AS acldefault "
-						  "FROM pg_proc p "
+		appendPQExpBuffer(query,
 						  "WHERE proisagg AND ("
 						  "pronamespace != "
 						  "(SELECT oid FROM pg_namespace "
 						  "WHERE nspname = 'pg_catalog')");
-		if (dopt->binary_upgrade)
-			appendPQExpBufferStr(query,
-								 " OR EXISTS(SELECT 1 FROM pg_depend WHERE "
-								 "classid = 'pg_proc'::regclass AND "
-								 "objid = p.oid AND "
-								 "refclassid = 'pg_extension'::regclass AND "
-								 "deptype = 'e')");
-		appendPQExpBufferChar(query, ')');
 	}
+
+	if (dopt->binary_upgrade)
+		appendPQExpBufferStr(query,
+							 " OR EXISTS(SELECT 1 FROM pg_depend WHERE "
+							 "classid = 'pg_proc'::regclass AND "
+							 "objid = p.oid AND "
+							 "refclassid = 'pg_extension'::regclass AND "
+							 "deptype = 'e')");
+	appendPQExpBufferChar(query, ')');
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
@@ -5736,93 +5721,62 @@ getFuncs(Archive *fout, int *numFuncs)
 	 * pg_catalog if they have an ACL different from what's shown in
 	 * pg_init_privs (so we have to join to pg_init_privs; annoying).
 	 */
+	appendPQExpBuffer(query,
+					  "SELECT p.tableoid, p.oid, p.proname, p.prolang, "
+					  "p.pronargs, p.proargtypes, p.prorettype, p.proacl, "
+					  "acldefault('f', p.proowner) AS acldefault, "
+					  "p.pronamespace, "
+					  "p.proowner "
+					  "FROM pg_proc p ");
+
 	if (fout->remoteVersion >= 90600)
-	{
-		const char *not_agg_check;
-
-		not_agg_check = (fout->remoteVersion >= 110000 ? "p.prokind <> 'a'"
-						 : "NOT p.proisagg");
-
 		appendPQExpBuffer(query,
-						  "SELECT p.tableoid, p.oid, p.proname, p.prolang, "
-						  "p.pronargs, p.proargtypes, p.prorettype, "
-						  "p.proacl, "
-						  "acldefault('f', p.proowner) AS acldefault, "
-						  "p.pronamespace, "
-						  "p.proowner "
-						  "FROM pg_proc p "
 						  "LEFT JOIN pg_init_privs pip ON "
 						  "(p.oid = pip.objoid "
 						  "AND pip.classoid = 'pg_proc'::regclass "
-						  "AND pip.objsubid = 0) "
-						  "WHERE %s"
-						  "\n  AND NOT EXISTS (SELECT 1 FROM pg_depend "
-						  "WHERE classid = 'pg_proc'::regclass AND "
-						  "objid = p.oid AND deptype = 'i')"
-						  "\n  AND ("
-						  "\n  pronamespace != "
-						  "(SELECT oid FROM pg_namespace "
-						  "WHERE nspname = 'pg_catalog')"
-						  "\n  OR EXISTS (SELECT 1 FROM pg_cast"
-						  "\n  WHERE pg_cast.oid > %u "
-						  "\n  AND p.oid = pg_cast.castfunc)"
+						  "AND pip.objsubid = 0) ");
+
+	if (fout->remoteVersion >= 110000)
+		appendPQExpBuffer(query, "WHERE p.prokind <> 'a'");
+	else
+		appendPQExpBuffer(query, "WHERE NOT p.proisagg");
+
+	appendPQExpBuffer(query,
+					  "\n  AND NOT EXISTS (SELECT 1 FROM pg_depend "
+					  "WHERE classid = 'pg_proc'::regclass AND "
+					  "objid = p.oid AND deptype = 'i')"
+					  "\n  AND ("
+					  "\n  pronamespace != "
+					  "(SELECT oid FROM pg_namespace "
+					  "WHERE nspname = 'pg_catalog')"
+					  "\n  OR EXISTS (SELECT 1 FROM pg_cast"
+					  "\n  WHERE pg_cast.oid > %u "
+					//"\n  WHERE pg_cast.oid > '%u'::oid"
+					  "\n  AND p.oid = pg_cast.castfunc)",
+					  g_last_builtin_oid);
+
+	if (fout->remoteVersion >= 90500)
+			appendPQExpBuffer(query,
 						  "\n  OR EXISTS (SELECT 1 FROM pg_transform"
-						  "\n  WHERE pg_transform.oid > %u AND "
-						  "\n  (p.oid = pg_transform.trffromsql"
+						  "\n  WHERE pg_transform.oid > '%u'::oid"
+						// "\n  WHERE pg_transform.oid > %u "
+						  "\n  AND (p.oid = pg_transform.trffromsql"
 						  "\n  OR p.oid = pg_transform.trftosql))",
-						  not_agg_check,
-						  g_last_builtin_oid,
 						  g_last_builtin_oid);
-		if (dopt->binary_upgrade)
-			appendPQExpBufferStr(query,
-								 "\n  OR EXISTS(SELECT 1 FROM pg_depend WHERE "
-								 "classid = 'pg_proc'::regclass AND "
-								 "objid = p.oid AND "
-								 "refclassid = 'pg_extension'::regclass AND "
-								 "deptype = 'e')");
+
+	if (dopt->binary_upgrade)
+		appendPQExpBufferStr(query,
+							 "\n  OR EXISTS(SELECT 1 FROM pg_depend WHERE "
+							 "classid = 'pg_proc'::regclass AND "
+							 "objid = p.oid AND "
+							 "refclassid = 'pg_extension'::regclass AND "
+							 "deptype = 'e')");
+
+	if (fout->remoteVersion >= 90600)
 		appendPQExpBufferStr(query,
 							 "\n  OR p.proacl IS DISTINCT FROM pip.initprivs");
-		appendPQExpBufferChar(query, ')');
-	}
-	else
-	{
-		appendPQExpBuffer(query,
-						  "SELECT tableoid, oid, proname, prolang, "
-						  "pronargs, proargtypes, prorettype, proacl, "
-						  "acldefault('f', proowner) AS acldefault, "
-						  "pronamespace, "
-						  "proowner "
-						  "FROM pg_proc p "
-						  "WHERE NOT proisagg"
-						  "\n  AND NOT EXISTS (SELECT 1 FROM pg_depend "
-						  "WHERE classid = 'pg_proc'::regclass AND "
-						  "objid = p.oid AND deptype = 'i')"
-						  "\n  AND ("
-						  "\n  pronamespace != "
-						  "(SELECT oid FROM pg_namespace "
-						  "WHERE nspname = 'pg_catalog')"
-						  "\n  OR EXISTS (SELECT 1 FROM pg_cast"
-						  "\n  WHERE pg_cast.oid > '%u'::oid"
-						  "\n  AND p.oid = pg_cast.castfunc)",
-						  g_last_builtin_oid);
 
-		if (fout->remoteVersion >= 90500)
-			appendPQExpBuffer(query,
-							  "\n  OR EXISTS (SELECT 1 FROM pg_transform"
-							  "\n  WHERE pg_transform.oid > '%u'::oid"
-							  "\n  AND (p.oid = pg_transform.trffromsql"
-							  "\n  OR p.oid = pg_transform.trftosql))",
-							  g_last_builtin_oid);
-
-		if (dopt->binary_upgrade)
-			appendPQExpBufferStr(query,
-								 "\n  OR EXISTS(SELECT 1 FROM pg_depend WHERE "
-								 "classid = 'pg_proc'::regclass AND "
-								 "objid = p.oid AND "
-								 "refclassid = 'pg_extension'::regclass AND "
-								 "deptype = 'e')");
-		appendPQExpBufferChar(query, ')');
-	}
+	appendPQExpBufferChar(query, ')');
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
@@ -6535,23 +6489,24 @@ getIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 	 * Note: the check on conrelid is redundant, but useful because that
 	 * column is indexed while conindid is not.
 	 */
+	appendPQExpBuffer(query,
+					  "FROM unnest('%s'::pg_catalog.oid[]) AS src(tbloid)\n"
+					  "JOIN pg_catalog.pg_index i ON (src.tbloid = i.indrelid) "
+					  "JOIN pg_catalog.pg_class t ON (t.oid = i.indexrelid) "
+					  "LEFT JOIN pg_catalog.pg_constraint c "
+					  "ON (i.indrelid = c.conrelid AND "
+					  "i.indexrelid = c.conindid AND "
+					  "c.contype IN ('p','u','x')) ",
+					  tbloids->data);
+
 	if (fout->remoteVersion >= 110000)
 	{
 		appendPQExpBuffer(query,
-						  "FROM unnest('%s'::pg_catalog.oid[]) AS src(tbloid)\n"
-						  "JOIN pg_catalog.pg_index i ON (src.tbloid = i.indrelid) "
-						  "JOIN pg_catalog.pg_class t ON (t.oid = i.indexrelid) "
 						  "JOIN pg_catalog.pg_class t2 ON (t2.oid = i.indrelid) "
-						  "LEFT JOIN pg_catalog.pg_constraint c "
-						  "ON (i.indrelid = c.conrelid AND "
-						  "i.indexrelid = c.conindid AND "
-						  "c.contype IN ('p','u','x')) "
 						  "LEFT JOIN pg_catalog.pg_inherits inh "
 						  "ON (inh.inhrelid = indexrelid) "
 						  "WHERE (i.indisvalid OR t2.relkind = 'p') "
-						  "AND i.indisready "
-						  "ORDER BY i.indrelid, indexname",
-						  tbloids->data);
+						  "AND i.indisready ");
 	}
 	else
 	{
@@ -6559,18 +6514,10 @@ getIndexes(Archive *fout, TableInfo tblinfo[], int numTables)
 		 * the test on indisready is necessary in 9.2, and harmless in
 		 * earlier/later versions
 		 */
-		appendPQExpBuffer(query,
-						  "FROM unnest('%s'::pg_catalog.oid[]) AS src(tbloid)\n"
-						  "JOIN pg_catalog.pg_index i ON (src.tbloid = i.indrelid) "
-						  "JOIN pg_catalog.pg_class t ON (t.oid = i.indexrelid) "
-						  "LEFT JOIN pg_catalog.pg_constraint c "
-						  "ON (i.indrelid = c.conrelid AND "
-						  "i.indexrelid = c.conindid AND "
-						  "c.contype IN ('p','u','x')) "
-						  "WHERE i.indisvalid AND i.indisready "
-						  "ORDER BY i.indrelid, indexname",
-						  tbloids->data);
+		appendPQExpBuffer(query, "WHERE i.indisvalid AND i.indisready ");
 	}
+
+	appendPQExpBuffer(query, "ORDER BY i.indrelid, indexname");
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
@@ -6744,14 +6691,16 @@ getExtendedStatistics(Archive *fout)
 
 	query = createPQExpBuffer();
 
-	if (fout->remoteVersion < 130000)
-		appendPQExpBuffer(query, "SELECT tableoid, oid, stxname, "
-						  "stxnamespace, stxowner, (-1) AS stxstattarget "
-						  "FROM pg_catalog.pg_statistic_ext");
+	appendPQExpBuffer(query, "SELECT tableoid, oid, stxname, ");
+
+	if (fout->remoteVersion >= 130000)
+		appendPQExpBuffer(query,
+						  "stxnamespace, stxowner, stxstattarget ");
 	else
-		appendPQExpBuffer(query, "SELECT tableoid, oid, stxname, "
-						  "stxnamespace, stxowner, stxstattarget "
-						  "FROM pg_catalog.pg_statistic_ext");
+		appendPQExpBuffer(query,
+						  "stxnamespace, stxowner, (-1) AS stxstattarget ");
+
+	appendPQExpBuffer(query, "FROM pg_catalog.pg_statistic_ext");
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
@@ -7639,26 +7588,21 @@ getCasts(Archive *fout, int *numCasts)
 	int			i_castcontext;
 	int			i_castmethod;
 
+	appendPQExpBufferStr(query, "SELECT tableoid, oid, "
+						 "castsource, casttarget, castfunc, castcontext, castmethod "
+						 "FROM pg_cast c ");
+
 	if (fout->remoteVersion >= 140000)
 	{
-		appendPQExpBufferStr(query, "SELECT tableoid, oid, "
-							 "castsource, casttarget, castfunc, castcontext, "
-							 "castmethod "
-							 "FROM pg_cast c "
+		appendPQExpBufferStr(query,
 							 "WHERE NOT EXISTS ( "
 							 "SELECT 1 FROM pg_range r "
 							 "WHERE c.castsource = r.rngtypid "
 							 "AND c.casttarget = r.rngmultitypid "
-							 ") "
-							 "ORDER BY 3,4");
+							 ") ");
 	}
-	else
-	{
-		appendPQExpBufferStr(query, "SELECT tableoid, oid, "
-							 "castsource, casttarget, castfunc, castcontext, "
-							 "castmethod "
-							 "FROM pg_cast ORDER BY 3,4");
-	}
+
+	appendPQExpBufferStr(query, "ORDER BY 3,4");
 
 	res = ExecuteSqlQuery(fout, query->data, PGRES_TUPLES_OK);
 
