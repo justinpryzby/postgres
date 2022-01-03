@@ -103,7 +103,8 @@ oldpgversion=`grep '#define PG_VERSION_NUM' "$oldsrc"/src/include/pg_config.h | 
 # below would try to use psql from the proper installation directory
 # of the target version, which might be outdated or not exist. But
 # don't override anything else that's already in EXTRA_REGRESS_OPTS.
-if [ "$oldpgversion" -ge 100000 ]; then
+#echo "ver:$oldpgversion" >&2
+if [ "$oldpgversion" -ge 95000 ]; then
 	EXTRA_REGRESS_OPTS="$EXTRA_REGRESS_OPTS --bindir='$oldbindir'"
 else
 	EXTRA_REGRESS_OPTS="$EXTRA_REGRESS_OPTS --psqldir='$bindir'"
