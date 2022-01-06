@@ -29,7 +29,7 @@ extern void PmemXLogSync(void);
 #include <stdlib.h> /* abort */
 
 static inline XLogSegNo
-PmemXLogEnsurePrevMapped(XLogRecPtr ptr, tli)
+PmemXLogEnsurePrevMapped(XLogRecPtr ptr, TimeLineID tli)
 {
 	abort();
 	return 0;
