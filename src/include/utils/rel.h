@@ -164,6 +164,13 @@ typedef struct RelationData
 	PublicationActions *rd_pubactions;	/* publication actions */
 
 	/*
+	 * true if the columns referenced in row filters from all the publications
+	 * the relation is in are part of the replica identity, or the publication
+	 * actions do not include UPDATE or DELETE.
+	 */
+	bool		rd_rfcol_valid;
+
+	/*
 	 * rd_options is set whenever rd_rel is loaded into the relcache entry.
 	 * Note that you can NOT look into rd_rel for this data.  NULL means "use
 	 * defaults".

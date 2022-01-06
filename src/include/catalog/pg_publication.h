@@ -86,6 +86,7 @@ typedef struct Publication
 typedef struct PublicationRelInfo
 {
 	Relation	relation;
+	Node	   *whereClause;
 } PublicationRelInfo;
 
 extern Publication *GetPublication(Oid pubid);
@@ -123,13 +124,13 @@ extern List *GetPubPartitionOptionRelations(List *result,
 
 extern bool is_publishable_relation(Relation rel);
 extern bool is_schema_publication(Oid pubid);
-extern ObjectAddress publication_add_relation(Oid pubid, PublicationRelInfo *targetrel,
+extern ObjectAddress publication_add_relation(Oid pubid, PublicationRelInfo *pri,
 											  bool if_not_exists);
 extern ObjectAddress publication_add_schema(Oid pubid, Oid schemaid,
 											bool if_not_exists);
 
 extern Oid	get_publication_oid(const char *pubname, bool missing_ok);
 extern char *get_publication_name(Oid pubid, bool missing_ok);
-
+extern Oid	GetTopMostAncestorInPublication(Oid puboid, List *ancestors);
 
 #endif							/* PG_PUBLICATION_H */

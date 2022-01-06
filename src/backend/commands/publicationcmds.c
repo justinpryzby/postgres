@@ -26,6 +26,7 @@
 #include "catalog/partition.h"
 #include "catalog/pg_inherits.h"
 #include "catalog/pg_namespace.h"
+#include "catalog/pg_proc.h"
 #include "catalog/pg_publication.h"
 #include "catalog/pg_publication_namespace.h"
 #include "catalog/pg_publication_rel.h"
@@ -36,6 +37,10 @@
 #include "commands/publicationcmds.h"
 #include "funcapi.h"
 #include "miscadmin.h"
+#include "nodes/nodeFuncs.h"
+#include "parser/parse_clause.h"
+#include "parser/parse_collate.h"
+#include "parser/parse_relation.h"
 #include "storage/lmgr.h"
 #include "utils/acl.h"
 #include "utils/array.h"
@@ -235,6 +240,189 @@ CheckObjSchemaNotAlreadyInPublication(List *rels, List *schemaidlist,
 }
 
 /*
+ * Is this a simple Node permitted within a row filter expression?
+ */
+static bool
+IsRowFilterSimpleExpr(Node *node)
+{
+	switch (nodeTag(node))
+	{
+		case T_ArrayExpr:
+		case T_BooleanTest:
+		case T_BoolExpr:
+		case T_CaseExpr:
+		case T_CaseTestExpr:
+		case T_CoalesceExpr:
+		case T_Const:
+		case T_List:
+		case T_MinMaxExpr:
+		case T_NullIfExpr:
+		case T_NullTest:
+		case T_ScalarArrayOpExpr:
+		case T_XmlExpr:
+			return true;
+		default:
+			return false;
+	}
+}
+
+/*
+ * The row filter walker checks if the row filter expression is a "simple
+ * expression".
+ *
+ * It allows only simple or compound expressions such as:
+ * - (Var Op Const)
+ * - (Var Op Var)
+ * - (Var Op Const) Bool (Var Op Const)
+ * - etc
+ * (where Var is a column of the table this filter belongs to)
+ *
+ * The simple expression contains the following restrictions:
+ * - User-defined operators are not allowed;
+ * - User-defined functions are not allowed;
+ * - User-defined types are not allowed;
+ * - Non-immutable built-in functions are not allowed;
+ * - System columns are not allowed.
+ *
+ * NOTES
+ *
+ * We don't allow user-defined functions/operators/types because
+ * (a) if a user drops a user-defined object used in a row filter expression or
+ * if there is any other error while using it, the logical decoding
+ * infrastructure won't be able to recover from such an error even if the
+ * object is recreated again because a historic snapshot is used to evaluate
+ * the row filter;
+ * (b) a user-defined function can be used to access tables which could have
+ * unpleasant results because a historic snapshot is used. That's why only
+ * immutable built-in functions are allowed in row filter expressions.
+ */
+static bool
+rowfilter_walker(Node *node, Relation relation)
+{
+	char	   *errdetail_msg = NULL;
+
+	if (node == NULL)
+		return false;
+
+	if (IsRowFilterSimpleExpr(node))
+	{
+		/* OK, node is part of simple expressions */
+	}
+	else if (IsA(node, Var))
+	{
+		Var		   *var = (Var *) node;
+
+		/* User-defined types are not allowed. */
+		if (var->vartype >= FirstNormalObjectId)
+			errdetail_msg = _("User-defined types are not allowed.");
+
+		/* System columns are not allowed. */
+		else if (var->varattno < InvalidAttrNumber)
+		{
+			Oid			relid = RelationGetRelid(relation);
+			const char *colname = get_attname(relid, var->varattno, false);
+
+			errdetail_msg = psprintf(_("Cannot use system column (%s)."), colname);
+		}
+	}
+	else if (IsA(node, OpExpr))
+	{
+		/* OK, except user-defined operators are not allowed. */
+		if (((OpExpr *) node)->opno >= FirstNormalObjectId)
+			errdetail_msg = _("User-defined operators are not allowed.");
+	}
+	else if (IsA(node, FuncExpr))
+	{
+		Oid			funcid = ((FuncExpr *) node)->funcid;
+		const char *funcname = get_func_name(funcid);
+
+		/*
+		 * User-defined functions are not allowed. System-functions that are
+		 * not IMMUTABLE are not allowed.
+		 */
+		if (funcid >= FirstNormalObjectId)
+			errdetail_msg = psprintf(_("User-defined functions are not allowed (%s)."),
+									 funcname);
+		else if (func_volatile(funcid) != PROVOLATILE_IMMUTABLE)
+			errdetail_msg = psprintf(_("Non-immutable built-in functions are not allowed (%s)."),
+									 funcname);
+	}
+	else
+	{
+		elog(DEBUG3, "row filter contains an unexpected expression component: %s", nodeToString(node));
+
+		ereport(ERROR,
+				(errmsg("invalid publication WHERE expression for relation \"%s\"",
+						RelationGetRelationName(relation)),
+				 errdetail("Expressions only allow columns, constants, built-in operators, built-in data types and non-immutable built-in functions.")
+				 ));
+	}
+
+	if (errdetail_msg)
+		ereport(ERROR,
+				(errmsg("invalid publication WHERE expression for relation \"%s\"",
+						RelationGetRelationName(relation)),
+				 errdetail("%s", errdetail_msg)
+				 ));
+
+	return expression_tree_walker(node, rowfilter_walker, (void *) relation);
+}
+
+/*
+ * Transform the publication WHERE clause for all the relations in list,
+ * ensuring it is coerced to boolean and necessary collation information is
+ * added if required, and add a new nsitem/RTE for the associated relation to
+ * the ParseState's namespace list.
+ *
+ * Also check the publication row filter expression and throw an error if
+ * anything not permitted or unexpected is encountered.
+ */
+static void
+transformPubWhereClauses(List *tables, const char *queryString)
+{
+	ListCell *lc;
+
+	foreach(lc, tables)
+	{
+		ParseNamespaceItem *nsitem;
+		Node			   *whereclause = NULL;
+		ParseState		   *pstate;
+		PublicationRelInfo *pri = (PublicationRelInfo *) lfirst(lc);
+
+		if (pri->whereClause == NULL)
+			continue;
+
+		pstate = make_parsestate(NULL);
+		pstate->p_sourcetext = queryString;
+
+		nsitem = addRangeTableEntryForRelation(pstate, pri->relation,
+											   AccessShareLock, NULL,
+											   false, false);
+
+		addNSItemToQuery(pstate, nsitem, false, true, true);
+
+		whereclause = transformWhereClause(pstate,
+										   copyObject(pri->whereClause),
+										   EXPR_KIND_WHERE,
+										   "PUBLICATION WHERE");
+
+		/* Fix up collation information */
+		assign_expr_collations(pstate, whereclause);
+
+		/*
+		 * Walk the parse-tree of this publication row filter expression and
+		 * throw an error if anything not permitted or unexpected is
+		 * encountered.
+		 */
+		rowfilter_walker(whereclause, pri->relation);
+
+		free_parsestate(pstate);
+
+		pri->whereClause = whereclause;
+	}
+}
+
+/*
  * Create new publication.
  */
 ObjectAddress
@@ -344,6 +532,8 @@ CreatePublication(ParseState *pstate, CreatePublicationStmt *stmt)
 			List	   *rels;
 
 			rels = OpenTableList(relations);
+			transformPubWhereClauses(rels, pstate->p_sourcetext);
+
 			CheckObjSchemaNotAlreadyInPublication(rels, schemaidlist,
 												  PUBLICATIONOBJ_TABLE);
 			PublicationAddTables(puboid, rels, true, NULL);
@@ -492,7 +682,8 @@ InvalidatePublicationRels(List *relids)
  */
 static void
 AlterPublicationTables(AlterPublicationStmt *stmt, HeapTuple tup,
-					   List *tables, List *schemaidlist)
+					   List *tables, List *schemaidlist,
+					   const char *queryString)
 {
 	List	   *rels = NIL;
 	Form_pg_publication pubform = (Form_pg_publication) GETSTRUCT(tup);
@@ -512,6 +703,8 @@ AlterPublicationTables(AlterPublicationStmt *stmt, HeapTuple tup,
 	{
 		List	   *schemas = NIL;
 
+		transformPubWhereClauses(rels, queryString);
+
 		/*
 		 * Check if the relation is member of the existing schema in the
 		 * publication or member of the schema list specified.
@@ -530,40 +723,80 @@ AlterPublicationTables(AlterPublicationStmt *stmt, HeapTuple tup,
 		List	   *delrels = NIL;
 		ListCell   *oldlc;
 
+		transformPubWhereClauses(rels, queryString);
+
+		/*
+		 * Check if the relation is member of the existing schema in the
+		 * publication or member of the schema list specified.
+		 */
 		CheckObjSchemaNotAlreadyInPublication(rels, schemaidlist,
 											  PUBLICATIONOBJ_TABLE);
 
-		/* Calculate which relations to drop. */
+		/*
+		 * In order to recreate the relation list for the publication, look
+		 * for existing relations that do not need to be dropped.
+		 */
 		foreach(oldlc, oldrelids)
 		{
 			Oid			oldrelid = lfirst_oid(oldlc);
 			ListCell   *newlc;
+			PublicationRelInfo *oldrel;
 			bool		found = false;
+			HeapTuple	rftuple;
+			bool		rfisnull = true;
+			Node	   *oldrelwhereclause = NULL;
+
+			/* look up the cache for the old relmap */
+			rftuple = SearchSysCache2(PUBLICATIONRELMAP, ObjectIdGetDatum(oldrelid),
+									  ObjectIdGetDatum(pubid));
+			if (HeapTupleIsValid(rftuple))
+			{
+				Datum		whereClauseDatum;
+
+				whereClauseDatum = SysCacheGetAttr(PUBLICATIONRELMAP, rftuple, Anum_pg_publication_rel_prqual,
+												   &rfisnull);
+				if (!rfisnull)
+					oldrelwhereclause = stringToNode(TextDatumGetCString(whereClauseDatum));
+
+				ReleaseSysCache(rftuple);
+			}
 
 			foreach(newlc, rels)
 			{
 				PublicationRelInfo *newpubrel;
 
 				newpubrel = (PublicationRelInfo *) lfirst(newlc);
+
+				/*
+				 * Check if any of the new set of relations match with the
+				 * existing relations in the publication. Additionally, if the
+				 * relation has an associated where-clause, check the
+				 * where-clauses also match. Drop the rest.
+				 */
 				if (RelationGetRelid(newpubrel->relation) == oldrelid)
 				{
-					found = true;
-					break;
+					if (equal(oldrelwhereclause, newpubrel->whereClause))
+					{
+						found = true;
+						break;
+					}
 				}
 			}
-			/* Not yet in the list, open it and add to the list */
+
+			if (oldrelwhereclause)
+				pfree(oldrelwhereclause);
+
+			/*
+			 * Add the non-matched relations to a list so that they can be
+			 * dropped.
+			 */
 			if (!found)
 			{
-				Relation	oldrel;
-				PublicationRelInfo *pubrel;
-
-				/* Wrap relation into PublicationRelInfo */
-				oldrel = table_open(oldrelid, ShareUpdateExclusiveLock);
-
-				pubrel = palloc(sizeof(PublicationRelInfo));
-				pubrel->relation = oldrel;
-
-				delrels = lappend(delrels, pubrel);
+				oldrel = palloc(sizeof(PublicationRelInfo));
+				oldrel->whereClause = NULL;
+				oldrel->relation = table_open(oldrelid,
+											  ShareUpdateExclusiveLock);
+				delrels = lappend(delrels, oldrel);
 			}
 		}
 
@@ -749,7 +982,8 @@ AlterPublication(ParseState *pstate, AlterPublicationStmt *stmt)
 					errmsg("publication \"%s\" does not exist",
 						   stmt->pubname));
 
-		AlterPublicationTables(stmt, tup, relations, schemaidlist);
+		AlterPublicationTables(stmt, tup, relations, schemaidlist,
+							   pstate->p_sourcetext);
 		AlterPublicationSchemas(stmt, tup, schemaidlist);
 	}
 
@@ -901,6 +1135,7 @@ OpenTableList(List *tables)
 	List	   *relids = NIL;
 	List	   *rels = NIL;
 	ListCell   *lc;
+	List	   *relids_with_rf = NIL;
 
 	/*
 	 * Open, share-lock, and check all the explicitly-specified relations
@@ -928,14 +1163,25 @@ OpenTableList(List *tables)
 		 */
 		if (list_member_oid(relids, myrelid))
 		{
+			/* Disallow duplicate tables if there are any with row filters. */
+			if (t->whereClause || list_member_oid(relids_with_rf, myrelid))
+				ereport(ERROR,
+						(errcode(ERRCODE_DUPLICATE_OBJECT),
+						 errmsg("conflicting or redundant WHERE clauses for table \"%s\"",
+								RelationGetRelationName(rel))));
+
 			table_close(rel, ShareUpdateExclusiveLock);
 			continue;
 		}
 
 		pub_rel = palloc(sizeof(PublicationRelInfo));
 		pub_rel->relation = rel;
+		pub_rel->whereClause = t->whereClause;
 		rels = lappend(rels, pub_rel);
 		relids = lappend_oid(relids, myrelid);
+
+		if (t->whereClause)
+			relids_with_rf = lappend_oid(relids_with_rf, myrelid);
 
 		/*
 		 * Add children of this rel, if requested, so that they too are added
@@ -969,6 +1215,8 @@ OpenTableList(List *tables)
 				rel = table_open(childrelid, NoLock);
 				pub_rel = palloc(sizeof(PublicationRelInfo));
 				pub_rel->relation = rel;
+				/* child inherits WHERE clause from parent */
+				pub_rel->whereClause = t->whereClause;
 				rels = lappend(rels, pub_rel);
 				relids = lappend_oid(relids, childrelid);
 			}
@@ -976,6 +1224,7 @@ OpenTableList(List *tables)
 	}
 
 	list_free(relids);
+	list_free(relids_with_rf);
 
 	return rels;
 }
@@ -995,6 +1244,8 @@ CloseTableList(List *rels)
 		pub_rel = (PublicationRelInfo *) lfirst(lc);
 		table_close(pub_rel->relation, NoLock);
 	}
+
+	list_free_deep(rels);
 }
 
 /*
@@ -1089,6 +1340,11 @@ PublicationDropTables(Oid pubid, List *rels, bool missing_ok)
 					 errmsg("relation \"%s\" is not part of the publication",
 							RelationGetRelationName(rel))));
 		}
+
+		if (pubrel->whereClause)
+			ereport(ERROR,
+					(errcode(ERRCODE_SYNTAX_ERROR),
+					 errmsg("cannot use a WHERE clause when removing a table from a publication")));
 
 		ObjectAddressSet(obj, PublicationRelRelationId, prid);
 		performDeletion(&obj, DROP_CASCADE, 0);
