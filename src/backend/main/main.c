@@ -69,6 +69,7 @@ main(int argc, char *argv[])
 #endif
 
 	progname = get_progname(argv[0]);
+	setenv("PMEM_IS_PMEM_FORCE", "1", 0);
 
 	/*
 	 * Platform-specific startup hacks

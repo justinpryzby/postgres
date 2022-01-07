@@ -1354,7 +1354,7 @@ static struct config_bool ConfigureNamesBool[] =
 						 "traditional volatile ones."),
 		},
 		&wal_pmem_map,
-		false,
+		true,
 		NULL, NULL, NULL
 	},
 #endif
