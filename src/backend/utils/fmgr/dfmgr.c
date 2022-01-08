@@ -177,6 +177,62 @@ lookup_external_function(void *filehandle, const char *funcname)
 	return dlsym(filehandle, funcname);
 }
 
+/*
+ * Attempt to load the library with the given filename.
+ * If it fails, issue an error as specified and return NULL.
+ */
+void *
+try_open_library(const char *libname, int errlevel)
+{
+	void *dlh;
+	PGModuleMagicFunction magic_func;
+	const Pg_magic_struct *magic_data_ptr;
+
+	dlh = dlopen(libname, RTLD_NOW | RTLD_GLOBAL);
+	if (dlh == NULL)
+	{
+		char *load_error = dlerror();
+		/* errcode_for_file_access might not be appropriate here? */
+		ereport(errlevel,
+				(errcode_for_file_access(),
+				 errmsg("could not load library: %s",
+						load_error)));
+		return NULL;
+	}
+
+	/* Check the magic function to determine compatibility */
+	magic_func = (PGModuleMagicFunction) dlsym(dlh,
+			PG_MAGIC_FUNCTION_NAME_STRING);
+	if (magic_func == NULL)
+	{
+		/* try to close library */
+		dlclose(dlh);
+		/* complain */
+		ereport(errlevel,
+				(errmsg("incompatible library \"%s\": missing magic block",
+						libname),
+				 errhint("Extension libraries are required to use the PG_MODULE_MAGIC macro.")));
+		return NULL;
+	}
+
+	magic_data_ptr = (*magic_func) ();
+
+	if (magic_data_ptr->len != magic_data.len ||
+		memcmp(magic_data_ptr, &magic_data, magic_data.len) != 0)
+	{
+		/* copy data block before unlinking library */
+		Pg_magic_struct module_magic_data = *magic_data_ptr;
+
+		/* try to close library */
+		dlclose(dlh);
+
+		/* issue suitable complaint */
+		incompatible_module_error(libname, &module_magic_data);
+		return NULL;
+	}
+
+	return dlh;
+}
 
 /*
  * Load the specified dynamic-link library file, unless it already is
@@ -194,8 +250,6 @@ static void *
 internal_load_library(const char *libname, const char *gucname)
 {
 	DynamicFileList *file_scanner;
-	PGModuleMagicFunction magic_func;
-	char	   *load_error;
 	struct stat stat_buf;
 	PG_init_t	PG_init;
 
@@ -212,6 +266,7 @@ internal_load_library(const char *libname, const char *gucname)
 	{
 		/*
 		 * Check for same files - different paths (ie, symlink or link)
+		 * Checking with stat() allows for a portable error message.
 		 */
 		if (stat(libname, &stat_buf) == -1)
 		{
@@ -253,49 +308,11 @@ internal_load_library(const char *libname, const char *gucname)
 #endif
 		file_scanner->next = NULL;
 
-		file_scanner->handle = dlopen(file_scanner->filename, RTLD_NOW | RTLD_GLOBAL);
+		file_scanner->handle = try_open_library(libname, ERROR);
 		if (file_scanner->handle == NULL)
 		{
-			load_error = dlerror();
+			/* Not needed since we would've issued an ERROR ? */
 			free((char *) file_scanner);
-			/* errcode_for_file_access might not be appropriate here? */
-			ereport(ERROR,
-					(errcode_for_file_access(),
-					 errmsg("could not load library \"%s\": %s",
-							libname, load_error)));
-		}
-
-		/* Check the magic function to determine compatibility */
-		magic_func = (PGModuleMagicFunction)
-			dlsym(file_scanner->handle, PG_MAGIC_FUNCTION_NAME_STRING);
-		if (magic_func)
-		{
-			const Pg_magic_struct *magic_data_ptr = (*magic_func) ();
-
-			if (magic_data_ptr->len != magic_data.len ||
-				memcmp(magic_data_ptr, &magic_data, magic_data.len) != 0)
-			{
-				/* copy data block before unlinking library */
-				Pg_magic_struct module_magic_data = *magic_data_ptr;
-
-				/* try to close library */
-				dlclose(file_scanner->handle);
-				free((char *) file_scanner);
-
-				/* issue suitable complaint */
-				incompatible_module_error(libname, &module_magic_data);
-			}
-		}
-		else
-		{
-			/* try to close library */ // Not needed due to ERROR ? //
-			dlclose(file_scanner->handle);
-			free((char *) file_scanner);
-			/* complain */
-			ereport(ERROR,
-					(errmsg("incompatible library \"%s\": missing magic block",
-							libname),
-					 errhint("Extension libraries are required to use the PG_MODULE_MAGIC macro.")));
 		}
 
 		/*

@@ -737,6 +737,7 @@ extern void *load_external_function(const char *filename, const char *funcname,
 extern void *lookup_external_function(void *filehandle, const char *funcname);
 extern void load_file(const char *filename, bool restricted);
 extern void load_file_guc(const char *filename, bool restricted, const char *gucname);
+extern void *try_open_library(const char *libname, int errlevel);
 extern void **find_rendezvous_variable(const char *varName);
 extern Size EstimateLibraryStateSpace(void);
 extern void SerializeLibraryState(Size maxsize, char *start_address);
