@@ -567,6 +567,21 @@ sub contribcheck
 		}
 	}
 
+	#installcheck_internal_mod('worker_spi', ('--temp-instance=tmp_check', "--temp-config=dynamic.conf"));
+	#$mstat ||= $? >> 8;
+
+	#subdircheck('commit_ts', -1);
+	#$mstat ||= $? >> 8;
+
+	#subdircheck('test_rls_hooks', -1);
+	#$mstat ||= $? >> 8;
+
+	## The DB would need to be restarted
+	#subdircheck('worker_spi', -1);
+	#$mstat ||= $? >> 8;
+
+	# src/test/modules/snapshot_too_old/Makefile
+
 	exit $mstat if $mstat;
 	return;
 }
@@ -593,6 +608,13 @@ sub modulescheck
 			$mstat ||= $? >> 8;
 		}
 	}
+
+	#subdircheck('test_decoding', -1);
+	#$mstat ||= $? >> 8;
+
+	# The DB would need to be restarted
+	#subdircheck('pg_stat_statements', -1);
+	#$mstat ||= $? >> 8;
 
 	exit $mstat if $mstat;
 	return;
