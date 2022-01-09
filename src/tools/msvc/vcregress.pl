@@ -15,6 +15,7 @@ use File::Copy;
 use File::Find ();
 use File::Path qw(rmtree);
 use File::Spec qw(devnull);
+use File::Temp qw(tempfile);
 
 use FindBin;
 use lib $FindBin::RealBin;
@@ -503,12 +504,14 @@ sub subdircheck
 	my $module = shift;
 	my $installcheck = shift || 1;
 
+	#print("$module HERE0...\n");
 	if (   !-d "$module/sql"
 		|| !-d "$module/expected"
 		|| (!-f "$module/GNUmakefile" && !-f "$module/Makefile"))
 	{
 		return;
 	}
+	#print("$module HERE0-2: $obey_installcheck...\n");
 
 	chdir $module;
 	my @tests = fetchTests($installcheck);
@@ -522,6 +525,10 @@ sub subdircheck
 
 	my @opts = fetchRegressOpts();
 	push @opts, "--temp-instance=tmp_check" if $installcheck == -1;
+	#my @optsplus = shift || ();
+	#my @opts = (fetchRegressOpts(), @optsplus);
+	#print("$module: opts: @optsplus\n");
+	#print("$module: opts: @opts\n");
 
 	print "============================================================\n";
 	print "Checking $module\n";
@@ -576,8 +583,18 @@ sub contribcheck
 	#subdircheck('test_rls_hooks', -1);
 	#$mstat ||= $? >> 8;
 
-	## The DB would need to be restarted
+	#print $fh "wal_level = logical\n";
+	#print $fh "max_replication_slots = 4\n";
+	#print $fh "logical_decoding_work_mem = 64kB\n";
+	#subdircheck('test_decoding', -1);
+	#$mstat ||= $? >> 8;
+
+	# The DB would need to be restarted
 	#subdircheck('worker_spi', -1);
+
+	##print $fh "shared_preload_libraries = 'pg_stat_statements'\n";
+	#subdircheck('pg_stat_statements', -1, "--temp-config=$temp");
+
 	#$mstat ||= $? >> 8;
 
 	# src/test/modules/snapshot_too_old/Makefile
@@ -685,6 +702,7 @@ sub fetchRegressOpts
 		  map { (my $x = $_) =~ s/\Q$(top_builddir)\E/\"$topdir\"/; $x; }
 		  map { (my $x = $_) =~ s/\Q$(top_srcdir)\E/\"$topdir\"/; $x; }
 		  split(/\s+/, $1);
+		print("opts0 @opts\n");
 	}
 	if ($m =~ /^\s*ENCODING\s*=\s*(\S+)/m)
 	{
