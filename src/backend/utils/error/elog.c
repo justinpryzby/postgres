@@ -487,6 +487,8 @@ matches_backtrace_functions(const char *funcname)
 		if (*p == '\0')			/* end of backtrace_symbol_list */
 			break;
 
+		if (strcmp("*", p) == 0)
+			return true;
 		if (strcmp(funcname, p) == 0)
 			return true;
 		p += strlen(p) + 1;
@@ -561,6 +563,9 @@ errfinish(const char *filename, int lineno, const char *funcname)
 	 * If ERROR (not more nor less) we pass it off to the current handler.
 	 * Printing it and popping the stack is the responsibility of the handler.
 	 */
+	if (elevel==WARNING)
+		send_message_to_server_log(edata);
+
 	if (elevel == ERROR)
 	{
 		/*
