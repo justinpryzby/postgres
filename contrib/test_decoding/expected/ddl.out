@@ -594,7 +594,7 @@ UPDATE table_dropped_index_no_pk SET b = 6, c = 7 WHERE a = 3;
 DELETE FROM table_dropped_index_no_pk WHERE b = 1;
 DELETE FROM table_dropped_index_no_pk WHERE a = 3;
 DROP TABLE table_dropped_index_no_pk;
--- check table with newly added primary key
+-- check tables with newly added primary key
 CREATE TABLE table_with_not_null(id int NOT NULL, data int);
 CREATE UNIQUE INDEX table_with_not_null_idx ON table_with_not_null(id);
 INSERT INTO table_with_not_null VALUES(1, 2);
