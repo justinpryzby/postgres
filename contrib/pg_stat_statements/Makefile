@@ -17,7 +17,7 @@ PGFILEDESC = "pg_stat_statements - execution statistics of SQL statements"
 
 LDFLAGS_SL += $(filter -lm, $(LIBS))
 
-REGRESS_OPTS = --temp-config $(top_srcdir)/contrib/pg_stat_statements/pg_stat_statements.conf
+REGRESS_OPTS = --temp-config=$(top_srcdir)/contrib/pg_stat_statements/pg_stat_statements.conf
 REGRESS = select dml cursors utility level_tracking planning \
 	user_activity wal cleanup oldextversions
 # Disabled because these tests require "shared_preload_libraries=pg_stat_statements",
