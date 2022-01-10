@@ -253,6 +253,40 @@ sub isolationcheck
 	return;
 }
 
+# Create a separate instance and run tests which are marked NO_INSTALLCHECK
+sub installcheck_internal_mod
+{
+	my ($dir) = @_;
+	chdir "$dir";
+
+	my @opts = fetchRegressOpts();
+	my @tests = fetchTests(-1);
+
+	# Leave if no tests are listed in the module.
+	if (scalar @tests == 0)
+	{
+		chdir "..";
+		return;
+	}
+
+	print("opts: @opts\n");
+	print("tests: @tests\n");
+
+	my @args = (
+		"$topdir/$Config/pg_regress/pg_regress",
+		"--bindir=$tmp_installdir/bin",
+		"--dbname=contrib_regression",
+		"--temp-instance=tmp_check'",
+		"--no-locale");
+	push(@args, @opts);
+	push(@args, @tests);
+	system(@args);
+	my $status = $? >> 8;
+	exit $status if $status;
+	chdir "..";
+	return;
+}
+
 sub tap_check
 {
 	die "Tap tests not enabled in configuration"
