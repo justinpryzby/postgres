@@ -443,6 +443,7 @@ sub plcheck
 sub subdircheck
 {
 	my $module = shift;
+	my $installcheck = shift || 1;
 
 	if (   !-d "$module/sql"
 		|| !-d "$module/expected"
@@ -452,7 +453,7 @@ sub subdircheck
 	}
 
 	chdir $module;
-	my @tests = fetchTests();
+	my @tests = fetchTests($installcheck);
 
 	# Leave if no tests are listed in the module.
 	if (scalar @tests == 0)
@@ -462,6 +463,7 @@ sub subdircheck
 	}
 
 	my @opts = fetchRegressOpts();
+	push @opts, "--temp-instance=tmp_check" if $installcheck == -1;
 
 	# Special processing for python transform modules, see their respective
 	# Makefiles for more details regarding Python-version specific
@@ -489,7 +491,7 @@ sub subdircheck
 	print "Checking $module\n";
 	my @args = (
 		"$topdir/$Config/pg_regress/pg_regress",
-		"--bindir=${topdir}/${Config}/psql",
+		"--bindir=$tmp_installdir/bin",
 		"--dbname=contrib_regression", @opts, @tests);
 	print join(' ', @args), "\n";
 	system(@args);
@@ -499,6 +501,8 @@ sub subdircheck
 
 sub contribcheck
 {
+	my $mode = shift || '';
+
 	chdir "../../../contrib";
 	my $mstat = 0;
 	foreach my $module (glob("*"))
@@ -516,12 +520,25 @@ sub contribcheck
 		my $status = $? >> 8;
 		$mstat ||= $status;
 	}
+
+	# As above, but creates new DB instance for each module.  For CI.
+	if ($mode eq "install")
+	{
+		foreach my $module (glob("*"))
+		{
+			subdircheck("$module", -1);
+			$mstat ||= $? >> 8;
+		}
+	}
+
 	exit $mstat if $mstat;
 	return;
 }
 
 sub modulescheck
 {
+	my $mode = shift || '';
+
 	chdir "../../../src/test/modules";
 	my $mstat = 0;
 	foreach my $module (glob("*"))
@@ -530,6 +547,17 @@ sub modulescheck
 		my $status = $? >> 8;
 		$mstat ||= $status;
 	}
+
+	# As above, but creates new DB instance for each module.  For CI.
+	if ($mode eq "install")
+	{
+		foreach my $module (glob("*"))
+		{
+			subdircheck("$module", -1);
+			$mstat ||= $? >> 8;
+		}
+	}
+
 	exit $mstat if $mstat;
 	return;
 }
@@ -700,6 +728,7 @@ sub fetchRegressOpts
 		# option starting with "--".
 		@opts = grep { !/\$\(/ && /^--/ }
 		  map { (my $x = $_) =~ s/\Q$(top_builddir)\E/\"$topdir\"/; $x; }
+		  map { (my $x = $_) =~ s/\Q$(top_srcdir)\E/\"$topdir\"/; $x; }
 		  split(/\s+/, $1);
 	}
 	if ($m =~ /^\s*ENCODING\s*=\s*(\S+)/m)
@@ -726,14 +755,19 @@ sub fetchTests
 	my $m = <$handle>;
 	close($handle);
 	my $t = "";
+	my $installcheck = shift || 1;
 
 	$m =~ s{\\\r?\n}{}g;
 
-	# A module specifying NO_INSTALLCHECK does not support installcheck,
-	# so bypass its run by returning an empty set of tests.
 	if ($m =~ /^\s*NO_INSTALLCHECK\s*=\s*\S+/m)
 	{
-		return ();
+		# Skip modules marked installcheck unless running installcheck tests.
+		return () if $installcheck == 1;
+	}
+	else
+	{
+		# Skip modules not marked installcheck if running installcheck tests.
+		return () if $installcheck == -1;
 	}
 
 	if ($m =~ /^REGRESS\s*=\s*(.*)$/gm)
@@ -799,6 +833,8 @@ sub usage
 	  "\nOptions for <arg>: (used by check and installcheck)\n",
 	  "  serial         serial mode\n",
 	  "  parallel       parallel mode\n",
+	  "\nOptions for <arg>: (used by contribcheck and modulescheck)\n",
+	  "  install        also run tests which require a new instance\n",
 	  "\nOption for <arg>: for taptest\n",
 	  "  TEST_DIR       (required) directory where tests reside\n";
 	exit(1);
