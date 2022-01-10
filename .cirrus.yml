@@ -438,7 +438,7 @@ task:
     # likely can be improved upon further.
     PROVE_FLAGS: -j10 --timer
 
-    # Avoid re-installing over and over
+    # Avoid re-installing over and over #
     NO_TEMP_INSTALL: 1
     # git's tar doesn't deal with drive letters, see
     # https://postgr.es/m/b6782dc3-a7b0-ed56-175f-f8f54cb08d67%40dunslane.net
@@ -574,6 +574,17 @@ task:
   stop_script: |
     cd /d c:\build.d
     tmp_install\bin\pg_ctl.exe stop -D tmp_check/db -l tmp_check/postmaster.log
+#  loop_script:
+#    - tmp_install\bin\pg_ctl.exe -D tmp_check/db -l tmp_check/initdb.log initdb --options=--no-sync
+#    - tmp_install\bin\pg_ctl.exe -D tmp_check/db -l tmp_check/postmaster.log start
+#
+#    - echo include loop_config >> tmp_check/db/postgresql.conf
+#    - echo shared_preload_libraries = 'pg_stat_statements' > tmp_check/db/loop_config
+## --temp-instance
+#    - perl src/tools/msvc/vcregress.pl installcheckmodule pg_stat_statements
+#
+#    - tmp_install\bin\pg_ctl.exe -D tmp_check/db -l tmp_check/postmaster.log stop
+
   test_ssl_script: |
     cd /d c:\build.d
     set with_ssl=openssl

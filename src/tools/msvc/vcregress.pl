@@ -51,7 +51,7 @@ if (-e "src/tools/msvc/buildenv.pl")
 
 my $what = shift || "";
 if ($what =~
-	/^(check|installcheck|plcheck|contribcheck|modulescheck|ecpgcheck|isolationcheck|upgradecheck|bincheck|recoverycheck|taptest|alltaptests)$/i
+	/^(check|installcheck|plcheck|contribcheck|modulescheck|ecpgcheck|isolationcheck|upgradecheck|bincheck|recoverycheck|taptest|alltaptests|InstallTemp|installcheck_module)$/i
   )
 {
 	$what = uc $what;
@@ -110,6 +110,8 @@ my %command = (
 	RECOVERYCHECK  => \&recoverycheck,
 	UPGRADECHECK   => \&upgradecheck,     # no-op
 	ALLTAPTESTS    => \&alltaptests,
+	INSTALLTEMP    => \&InstallTemp,
+	INSTALLCHECK_MODULE   => \&InstallCheck_Module,
 	TAPTEST        => \&taptest,);
 
 my $proc = $command{$what};
@@ -756,6 +758,7 @@ sub usage
 	  "  ecpgcheck      run regression tests of ECPG\n",
 	  "  installcheck   run regression tests on existing instance\n",
 	  "  isolationcheck run isolation tests\n",
+	  "  InstallTemp    run InstallTemp\n",
 	  "  modulescheck   run tests of modules in src/test/modules/\n",
 	  "  plcheck        run tests of PL languages\n",
 	  "  recoverycheck  run recovery test suite\n",
