@@ -538,7 +538,6 @@ sub recoverycheck
 {
 	InstallTemp();
 
-	my $mstat  = 0;
 	my $dir    = "$topdir/src/test/recovery";
 	my $status = tap_check($dir);
 	exit $status if $status;
@@ -717,7 +716,6 @@ sub fetchRegressOpts
 # list is returned if the module does not need to run anything.
 sub fetchTests
 {
-
 	my $handle;
 	open($handle, '<', "GNUmakefile")
 	  || open($handle, '<', "Makefile")
