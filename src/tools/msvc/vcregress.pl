@@ -162,9 +162,9 @@ sub installcheck_internal
 	$schedule = 'parallel'            if $schedule eq 'serial';
 
 	my @args = (
-		"../../../$Config/pg_regress/pg_regress",
+		"$topdir/$Config/pg_regress/pg_regress",
 		"--dlpath=.",
-		"--bindir=../../../$Config/psql",
+		"--bindir=$tmp_installdir/bin",
 		"--schedule=${schedule}_schedule",
 		"--max-concurrent-tests=20",
 		"--encoding=SQL_ASCII",
