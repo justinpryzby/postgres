@@ -151,33 +151,27 @@ bthandler(PG_FUNCTION_ARGS)
 void
 btbuildempty(Relation index)
 {
+	/*
+	 * Since this only writes one page, use shared buffers.
+	 */
 	Page		metapage;
-	UnBufferedWriteState wstate;
+	Buffer metabuf;
 
-	wstate.smgr_rel = RelationGetSmgr(index);
-
-	unbuffered_prep(&wstate);
-
-	/* Construct metapage. */
-	metapage = (Page) palloc(BLCKSZ);
+	/*
+	 * Allocate a buffer for metapage and initialize metapage.
+	 */
+	metabuf = ReadBufferExtended(index, INIT_FORKNUM, P_NEW, RBM_ZERO_AND_LOCK, NULL);
+	metapage = BufferGetPage(metabuf);
 	_bt_initmetapage(metapage, P_NONE, 0, _bt_allequalimage(index, false));
 
 	/*
-	 * Write the page and log it.  It might seem that an immediate sync would
-	 * be sufficient to guarantee that the file exists on disk, but recovery
-	 * itself might remove it while replaying, for example, an
-	 * XLOG_DBASE_CREATE or XLOG_TBLSPC_CREATE record.  Therefore, we need
-	 * this even when wal_level=minimal.
+	 * Mark metapage buffer as dirty and XLOG it
 	 */
-	unbuffered_write(&wstate, INIT_FORKNUM, BTREE_METAPAGE, metapage);
-	log_newpage(&RelationGetSmgr(index)->smgr_rnode.node, INIT_FORKNUM,
-				BTREE_METAPAGE, metapage, true);
-
-	/*
-	 * Even though we xlog'd the page, a concurrent checkpoint may have moved
-	 * the redo pointer past our xlog record, so we may still need to fsync.
-	 */
-	unbuffered_finish(&wstate, INIT_FORKNUM);
+	START_CRIT_SECTION();
+	MarkBufferDirty(metabuf);
+	log_newpage_buffer(metabuf, true);
+	END_CRIT_SECTION();
+	_bt_relbuf(index, metabuf);
 }
 
 /*
