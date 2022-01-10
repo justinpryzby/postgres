@@ -480,9 +480,9 @@ task:
   test_isolation_script:
     - perl src/tools/msvc/vcregress.pl isolationcheck
   test_modules_script:
-    - perl src/tools/msvc/vcregress.pl modulescheck
+    - perl src/tools/msvc/vcregress.pl modulescheck install
   test_contrib_script:
-    - perl src/tools/msvc/vcregress.pl contribcheck
+    - perl src/tools/msvc/vcregress.pl contribcheck install
   stop_script:
     - tmp_install\bin\pg_ctl.exe stop -D tmp_check/db -l tmp_check/postmaster.log
   test_ssl_script:
