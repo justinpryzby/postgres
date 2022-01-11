@@ -213,7 +213,7 @@ task:
   test_world_script: |
     su postgres <<-EOF
       ulimit -c unlimited # default is 0
-      make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}
+      script --return --command "make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}" test.log
     EOF
 
   on_failure:
