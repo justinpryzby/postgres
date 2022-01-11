@@ -37,6 +37,8 @@
 
 #include "postgres_fe.h"
 
+#include <time.h>
+
 #ifdef HAVE_LANGINFO_H
 #include <langinfo.h>
 #endif
@@ -53,6 +55,7 @@ static void prepare_new_globals(void);
 static void create_new_objects(void);
 static void copy_xact_xlog_xid(void);
 static void set_frozenxids(bool minmxid_only);
+static void make_dirs(void);
 static void setup(char *argv0, bool *live_check);
 static void cleanup(void);
 
@@ -84,9 +87,11 @@ main(int argc, char **argv)
 	/* Set default restrictive mask until new cluster permissions are read */
 	umask(PG_MODE_MASK_OWNER);
 
+	parseCommandLine(argc, argv);
+
 	get_restricted_token();
 
-	parseCommandLine(argc, argv);
+	make_dirs();
 
 	adjust_data_dir(&old_cluster);
 	adjust_data_dir(&new_cluster);
@@ -194,6 +199,47 @@ main(int argc, char **argv)
 	cleanup();
 
 	return 0;
+}
+
+static void
+make_dirs(void)
+{
+	FILE	*fp;
+	char	**filename;
+	time_t	run_time = time(NULL);
+	char	filename_path[MAXPGPATH];
+
+	if (mkdir(log_opts.basedir, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", log_opts.basedir);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/log", log_opts.basedir);
+	if (mkdir(filename_path, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/dump", log_opts.basedir);
+	if (mkdir(filename_path, 00700))
+		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
+
+	snprintf(filename_path, sizeof(filename_path), "%s/log/%s", log_opts.basedir, INTERNAL_LOG_FILE);
+	if ((log_opts.internal = fopen_priv(filename_path, "a")) == NULL)
+		pg_fatal("could not open log file \"%s\": %m\n", filename_path);
+
+	/* label start of upgrade in logfiles */
+	for (filename = output_files; *filename != NULL; filename++)
+	{
+		snprintf(filename_path, sizeof(filename_path), "%s/log/%s",
+				log_opts.basedir, *filename);
+		if ((fp = fopen_priv(filename_path, "a")) == NULL)
+			pg_fatal("could not write to log file \"%s\": %m\n", filename_path);
+
+		/* Start with newline because we might be appending to a file. */
+		fprintf(fp, "\n"
+				"-----------------------------------------------------------------\n"
+				"  pg_upgrade run on %s"
+				"-----------------------------------------------------------------\n\n",
+				ctime(&run_time));
+		fclose(fp);
+	}
 }
 
 

@@ -9,7 +9,6 @@
 
 #include "postgres_fe.h"
 
-#include <time.h>
 #ifdef WIN32
 #include <io.h>
 #endif
@@ -64,10 +63,6 @@ parseCommandLine(int argc, char *argv[])
 	int			option;			/* Command line option */
 	int			optindex = 0;	/* used by getopt_long */
 	int			os_user_effective_id;
-	FILE	   *fp;
-	char	  **filename;
-	time_t		run_time = time(NULL);
-	char		filename_path[MAXPGPATH];
 
 	user_opts.do_sync = true;
 	user_opts.transfer_mode = TRANSFER_MODE_COPY;
@@ -217,40 +212,8 @@ parseCommandLine(int argc, char *argv[])
 	if (log_opts.basedir == NULL)
 		log_opts.basedir = "pg_upgrade_output.d";
 
-	if (mkdir(log_opts.basedir, 00700))
-		pg_fatal("could not create directory \"%s\": %m\n", log_opts.basedir);
-
-	snprintf(filename_path, sizeof(filename_path), "%s/log", log_opts.basedir);
-	if (mkdir(filename_path, 00700))
-		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
-
-	snprintf(filename_path, sizeof(filename_path), "%s/dump", log_opts.basedir);
-	if (mkdir(filename_path, 00700))
-		pg_fatal("could not create directory \"%s\": %m\n", filename_path);
-
-	snprintf(filename_path, sizeof(filename_path), "%s/log/%s", log_opts.basedir, INTERNAL_LOG_FILE);
-	if ((log_opts.internal = fopen_priv(filename_path, "a")) == NULL)
-		pg_fatal("could not open log file \"%s\": %m\n", filename_path);
-
 	if (log_opts.verbose)
 		pg_log(PG_REPORT, "Running in verbose mode\n");
-
-	/* label start of upgrade in logfiles */
-	for (filename = output_files; *filename != NULL; filename++)
-	{
-		snprintf(filename_path, sizeof(filename_path), "%s/log/%s",
-				log_opts.basedir, *filename);
-		if ((fp = fopen_priv(filename_path, "a")) == NULL)
-			pg_fatal("could not write to log file \"%s\": %m\n", filename_path);
-
-		/* Start with newline because we might be appending to a file. */
-		fprintf(fp, "\n"
-				"-----------------------------------------------------------------\n"
-				"  pg_upgrade run on %s"
-				"-----------------------------------------------------------------\n\n",
-				ctime(&run_time));
-		fclose(fp);
-	}
 
 	/* Turn off read-only mode;  add prefix to PGOPTIONS? */
 	if (getenv("PGOPTIONS"))
