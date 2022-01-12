@@ -4680,7 +4680,7 @@ static struct config_string ConfigureNamesString[] =
 			NULL
 		},
 		&libpq_compress_algorithms,
-		"off",
+		"zlib",
 		check_libpq_compression, NULL, NULL
 	},
 
