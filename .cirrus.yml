@@ -240,8 +240,9 @@ task:
 
   sysinfo_script: |
     id
-    export
+    uname -a
     ulimit -a -H && ulimit -a -S
+    export
 
   setup_os_script:
     - mkdir ${HOME}/cores
