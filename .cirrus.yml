@@ -26,6 +26,16 @@ env:
   TEMP_CONFIG: ${CIRRUS_WORKING_DIR}/src/tools/ci/pg_ci_base.conf
   PG_TEST_EXTRA: kerberos ldap ssl
 
+COMMON_CONFIG_LIBS: &COMMON_CONFIG_LIBS >-
+  --with-gssapi
+  --with-icu
+  --with-ldap
+  --with-libxml
+  --with-libxslt
+  --with-lz4
+  --with-perl
+  --with-python
+  --with-ssl=openssl
 
 # What files to preserve in case tests fail
 on_failure: &on_failure
@@ -51,6 +61,7 @@ task:
     TEST_JOBS: 3
 
     CCACHE_DIR: /tmp/ccache_dir
+    COMMON_CONFIG_LIBS: *COMMON_CONFIG_LIBS
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*freebsd.*'
 
@@ -90,17 +101,9 @@ task:
       ./configure \
         --enable-cassert --enable-debug --enable-tap-tests \
         --enable-nls \
+        ${COMMON_CONFIG_LIBS} \
         \
-        --with-gssapi \
-        --with-icu \
-        --with-ldap \
-        --with-libxml \
-        --with-libxslt \
-        --with-lz4 \
         --with-pam \
-        --with-perl \
-        --with-python \
-        --with-ssl=openssl \
         --with-tcl --with-tclconfig=/usr/local/lib/tcl8.6/ \
         --with-uuid=bsd \
         \
@@ -129,18 +132,9 @@ task:
 # configure feature flags, shared between the task running the linux tests and
 # the CompilerWarnings task
 LINUX_CONFIGURE_FEATURES: &LINUX_CONFIGURE_FEATURES >-
-  --with-gssapi
-  --with-icu
-  --with-ldap
-  --with-libxml
-  --with-libxslt
   --with-llvm
-  --with-lz4
   --with-pam
-  --with-perl
-  --with-python
   --with-selinux
-  --with-ssl=openssl
   --with-systemd
   --with-tcl --with-tclconfig=/usr/lib/tcl8.6/
   --with-uuid=ossp
@@ -157,6 +151,7 @@ task:
     CCACHE_DIR: /tmp/ccache_dir
     DEBUGINFOD_URLS: "https://debuginfod.debian.net"
 
+    COMMON_CONFIG_LIBS: *COMMON_CONFIG_LIBS
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
@@ -183,7 +178,7 @@ task:
     mkdir -p ${CCACHE_DIR}
     chown -R postgres:postgres ${CCACHE_DIR}
     echo '* - memlock 134217728' > /etc/security/limits.d/postgres.conf
-    su postgres -c "ulimit -l -H && ulimit -l -S"
+    su postgres -c "ulimit -l -H && ulimit -l -S" # XXX
   setup_cores_script: |
     mkdir -m 770 /tmp/cores
     chown root:postgres /tmp/cores
@@ -195,6 +190,7 @@ task:
         --enable-cassert --enable-debug --enable-tap-tests \
         --enable-nls \
         \
+        ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
         \
         CC="ccache gcc" \
@@ -229,6 +225,7 @@ task:
     CCACHE_DIR: ${HOME}/ccache
     HOMEBREW_CACHE: ${HOME}/homebrew-cache
     PERL5LIB: ${HOME}/perl5/lib/perl5
+    COMMON_CONFIG_LIBS: *COMMON_CONFIG_LIBS
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*(macos|darwin|osx).*'
 
@@ -294,16 +291,8 @@ task:
       --enable-cassert --enable-debug --enable-tap-tests \
       --enable-nls \
       \
+      ${COMMON_CONFIG_LIBS} \
       --with-bonjour \
-      --with-gssapi \
-      --with-icu \
-      --with-ldap \
-      --with-libxml \
-      --with-libxslt \
-      --with-lz4 \
-      --with-perl \
-      --with-python \
-      --with-ssl=openssl \
       --with-tcl --with-tclconfig=${brewpath}/opt/tcl-tk/lib/ \
       --with-uuid=e2fs \
       \
@@ -449,6 +438,7 @@ task:
     CCACHE_DIR: "/tmp/ccache_dir"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
+    COMMON_CONFIG_LIBS: *COMMON_CONFIG_LIBS
 
   # task that did not run, count as a success, so we need to recheck Linux'
   # condition here ...
@@ -486,6 +476,7 @@ task:
       time ./configure \
         --cache gcc.cache \
         --enable-dtrace \
+        ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
@@ -497,6 +488,7 @@ task:
       time ./configure \
         --cache gcc.cache \
         --enable-cassert \
+        ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
@@ -519,6 +511,7 @@ task:
         --cache clang.cache \
         --enable-cassert \
         --enable-dtrace \
+        ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache clang" CXX="ccache clang++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
