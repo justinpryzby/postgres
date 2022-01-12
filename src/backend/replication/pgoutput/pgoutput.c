@@ -1324,10 +1324,16 @@ pgoutput_change(LogicalDecodingContext *ctx, ReorderBufferTXN *txn,
 												new_slot, data->binary);
 						break;
 					case REORDER_BUFFER_CHANGE_UPDATE:
+					{
+						LogicalRepFilter filter = {
+							.oldslot = relentry->old_slot,
+							.newslot = relentry->new_slot,
+						};
+
 						logicalrep_write_update(ctx->out, xid, relation,
-												old_slot, new_slot,
-												data->binary);
+												&filter, data->binary);
 						break;
+					}
 					case REORDER_BUFFER_CHANGE_DELETE:
 						logicalrep_write_delete(ctx->out, xid, relation,
 												old_slot,

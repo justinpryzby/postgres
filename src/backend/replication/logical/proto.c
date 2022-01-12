@@ -443,7 +443,7 @@ logicalrep_read_insert(StringInfo in, LogicalRepTupleData *newtup)
  */
 void
 logicalrep_write_update(StringInfo out, TransactionId xid, Relation rel,
-						TupleTableSlot *oldslot, TupleTableSlot *newslot,
+						LogicalRepFilter *filter,
 						bool binary)
 {
 	pq_sendbyte(out, LOGICAL_REP_MSG_UPDATE);
@@ -459,17 +459,17 @@ logicalrep_write_update(StringInfo out, TransactionId xid, Relation rel,
 	/* use Oid as relation identifier */
 	pq_sendint32(out, RelationGetRelid(rel));
 
-	if (oldslot != NULL)
+	if (filter->oldslot != NULL)
 	{
 		if (rel->rd_rel->relreplident == REPLICA_IDENTITY_FULL)
 			pq_sendbyte(out, 'O');	/* old tuple follows */
 		else
 			pq_sendbyte(out, 'K');	/* old key follows */
-		logicalrep_write_tuple(out, rel, oldslot, binary);
+		logicalrep_write_tuple(out, rel, filter->oldslot, binary);
 	}
 
 	pq_sendbyte(out, 'N');		/* new tuple follows */
-	logicalrep_write_tuple(out, rel, newslot, binary);
+	logicalrep_write_tuple(out, rel, filter->newslot, binary);
 }
 
 /*

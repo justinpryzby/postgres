@@ -175,6 +175,12 @@ typedef struct LogicalRepRollbackPreparedTxnData
 	char		gid[GIDSIZE];
 } LogicalRepRollbackPreparedTxnData;
 
+typedef struct LogicalRepFilter
+{
+	TupleTableSlot	*oldslot;
+	TupleTableSlot	*newslot;
+} LogicalRepFilter;
+
 extern void logicalrep_write_begin(StringInfo out, ReorderBufferTXN *txn);
 extern void logicalrep_read_begin(StringInfo in,
 								  LogicalRepBeginData *begin_data);
@@ -212,9 +218,10 @@ extern void logicalrep_write_insert(StringInfo out, TransactionId xid,
 									bool binary);
 extern LogicalRepRelId logicalrep_read_insert(StringInfo in, LogicalRepTupleData *newtup);
 extern void logicalrep_write_update(StringInfo out, TransactionId xid,
-									Relation rel,
-									TupleTableSlot *oldslot,
-									TupleTableSlot *newslot, bool binary);
+									Relation rel, LogicalRepFilter *filter,
+									bool binary);
+extern void logicalrep_write_update_cached(StringInfo out, TransactionId xid, Relation rel,
+										   LogicalRepFilter *filter, bool binary);
 extern LogicalRepRelId logicalrep_read_update(StringInfo in,
 											  bool *has_oldtuple, LogicalRepTupleData *oldtup,
 											  LogicalRepTupleData *newtup);
