@@ -95,6 +95,7 @@ static char *dlpath = PKGLIBDIR;
 static char *user = NULL;
 static _stringlist *extraroles = NULL;
 static char *config_auth_datadir = NULL;
+static char *initdb_opts = NULL;
 
 /* internal variables */
 static const char *progname;
@@ -2011,6 +2012,7 @@ help(void)
 	printf(_("      --encoding=ENCODING       use ENCODING as the encoding\n"));
 	printf(_("  -h, --help                    show this help, then exit\n"));
 	printf(_("      --inputdir=DIR            take input files from DIR (default \".\")\n"));
+	printf(_("      --initdb-opts=OPTS        options to pass to initdb\n"));
 	printf(_("      --launcher=CMD            use CMD as launcher of psql\n"));
 	printf(_("      --load-extension=EXT      load the named extension before running the\n"));
 	printf(_("                                tests; can appear multiple times\n"));
@@ -2074,6 +2076,7 @@ regression_main(int argc, char *argv[],
 		{"config-auth", required_argument, NULL, 24},
 		{"max-concurrent-tests", required_argument, NULL, 25},
 		{"make-testtablespace-dir", no_argument, NULL, 26},
+		{"initdb-opts", required_argument, NULL, 27},
 		{NULL, 0, NULL, 0}
 	};
 
@@ -2207,6 +2210,9 @@ regression_main(int argc, char *argv[],
 			case 26:
 				make_testtablespace_dir = true;
 				break;
+			case 27:
+				initdb_opts = pg_strdup(optarg);
+				break;
 			default:
 				/* getopt_long already emitted a complaint */
 				fprintf(stderr, _("\nTry \"%s -h\" for more information.\n"),
@@ -2296,12 +2302,13 @@ regression_main(int argc, char *argv[],
 		/* initdb */
 		header(_("initializing database system"));
 		snprintf(buf, sizeof(buf),
-				 "\"%s%sinitdb\" -D \"%s/data\" --no-clean --no-sync%s%s > \"%s/log/initdb.log\" 2>&1",
+				 "\"%s%sinitdb\" -D \"%s/data\" --no-clean --no-sync%s%s %s > \"%s/log/initdb.log\" 2>&1",
 				 bindir ? bindir : "",
 				 bindir ? "/" : "",
 				 temp_instance,
 				 debug ? " --debug" : "",
 				 nolocale ? " --no-locale" : "",
+				 initdb_opts ? initdb_opts : "",
 				 outputdir);
 		if (system(buf))
 		{
