@@ -188,3 +188,6 @@ PQmblenBounded            185
 PQsendFlushRequest        186
 PQrequestCancelStart      187
 PQconnectComplete         188
+PQcompressor              189
+PQdecompressor            190
+PQreadPending             191
