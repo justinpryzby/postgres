@@ -533,6 +533,28 @@ static const SchemaQuery Query_for_list_of_updatables = {
 	.result = "pg_catalog.quote_ident(c.relname)",
 };
 
+/* Relations supporting MERGE */
+static const SchemaQuery Query_for_list_of_mergetargets = {
+	/* min_server_version */
+	150000,
+	/* catname */
+	"pg_catalog.pg_class c",
+	/* selcondition */
+	"c.relkind IN (" CppAsString2(RELKIND_RELATION) ", "
+	CppAsString2(RELKIND_PARTITIONED_TABLE) ") AND "
+	"c.relhasrules = false AND "
+	"(c.relhassubclass = false OR "
+	" c.relkind = " CppAsString2(RELKIND_PARTITIONED_TABLE) ")",
+	/* viscondition */
+	"pg_catalog.pg_table_is_visible(c.oid)",
+	/* namespace */
+	"c.relnamespace",
+	/* result */
+	"pg_catalog.quote_ident(c.relname)",
+	/* qualresult */
+	NULL
+};
+
 /* Relations supporting SELECT */
 static const SchemaQuery Query_for_list_of_selectables = {
 	.catname = "pg_catalog.pg_class c",
@@ -1505,7 +1527,7 @@ psql_completion(const char *text, int start, int end)
 		"COMMENT", "COMMIT", "COPY", "CREATE", "DEALLOCATE", "DECLARE",
 		"DELETE FROM", "DISCARD", "DO", "DROP", "END", "EXECUTE", "EXPLAIN",
 		"FETCH", "GRANT", "IMPORT FOREIGN SCHEMA", "INSERT INTO", "LISTEN", "LOAD", "LOCK",
-		"MOVE", "NOTIFY", "PREPARE",
+		"MERGE", "MOVE", "NOTIFY", "PREPARE",
 		"REASSIGN", "REFRESH MATERIALIZED VIEW", "REINDEX", "RELEASE",
 		"RESET", "REVOKE", "ROLLBACK",
 		"SAVEPOINT", "SECURITY LABEL", "SELECT", "SET", "SHOW", "START",
@@ -3447,7 +3469,7 @@ psql_completion(const char *text, int start, int end)
  */
 	else if (Matches("EXPLAIN"))
 		COMPLETE_WITH("SELECT", "INSERT INTO", "DELETE FROM", "UPDATE", "DECLARE",
-					  "EXECUTE", "ANALYZE", "VERBOSE");
+					  "MERGE", "EXECUTE", "ANALYZE", "VERBOSE");
 	else if (HeadMatches("EXPLAIN", "(*") &&
 			 !HeadMatches("EXPLAIN", "(*)"))
 	{
@@ -3466,12 +3488,12 @@ psql_completion(const char *text, int start, int end)
 	}
 	else if (Matches("EXPLAIN", "ANALYZE"))
 		COMPLETE_WITH("SELECT", "INSERT INTO", "DELETE FROM", "UPDATE", "DECLARE",
-					  "EXECUTE", "VERBOSE");
+					  "MERGE", "EXECUTE", "VERBOSE");
 	else if (Matches("EXPLAIN", "(*)") ||
 			 Matches("EXPLAIN", "VERBOSE") ||
 			 Matches("EXPLAIN", "ANALYZE", "VERBOSE"))
 		COMPLETE_WITH("SELECT", "INSERT INTO", "DELETE FROM", "UPDATE", "DECLARE",
-					  "EXECUTE");
+					  "MERGE", "EXECUTE");
 
 /* FETCH && MOVE */
 
@@ -3734,6 +3756,9 @@ psql_completion(const char *text, int start, int end)
 		COMPLETE_WITH("OPTIONS (");
 
 /* INSERT --- can be inside EXPLAIN, RULE, etc */
+	/* Complete NOT MATCHED THEN INSERT */
+	else if (TailMatches("NOT", "MATCHED", "THEN", "INSERT"))
+		COMPLETE_WITH("VALUES", "(");
 	/* Complete INSERT with "INTO" */
 	else if (TailMatches("INSERT"))
 		COMPLETE_WITH("INTO");
@@ -3810,6 +3835,55 @@ psql_completion(const char *text, int start, int end)
 	else if (HeadMatches("LOCK") && TailMatches("IN", "SHARE"))
 		COMPLETE_WITH("MODE", "ROW EXCLUSIVE MODE",
 					  "UPDATE EXCLUSIVE MODE");
+/* MERGE --- can be inside EXPLAIN */
+	else if (TailMatches("MERGE"))
+		COMPLETE_WITH("INTO");
+	else if (TailMatches("MERGE", "INTO"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_mergetargets, NULL);
+	else if (TailMatches("MERGE", "INTO", MatchAny))
+		COMPLETE_WITH("USING", "AS");
+	else if (TailMatches("MERGE", "INTO", MatchAny, "USING"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_tables, NULL);
+	/* with [AS] alias */
+	else if (TailMatches("MERGE", "INTO", MatchAny, "AS", MatchAny))
+		COMPLETE_WITH("USING");
+	else if (TailMatches("MERGE", "INTO", MatchAny, MatchAny))
+		COMPLETE_WITH("USING");
+	else if (TailMatches("MERGE", "INTO", MatchAny, "AS", MatchAny, "USING"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_tables, NULL);
+	else if (TailMatches("MERGE", "INTO", MatchAny, MatchAny, "USING"))
+		COMPLETE_WITH_SCHEMA_QUERY(Query_for_list_of_tables, NULL);
+	/* ON */
+	else if (TailMatches("MERGE", "INTO", MatchAny, "USING", MatchAny))
+		COMPLETE_WITH("ON");
+	else if (TailMatches("INTO", MatchAny, "AS", MatchAny, "USING", MatchAny, "AS", MatchAny))
+		COMPLETE_WITH("ON");
+	else if (TailMatches("INTO", MatchAny, MatchAny, "USING", MatchAny, MatchAny))
+		COMPLETE_WITH("ON");
+	/* ON condition */
+	else if (TailMatches("INTO", MatchAny, "USING", MatchAny, "ON"))
+		COMPLETE_WITH_ATTR(prev4_wd, "");
+	else if (TailMatches("INTO", MatchAny, "AS", MatchAny, "USING", MatchAny, "AS", MatchAny, "ON"))
+		COMPLETE_WITH_ATTR(prev8_wd, "");
+	else if (TailMatches("INTO", MatchAny, MatchAny, "USING", MatchAny, MatchAny, "ON"))
+		COMPLETE_WITH_ATTR(prev6_wd, "");
+	/* WHEN [NOT] MATCHED */
+	else if (TailMatches("USING", MatchAny, "ON", MatchAny))
+		COMPLETE_WITH("WHEN MATCHED", "WHEN NOT MATCHED");
+	else if (TailMatches("USING", MatchAny, "AS", MatchAny, "ON", MatchAny))
+		COMPLETE_WITH("WHEN MATCHED", "WHEN NOT MATCHED");
+	else if (TailMatches("USING", MatchAny, MatchAny, "ON", MatchAny))
+		COMPLETE_WITH("WHEN MATCHED", "WHEN NOT MATCHED");
+	else if (TailMatches("WHEN", "MATCHED"))
+		COMPLETE_WITH("THEN", "AND");
+	else if (TailMatches("WHEN", "NOT", "MATCHED"))
+		COMPLETE_WITH("THEN", "AND");
+	else if (TailMatches("WHEN", "MATCHED", "THEN"))
+		COMPLETE_WITH("UPDATE", "DELETE");
+	else if (TailMatches("WHEN", "NOT", "MATCHED", "THEN"))
+		COMPLETE_WITH("INSERT", "DO");
+	else if (TailMatches("WHEN", "NOT", "MATCHED", "THEN", "DO"))
+		COMPLETE_WITH("NOTHING");
 
 	/* Complete LOCK [TABLE] [ONLY] <table> [IN lockmode MODE] with "NOWAIT" */
 	else if (HeadMatches("LOCK") && TailMatches("MODE"))

@@ -849,6 +849,20 @@ subquery_planner(PlannerGlobal *glob, Query *parse,
 		/* exclRelTlist contains only Vars, so no preprocessing needed */
 	}
 
+	foreach(l, parse->mergeActionList)
+	{
+		MergeAction *action = (MergeAction *) lfirst(l);
+
+		action->targetList = (List *)
+			preprocess_expression(root,
+								  (Node *) action->targetList,
+								  EXPRKIND_TARGET);
+		action->qual =
+			preprocess_expression(root,
+								  (Node *) action->qual,
+								  EXPRKIND_QUAL);
+	}
+
 	root->append_rel_list = (List *)
 		preprocess_expression(root, (Node *) root->append_rel_list,
 							  EXPRKIND_APPINFO);
@@ -1714,7 +1728,7 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 		}
 
 		/*
-		 * If this is an INSERT/UPDATE/DELETE, add the ModifyTable node.
+		 * If this is an INSERT/UPDATE/DELETE/MERGE, add the ModifyTable node.
 		 */
 		if (parse->commandType != CMD_SELECT)
 		{
@@ -1723,6 +1737,7 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 			List	   *updateColnosLists = NIL;
 			List	   *withCheckOptionLists = NIL;
 			List	   *returningLists = NIL;
+			List	   *mergeActionLists = NIL;
 			List	   *rowMarks;
 
 			if (bms_membership(root->all_result_relids) == BMS_MULTIPLE)
@@ -1789,6 +1804,43 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 						returningLists = lappend(returningLists,
 												 returningList);
 					}
+					if (parse->mergeActionList)
+					{
+						ListCell   *l;
+						List	   *mergeActionList = NIL;
+
+						/*
+						 * Copy MergeActions and translate stuff that
+						 * references attribute numbers.
+						 */
+						foreach(l, parse->mergeActionList)
+						{
+							MergeAction *action = lfirst(l),
+									   *leaf_action = copyObject(action);
+
+							leaf_action->qual =
+								adjust_appendrel_attrs_multilevel(root,
+																  (Node *) action->qual,
+																  this_result_rel->relids,
+																  top_result_rel->relids);
+							leaf_action->targetList = (List *)
+								adjust_appendrel_attrs_multilevel(root,
+																  (Node *) action->targetList,
+																  this_result_rel->relids,
+																  top_result_rel->relids);
+							if (leaf_action->commandType == CMD_UPDATE)
+								leaf_action->updateColnos =
+									adjust_inherited_attnums_multilevel(root,
+																		action->updateColnos,
+																		this_result_rel->relid,
+																		top_result_rel->relid);
+							mergeActionList = lappend(mergeActionList,
+													  leaf_action);
+						}
+
+						mergeActionLists = lappend(mergeActionLists,
+												   mergeActionList);
+					}
 				}
 
 				if (resultRelations == NIL)
@@ -1811,6 +1863,8 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 						withCheckOptionLists = list_make1(parse->withCheckOptions);
 					if (parse->returningList)
 						returningLists = list_make1(parse->returningList);
+					if (parse->mergeActionList)
+						mergeActionLists = list_make1(parse->mergeActionList);
 				}
 			}
 			else
@@ -1823,6 +1877,8 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 					withCheckOptionLists = list_make1(parse->withCheckOptions);
 				if (parse->returningList)
 					returningLists = list_make1(parse->returningList);
+				if (parse->mergeActionList)
+					mergeActionLists = list_make1(parse->mergeActionList);
 			}
 
 			/*
@@ -1859,6 +1915,7 @@ grouping_planner(PlannerInfo *root, double tuple_fraction)
 										returningLists,
 										rowMarks,
 										parse->onConflict,
+										mergeActionLists,
 										assign_special_exec_param(root));
 		}
 
