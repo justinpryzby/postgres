@@ -567,15 +567,43 @@ ExecSimpleRelationDelete(ResultRelInfo *resultRelInfo,
 void
 CheckCmdReplicaIdentity(Relation rel, CmdType cmd)
 {
-	PublicationActions *pubactions;
+	PublicationDesc	   *pubdesc;
 
 	/* We only need to do checks for UPDATE and DELETE. */
 	if (cmd != CMD_UPDATE && cmd != CMD_DELETE)
 		return;
 
+	if (rel->rd_rel->relreplident == REPLICA_IDENTITY_FULL)
+		return;
+
+	/*
+	 * It is only safe to execute UPDATE/DELETE when all columns, referenced in
+	 * the row filters from publications which the relation is in, are valid -
+	 * i.e. when all referenced columns are part of REPLICA IDENTITY or the
+	 * table does not publish UPDATES or DELETES.
+	 */
+	pubdesc = RelationBuildPublicationDesc(rel);
+	if (!pubdesc->rf_valid_for_update && cmd == CMD_UPDATE)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
+				 errmsg("cannot update table \"%s\"",
+						RelationGetRelationName(rel)),
+				 errdetail("Column \"%s\" used in the publication WHERE expression is not part of the replica identity.",
+						   get_attname(RelationGetRelid(rel),
+									   pubdesc->invalid_rfcol_update,
+									   false))));
+	else if (!pubdesc->rf_valid_for_delete && cmd == CMD_DELETE)
+		ereport(ERROR,
+				(errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
+				 errmsg("cannot delete from table \"%s\"",
+						RelationGetRelationName(rel)),
+				 errdetail("Column \"%s\" used in the publication WHERE expression is not part of the replica identity.",
+						   get_attname(RelationGetRelid(rel),
+									   pubdesc->invalid_rfcol_delete,
+									   false))));
+
 	/* If relation has replica identity we are always good. */
-	if (rel->rd_rel->relreplident == REPLICA_IDENTITY_FULL ||
-		OidIsValid(RelationGetReplicaIndex(rel)))
+	if (OidIsValid(RelationGetReplicaIndex(rel)))
 		return;
 
 	/*
@@ -583,14 +611,13 @@ CheckCmdReplicaIdentity(Relation rel, CmdType cmd)
 	 *
 	 * Check if the table publishes UPDATES or DELETES.
 	 */
-	pubactions = GetRelationPublicationActions(rel);
-	if (cmd == CMD_UPDATE && pubactions->pubupdate)
+	if (cmd == CMD_UPDATE && pubdesc->pubactions.pubupdate)
 		ereport(ERROR,
 				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
 				 errmsg("cannot update table \"%s\" because it does not have a replica identity and publishes updates",
 						RelationGetRelationName(rel)),
 				 errhint("To enable updating the table, set REPLICA IDENTITY using ALTER TABLE.")));
-	else if (cmd == CMD_DELETE && pubactions->pubdelete)
+	else if (cmd == CMD_DELETE && pubdesc->pubactions.pubdelete)
 		ereport(ERROR,
 				(errcode(ERRCODE_OBJECT_NOT_IN_PREREQUISITE_STATE),
 				 errmsg("cannot delete from table \"%s\" because it does not have a replica identity and publishes deletes",

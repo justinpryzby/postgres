@@ -31,5 +31,8 @@ extern void RemovePublicationSchemaById(Oid psoid);
 extern ObjectAddress AlterPublicationOwner(const char *name, Oid newOwnerId);
 extern void AlterPublicationOwner_oid(Oid pubid, Oid newOwnerId);
 extern void InvalidatePublicationRels(List *relids);
+extern bool contain_invalid_rfcolumn(Oid pubid, Relation relation,
+									 List *ancestors,
+									 AttrNumber *invalid_rfcolumn);
 
 #endif							/* PUBLICATIONCMDS_H */
