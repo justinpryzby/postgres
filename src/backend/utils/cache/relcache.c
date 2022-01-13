@@ -66,6 +66,7 @@
 #include "catalog/schemapg.h"
 #include "catalog/storage.h"
 #include "commands/policy.h"
+#include "commands/publicationcmds.h"
 #include "commands/trigger.h"
 #include "miscadmin.h"
 #include "nodes/makefuncs.h"
@@ -5522,38 +5523,54 @@ RelationGetExclusionInfo(Relation indexRelation,
 }
 
 /*
- * Get publication actions for the given relation.
+ * Get the publication information for the given relation.
+ *
+ * Traverse all the publications which the relation is in to get the
+ * publication actions and validate the row filter expressions for such
+ * publications if any. We consider the row filter expression as invalid if it
+ * references any column which is not part of REPLICA IDENTITY.
+ *
+ * To avoid fetching the publication information, we cache the publication
+ * actions and row filter validation information.
+ *
+ * Returns the column number of an invalid column referenced in a row filter
+ * expression if any, InvalidAttrNumber otherwise.
  */
-struct PublicationActions *
-GetRelationPublicationActions(Relation relation)
+AttrNumber
+GetRelationPublicationInfo(Relation relation, bool validate_rowfilter)
 {
 	List	   *puboids;
 	ListCell   *lc;
 	MemoryContext oldcxt;
 	Oid			schemaid;
-	PublicationActions *pubactions = palloc0(sizeof(PublicationActions));
+	List	   *ancestors = NIL;
+	Oid			relid = RelationGetRelid(relation);
+	PublicationActions pubactions = {0};
+	AttrNumber	invalid_rfcolnum = InvalidAttrNumber;
 
 	/*
 	 * If not publishable, it publishes no actions.  (pgoutput_change() will
 	 * ignore it.)
 	 */
 	if (!is_publishable_relation(relation))
-		return pubactions;
+		return invalid_rfcolnum;
 
-	if (relation->rd_pubactions)
-		return memcpy(pubactions, relation->rd_pubactions,
-					  sizeof(PublicationActions));
+	if (relation->rd_rfcol_valid)
+	{
+		/* publication actions must be valid */
+		Assert(relation->rd_pubactions);
+		return invalid_rfcolnum;
+	}
 
 	/* Fetch the publication membership info. */
-	puboids = GetRelationPublications(RelationGetRelid(relation));
+	puboids = GetRelationPublications(relid);
 	schemaid = RelationGetNamespace(relation);
 	puboids = list_concat_unique_oid(puboids, GetSchemaPublications(schemaid));
 
 	if (relation->rd_rel->relispartition)
 	{
 		/* Add publications that the ancestors are in too. */
-		List	   *ancestors = get_partition_ancestors(RelationGetRelid(relation));
-		ListCell   *lc;
+		ancestors = get_partition_ancestors(relid);
 
 		foreach(lc, ancestors)
 		{
@@ -5581,19 +5598,30 @@ GetRelationPublicationActions(Relation relation)
 
 		pubform = (Form_pg_publication) GETSTRUCT(tup);
 
-		pubactions->pubinsert |= pubform->pubinsert;
-		pubactions->pubupdate |= pubform->pubupdate;
-		pubactions->pubdelete |= pubform->pubdelete;
-		pubactions->pubtruncate |= pubform->pubtruncate;
+		pubactions.pubinsert |= pubform->pubinsert;
+		pubactions.pubupdate |= pubform->pubupdate;
+		pubactions.pubdelete |= pubform->pubdelete;
+		pubactions.pubtruncate |= pubform->pubtruncate;
 
 		ReleaseSysCache(tup);
 
 		/*
-		 * If we know everything is replicated, there is no point to check for
-		 * other publications.
+		 * Check, if all columns referenced in the filter expression are part
+		 * of the REPLICA IDENTITY index or not. Return the invalid column
+		 * number immediately if found.
 		 */
-		if (pubactions->pubinsert && pubactions->pubupdate &&
-			pubactions->pubdelete && pubactions->pubtruncate)
+		if (validate_rowfilter && (pubform->pubupdate || pubform->pubdelete) &&
+			contain_invalid_rfcolumn(pubid, relation, ancestors, &invalid_rfcolnum))
+			return invalid_rfcolnum;
+
+		/*
+		 * If we know everything is replicated and we are not validating the
+		 * row filter column, there is no point to check for other
+		 * publications.
+		 */
+		if (pubactions.pubinsert && pubactions.pubupdate &&
+			pubactions.pubdelete && pubactions.pubtruncate &&
+			!validate_rowfilter)
 			break;
 	}
 
@@ -5603,13 +5631,41 @@ GetRelationPublicationActions(Relation relation)
 		relation->rd_pubactions = NULL;
 	}
 
+	if (validate_rowfilter)
+		relation->rd_rfcol_valid = true;
+
 	/* Now save copy of the actions in the relcache entry. */
 	oldcxt = MemoryContextSwitchTo(CacheMemoryContext);
 	relation->rd_pubactions = palloc(sizeof(PublicationActions));
-	memcpy(relation->rd_pubactions, pubactions, sizeof(PublicationActions));
+	memcpy(relation->rd_pubactions, &pubactions, sizeof(PublicationActions));
 	MemoryContextSwitchTo(oldcxt);
 
-	return pubactions;
+	return invalid_rfcolnum;
+}
+
+/*
+ * Get publication actions for the given relation.
+ */
+struct PublicationActions *
+GetRelationPublicationActions(Relation relation)
+{
+	PublicationActions *pubactions = palloc0(sizeof(PublicationActions));
+
+	/*
+	 * If not publishable, it publishes no actions.  (pgoutput_change() will
+	 * ignore it.)
+	 */
+	if (!is_publishable_relation(relation))
+		return pubactions;
+
+	if (!relation->rd_pubactions)
+	{
+		(void) GetRelationPublicationInfo(relation, false);
+		Assert(relation->rd_pubactions);
+	}
+
+	return memcpy(pubactions, relation->rd_pubactions,
+				  sizeof(PublicationActions));
 }
 
 /*
@@ -6163,6 +6219,7 @@ load_relcache_init_file(bool shared)
 		rel->rd_idattr = NULL;
 		rel->rd_hotblockingattr = NULL;
 		rel->rd_pubactions = NULL;
+		rel->rd_rfcol_valid = false;
 		rel->rd_statvalid = false;
 		rel->rd_statlist = NIL;
 		rel->rd_fkeyvalid = false;

@@ -568,14 +568,45 @@ void
 CheckCmdReplicaIdentity(Relation rel, CmdType cmd)
 {
 	PublicationActions *pubactions;
+	AttrNumber	invalid_rf_column;
 
 	/* We only need to do checks for UPDATE and DELETE. */
 	if (cmd != CMD_UPDATE && cmd != CMD_DELETE)
 		return;
 
+	if (rel->rd_rel->relreplident == REPLICA_IDENTITY_FULL)
+		return;
+
+	/*
+	 * It is only safe to execute UPDATE/DELETE when all columns, referenced in
+	 * the row filters from publications which the relation is in, are valid -
+	 * i.e. when all referenced columns are part of REPLICA IDENTITY or the
+	 * table does not publish UPDATES or DELETES.
+	 */
+	invalid_rf_column = GetRelationPublicationInfo(rel, true);
+	if (AttributeNumberIsValid(invalid_rf_column))
+	{
+		const char *colname = get_attname(RelationGetRelid(rel),
+										  invalid_rf_column, false);
+
+		if (cmd == CMD_UPDATE)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
+					 errmsg("cannot update table \"%s\"",
+							RelationGetRelationName(rel)),
+					 errdetail("Column \"%s\" used in the publication WHERE expression is not part of the replica identity.",
+							   colname)));
+		else if (cmd == CMD_DELETE)
+			ereport(ERROR,
+					(errcode(ERRCODE_INVALID_COLUMN_REFERENCE),
+					 errmsg("cannot delete from table \"%s\"",
+							RelationGetRelationName(rel)),
+					 errdetail("Column \"%s\" used in the publication WHERE expression is not part of the replica identity.",
+							   colname)));
+	}
+
 	/* If relation has replica identity we are always good. */
-	if (rel->rd_rel->relreplident == REPLICA_IDENTITY_FULL ||
-		OidIsValid(RelationGetReplicaIndex(rel)))
+	if (OidIsValid(RelationGetReplicaIndex(rel)))
 		return;
 
 	/*
