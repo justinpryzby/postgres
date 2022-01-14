@@ -1,5 +1,6 @@
 -- Test bitmap AND and OR
 
+\set VERBOSITY verbose
 
 -- Generate enough data that we can test the lossy bitmaps.
 

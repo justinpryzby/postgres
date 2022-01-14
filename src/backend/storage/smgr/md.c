@@ -679,11 +679,13 @@ mdread(SMgrRelation reln, ForkNumber forknum, BlockNumber blocknum,
 		if (zero_damaged_pages || InRecovery)
 			MemSet(buffer, 0, BLCKSZ);
 		else
+		{
 			ereport(ERROR,
 					(errcode(ERRCODE_DATA_CORRUPTED),
 					 errmsg("could not read block %u in file \"%s\": read only %d of %d bytes",
 							blocknum, FilePathName(v->mdfd_vfd),
 							nbytes, BLCKSZ)));
+		}
 	}
 }
 

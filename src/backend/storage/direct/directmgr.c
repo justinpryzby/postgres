@@ -35,7 +35,10 @@ void unbuffered_prep(UnBufferedWriteState *wstate)
 void unbuffered_finish(UnBufferedWriteState *wstate, ForkNumber forknum)
 {
 	if (RedoRecPtrChanged(wstate->redo))
+	{
+		elog(WARNING, "backend fsync");
 		smgrimmedsync(wstate->smgr_rel, forknum);
+	}
 }
 
 void
