@@ -310,7 +310,8 @@ sub bincheck
 	my $mstat = 0;
 
 	# Find the TAP tests by looking for t/ directories
-	my @bin_dirs = glob("$topdir/src/bin/*");
+	my @bin_dirs = (glob("$topdir/src/bin/*"),
+			glob("$topdir/src/test/modules/*"));
 
 	# Process each test
 	foreach my $dir (@bin_dirs)
