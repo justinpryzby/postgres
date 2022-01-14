@@ -89,5 +89,6 @@ unbuffered_finish(UnBufferedWriteState *wstate, SMgrRelation smgrrel,
 	if (wstate->do_optimization && !RedoRecPtrChanged(wstate->redo))
 		return;
 
+	elog(DEBUG1, "backend fsync");
 	smgrimmedsync(smgrrel, forknum);
 }
