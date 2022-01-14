@@ -376,6 +376,8 @@ task:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
 
+  test_pg_upgrade_script:
+    - perl src/tools/msvc/vcregress.pl upgradecheck
   test_regress_parallel_script:
     - perl src/tools/msvc/vcregress.pl check parallel
   startcreate_script:
@@ -404,8 +406,6 @@ task:
     - perl src/tools/msvc/vcregress.pl recoverycheck
   test_bin_script:
     - perl src/tools/msvc/vcregress.pl bincheck
-  test_pg_upgrade_script:
-    - perl src/tools/msvc/vcregress.pl upgradecheck
   test_ecpg_script:
     # tries to build additional stuff
     - vcvarsall x64
