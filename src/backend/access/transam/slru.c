@@ -157,8 +157,8 @@ static void SlruInternalDeleteSegment(SlruCtl ctl, int segno);
  */
 static void SlruAdjustNSlots(int* nslots, int* banksize, int* bankoffset)
 {
-	*banksize = *nslots;
 	int nbanks = 1;
+	*banksize = *nslots;
 	*bankoffset = 0;
 	while (*banksize > 15)
 	{
@@ -527,13 +527,14 @@ SimpleLruReadPage_ReadOnly(SlruCtl ctl, int pageno, TransactionId xid)
 {
 	SlruShared	shared = ctl->shared;
 	int			slotno;
-
+	int bankstart;
+	int bankend;
 	/* Try to find the page while holding only shared lock */
 	LWLockAcquire(shared->ControlLock, LW_SHARED);
 
 	/* See if page is already in a buffer */
-	int bankstart = (pageno & shared->bank_mask) * shared->bank_size;
-	int bankend = bankstart + shared->bank_size;
+	bankstart = (pageno & shared->bank_mask) * shared->bank_size;
+	bankend = bankstart + shared->bank_size;
 	for (slotno = bankstart; slotno < bankend; slotno++)
 	{
 		if (shared->page_number[slotno] == pageno &&
