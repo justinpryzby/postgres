@@ -453,7 +453,6 @@ ssl_extension_info(PG_FUNCTION_ARGS)
 					 errmsg("unknown OpenSSL extension in certificate at position %d",
 							call_cntr)));
 		values[0] = CStringGetTextDatum(OBJ_nid2sn(nid));
-		nulls[0] = false;
 
 		/* Get the extension value */
 		if (X509V3_EXT_print(membuf, ext, 0, 0) <= 0)
@@ -463,13 +462,12 @@ ssl_extension_info(PG_FUNCTION_ARGS)
 							call_cntr)));
 		len = BIO_get_mem_data(membuf, &buf);
 		values[1] = PointerGetDatum(cstring_to_text_with_len(buf, len));
-		nulls[1] = false;
 
 		/* Get critical status */
 		values[2] = BoolGetDatum(X509_EXTENSION_get_critical(ext));
-		nulls[2] = false;
 
 		/* Build tuple */
+		memset(nulls, false, sizeof(nulls));
 		tuple = heap_form_tuple(fctx->tupdesc, values, nulls);
 		result = HeapTupleGetDatum(tuple);
 
