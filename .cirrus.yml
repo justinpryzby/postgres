@@ -30,10 +30,10 @@ env:
 # What files to preserve in case tests fail
 on_failure: &on_failure
   log_artifacts:
-    path: "**/**.log"
+    path: "**/*.log"
     type: text/plain
   regress_diffs_artifacts:
-    path: "**/**.diffs"
+    path: "**/*.diffs"
     type: text/plain
   tap_artifacts:
     path: "**/regress_log_*"
