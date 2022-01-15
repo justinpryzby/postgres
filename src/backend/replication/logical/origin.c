@@ -1546,10 +1546,9 @@ pg_show_replication_origin_status(PG_FUNCTION_ARGS)
 			continue;
 
 		memset(values, 0, sizeof(values));
-		memset(nulls, 1, sizeof(nulls));
+		memset(nulls, 0, sizeof(nulls));
 
 		values[0] = ObjectIdGetDatum(state->roident);
-		nulls[0] = false;
 
 		/*
 		 * We're not preventing the origin to be dropped concurrently, so
@@ -1557,19 +1556,13 @@ pg_show_replication_origin_status(PG_FUNCTION_ARGS)
 		 */
 		if (replorigin_by_oid(state->roident, true,
 							  &roname))
-		{
 			values[1] = CStringGetTextDatum(roname);
-			nulls[1] = false;
-		}
+		else
+			nulls[1] = true;
 
 		LWLockAcquire(&state->lock, LW_SHARED);
-
 		values[2] = LSNGetDatum(state->remote_lsn);
-		nulls[2] = false;
-
 		values[3] = LSNGetDatum(state->local_lsn);
-		nulls[3] = false;
-
 		LWLockRelease(&state->lock);
 
 		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc,
