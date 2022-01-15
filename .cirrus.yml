@@ -444,10 +444,6 @@ task:
 task:
   name: CompilerWarnings
 
-  # To limit unnecessary work only run this once the normal linux test succeeds
-  depends_on:
-    - Linux - Debian Bullseye
-
   env:
     CPUS: 4
     BUILD_JOBS: 4
@@ -475,6 +471,13 @@ task:
     gcc -v
     clang -v
     export
+
+    git remote -v
+    git branch -a
+    git remote add postgres https://github.com/postgres/postgres
+    time git fetch -v postgres master
+    git log -1 postgres/master
+    git diff --name-only postgres/master..
 
   ccache_cache:
     folder: $CCACHE_DIR
@@ -547,16 +550,35 @@ task:
   ###
   # Verify docs can be built
   ###
-  # XXX: Only do this if there have been changes in doc/ since last build
   always:
     docs_build_script: |
-      time ./configure \
-        --cache gcc.cache \
-        CC="ccache gcc" \
-        CXX="ccache g++" \
-        CLANG="ccache clang"
-      make -s -j${BUILD_JOBS} clean
-      time make -s -j${BUILD_JOBS} -C doc
+      # Do nothing if the patch doesn't update doc:
+      git diff --name-only --cherry-pick --exit-code postgres/master... doc && exit
+
+      # Exercise HTML and other docs:
+      ./configure >/dev/null
+      make -s -C doc
+      cp -r doc new-docs
+
+      # Build HTML docs from the parent commit
+      git checkout postgres/master -- doc
+      make -s -C doc clean
+      make -s -C doc html
+      cp -r doc old-docs
+
+      # Copy HTML which differ into html_docs
+      # This will show any files which differ from files generated from postgres/master.
+      # Commits to postgres/master which affect doc/ will cause more files to be
+      # included until the patch is rebased.
+      mkdir html_docs
+      cp new-docs/src/sgml/html/*.css new-docs/src/sgml/html/*.svg html_docs/
+      for f in `git diff --no-index --name-only old-docs/src/sgml/html new-docs/src/sgml/html`
+      do
+        cp $f html_docs/
+      done
+
+    html_docs_artifacts:
+      paths: ['html_docs/**/*.html', 'html_docs/**/*.png', 'html_docs/**/*.css']
 
   always:
     upload_caches: ccache
