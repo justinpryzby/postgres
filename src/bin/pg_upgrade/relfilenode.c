@@ -228,7 +228,7 @@ transfer_relfile(FileNameMap *map, const char *type_suffix, bool vm_must_add_fro
 		unlink(new_file);
 
 		/* Copying files might take some time, so give feedback. */
-		pg_log(PG_STATUS, "%s", old_file);
+		pg_log(PG_VERBOSE, "%s", old_file);
 
 		if (vm_must_add_frozenbit && strcmp(type_suffix, "_vm") == 0)
 		{
