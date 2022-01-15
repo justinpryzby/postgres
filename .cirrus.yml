@@ -205,6 +205,7 @@ task:
   configure_script: |
     su postgres <<-EOF
       ./configure \
+        --cache gcc.cache \
         --enable-cassert --enable-debug --enable-tap-tests \
         --enable-coverage \
         --enable-nls \
@@ -219,6 +220,25 @@ task:
     EOF
   build_script: su postgres -c "make -s -j${BUILD_JOBS} world-bin"
   upload_caches: ccache
+
+  # Verify docs can be built
+  always:
+    docs_build_script: |
+      # Do nothing if the patch doesn't update doc:
+      git diff --name-only --cherry-pick --exit-code postgres/master... doc && exit
+
+      time ./configure \
+        --cache gcc.cache \
+        ${LINUX_CONFIGURE_FEATURES} \
+        CC="ccache gcc" \
+        CXX="ccache g++" \
+        CLANG="ccache clang" \
+        CFLAGS="-O0 -ggdb" \
+        CXXFLAGS="-O0 -ggdb"
+      time make -s -j${BUILD_JOBS} -C doc
+
+  html_docs_artifacts:
+    paths: ['docs/**/*.html', 'docs/**/*.png', 'docs/**/*.css']
 
   test_world_script: |
     su postgres <<-EOF
@@ -564,20 +584,6 @@ task:
         CXX="ccache x86_64-w64-mingw32-g++"
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} world-bin
-
-  ###
-  # Verify docs can be built
-  ###
-  # XXX: Only do this if there have been changes in doc/ since last build
-  always:
-    docs_build_script: |
-      time ./configure \
-        --cache gcc.cache \
-        CC="ccache gcc" \
-        CXX="ccache g++" \
-        CLANG="ccache clang"
-      make -s -j${BUILD_JOBS} clean
-      time make -s -j${BUILD_JOBS} -C doc
 
   always:
     upload_caches: ccache
