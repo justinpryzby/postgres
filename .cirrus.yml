@@ -488,14 +488,10 @@ task:
   test_ssl_script:
     - set with_ssl=openssl
     - perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
-  test_subscription_script:
-    - perl src/tools/msvc/vcregress.pl taptest ./src/test/subscription/
-  test_authentication_script:
-    - perl src/tools/msvc/vcregress.pl taptest ./src/test/authentication/
   test_recovery_script:
     - perl src/tools/msvc/vcregress.pl recoverycheck
-  test_bin_script:
-    - perl src/tools/msvc/vcregress.pl bincheck
+  test_tap_script:
+    - perl src/tools/msvc/vcregress.pl alltaptests
   test_pg_upgrade_script:
     - perl src/tools/msvc/vcregress.pl upgradecheck
   test_ecpg_script:
