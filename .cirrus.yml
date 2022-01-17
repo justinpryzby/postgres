@@ -28,6 +28,13 @@ env:
   TEMP_CONFIG: ${CIRRUS_WORKING_DIR}/src/tools/ci/pg_ci_base.conf
   PG_TEST_EXTRA: kerberos ldap ssl
 
+  # The commit that this branch is rebased on.  There's no easy way to find this.
+  # This does the right thing for cfbot, which always squishes all patches into a single commit.
+  # And does the right thing for any 1-patch commits.
+  # Patch series manually submitted to cirrus would benefit from setting this to the
+  # number of patches in the series (or directly to the commit the series was rebased on).
+  BASE_COMMIT: HEAD~1
+
 
 # What files to preserve in case tests fail
 on_failure: &on_failure
@@ -183,6 +190,7 @@ task:
     cat /proc/cmdline
     ulimit -a -H && ulimit -a -S
     export
+    git diff --name-only "$BASE_COMMIT"
   create_user_script: |
     useradd -m postgres
     chown -R postgres:postgres .
@@ -202,6 +210,7 @@ task:
     su postgres <<-EOF
       ./configure \
         --enable-cassert --enable-debug --enable-tap-tests \
+        --enable-coverage \
         --enable-nls \
         \
         ${LINUX_CONFIGURE_FEATURES} \
@@ -224,6 +233,13 @@ task:
       ulimit -c unlimited # default is 0
       make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}
     EOF
+
+  # Build coverage report for files changed since the base commit.
+  generate_coverage_report_script: |
+    src/tools/ci/code-coverage-report "$BASE_COMMIT"
+
+  coverage_artifacts:
+    paths: ['coverage/**/*.html', 'coverage/**/*.png', 'coverage/**/*.gcov', 'coverage/**/*.css' ]
 
   on_failure:
     <<: *on_failure
