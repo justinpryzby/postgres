@@ -161,6 +161,7 @@ task:
 
 # configure feature flags, shared between the task running the linux tests and
 # the CompilerWarnings task
+# Note that CompilerWarnings compiles without -O0
 LINUX_CONFIGURE_FEATURES: &LINUX_CONFIGURE_FEATURES >-
   --with-llvm
   --with-pam
@@ -169,6 +170,9 @@ LINUX_CONFIGURE_FEATURES: &LINUX_CONFIGURE_FEATURES >-
   --with-tcl --with-tclconfig=/usr/lib/tcl8.6/
   --with-uuid=ossp
   --with-zstd
+  CC='ccache gcc'
+  CXX='ccache g++'
+  CLANG='ccache clang'
 
 
 task:
@@ -242,9 +246,6 @@ task:
         ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
         \
-        CC="ccache gcc" \
-        CXX="ccache g++" \
-        CLANG="ccache clang" \
         CFLAGS="-Og -ggdb -fsanitize=undefined,alignment -fno-sanitize-recover=all" \
         CXXFLAGS="-Og -ggdb -fsanitize=undefined,alignment -fno-sanitize-recover=all"
     EOF
@@ -753,7 +754,6 @@ task:
         --enable-dtrace \
         ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
-        CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
       ccache --show-stats
       ccache --show-compression
@@ -771,7 +771,6 @@ task:
         --enable-cassert \
         ${COMMON_CONFIG_LIBS} \
         ${LINUX_CONFIGURE_FEATURES} \
-        CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
       ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
