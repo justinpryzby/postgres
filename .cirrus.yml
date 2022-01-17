@@ -178,6 +178,12 @@ task:
     cat /proc/cmdline
     ulimit -a -H && ulimit -a -S
     export
+    git remote -v
+    git branch -a
+    git fetch origin master
+    git branch originmaster FETCH_HEAD
+    git log -1 originmaster
+    git diff --name-only --cherry-pick originmaster...
   create_user_script: |
     useradd -m postgres
     chown -R postgres:postgres .
@@ -190,13 +196,14 @@ task:
     chown root:postgres /tmp/cores
     sysctl kernel.core_pattern='/tmp/cores/%e-%s-%p.core'
     #echo 'deb http://deb.debian.org/debian bullseye main' >>/etc/apt/sources.list
-    #apt-get update
-    #apt-get -y install ...
+    apt-get update
+    apt-get -y install lcov
 
   configure_script: |
     su postgres <<-EOF
       ./configure \
         --enable-cassert --enable-debug --enable-tap-tests \
+        --enable-coverage \
         --enable-nls \
         \
         ${LINUX_CONFIGURE_FEATURES} \
@@ -207,6 +214,7 @@ task:
         CFLAGS="-O0 -ggdb" \
         CXXFLAGS="-O0 -ggdb"
     EOF
+# -fprofile-abs-path
   build_script: su postgres -c "make -s -j${BUILD_JOBS} world-bin"
   upload_caches: ccache
 
@@ -216,10 +224,23 @@ task:
       script --return --command "make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}" test.log
     EOF
 
+  generate_coverage_report_script: |
+      mkdir coverage
+      for f in `git diff --name-only --cherry-pick originmaster... '*.c'`;
+      do
+        : [ -f "$f" ] || continue
+        lcov --quiet --capture --directory "$f" >>coverage.gcov
+      done
+      genhtml coverage.gcov --output-directory coverage --show-details --legend --quiet
+      cp coverage/index.html coverage/00-index.html
+      #git diff --name-only --cherry-pick originmaster... '*.c' |xargs -r gcov --demangled-names --
+
+  coverage_artifacts:
+    paths: ['coverage/**/*.html', 'coverage/**/*.png', 'coverage/**/*.css']
+
   on_failure:
     <<: *on_failure
     cores_script: src/tools/ci/cores_backtrace.sh linux /tmp/cores
-
 
 task:
   name: macOS - Monterey
