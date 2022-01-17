@@ -178,6 +178,15 @@ task:
     cat /proc/cmdline
     ulimit -a -H && ulimit -a -S
     export
+    git remote -v
+    git branch -a
+    git remote add postgres https://github.com/postgres/postgres
+    time git fetch -v postgres master
+    #git branch postgresmaster FETCH_HEAD
+    git log -1 postgres/master
+    git branch parent `git merge-base postgres/master HEAD`
+    #git diff --name-only --cherry-pick postgres/master...
+    git diff --name-only parent..
   create_user_script: |
     useradd -m postgres
     chown -R postgres:postgres .
@@ -190,13 +199,14 @@ task:
     chown root:postgres /tmp/cores
     sysctl kernel.core_pattern='/tmp/cores/%e-%s-%p.core'
     #echo 'deb http://deb.debian.org/debian bullseye main' >>/etc/apt/sources.list
-    #apt-get update
-    #apt-get -y install ...
+    apt-get update
+    apt-get -y install lcov
 
   configure_script: |
     su postgres <<-EOF
       ./configure \
         --enable-cassert --enable-debug --enable-tap-tests \
+        --enable-coverage \
         --enable-nls \
         \
         ${LINUX_CONFIGURE_FEATURES} \
@@ -215,6 +225,26 @@ task:
       ulimit -c unlimited # default is 0
       script --return --command "make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}" test.log
     EOF
+
+  generate_coverage_report_script: |
+      mkdir coverage
+      # Coverage only for changed files:
+      for f in `git diff --name-only --cherry-pick postgres/master... '*.c'`;
+      do
+        lcov --quiet --capture --directory "$f"
+      done >coverage/coverage.gcov
+
+      # Coverage for all files:
+      time lcov --quiet --capture --directory . >coverage/coverage-all.gcov
+
+      time genhtml coverage/coverage.gcov --output-directory coverage --show-details --legend --quiet
+      time genhtml coverage/coverage-all.gcov --output-directory coverage-all --show-details --legend --quiet
+      cp coverage/index.html coverage/00-index.html
+      cp coverage-all/index.html coverage-all/00-index.html
+      #git diff --name-only --cherry-pick postgres/master... '*.c' |xargs -r gcov --demangled-names --
+
+  coverage_artifacts:
+    paths: ['coverage/**/*.html', 'coverage/**/*.png', 'coverage/**/*.gcov', 'coverage/**/*.css' ]
 
   on_failure:
     <<: *on_failure
