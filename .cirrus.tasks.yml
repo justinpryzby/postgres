@@ -173,7 +173,7 @@ task:
     chown root:postgres /tmp/cores
     sysctl kern.corefile='/tmp/cores/%N.%P.core'
   setup_additional_packages_script: |
-    #pkg install -y ...
+    pkg install -y lcov
 
   # NB: Intentionally build without -Dllvm. The freebsd image size is already
   # large enough to make VM startup slow.
@@ -192,7 +192,13 @@ task:
   test_world_script: |
     su postgres <<-EOF
       ulimit -c unlimited
-      meson test $MTEST_ARGS --num-processes ${TEST_JOBS}
+      # Write initial coverage files before running tests:
+      time ./src/tools/ci/code-coverage-report "$BASE_COMMIT" ./build ./coverage "--initial"
+      meson test $MTEST_ARGS --suite setup
+      meson test $MTEST_ARGS --num-processes ${TEST_JOBS} regress/regress test_misc/003_check_guc unsafe_tests/regress
+
+      # Create coverage report for files changed since the base commit.
+      time ./src/tools/ci/code-coverage-report "$BASE_COMMIT" ./build ./coverage
     EOF
 
   # test runningcheck, freebsd chosen because it's currently fast enough
