@@ -309,19 +309,17 @@ sub alltaptests
 		{   wanted => sub {
 			/^t\z/s
 			  && $File::Find::name !~ /kerberos|ldap|ssl/
-			  && push(@tap_dirs, $File::Find::name);
+			  && push(@tap_dirs, "$File::Find::name/*.pl");
 			}
 		},
 		@top_dir);
 
 	$ENV{REGRESS_OUTPUTDIR} = "$topdir/src/test/recovery/tmp_check";
-	# Process each test
-	foreach my $test_path (@tap_dirs)
-	{
-		my $dir = dirname($test_path);
-		my $status = tap_check($dir);
-		$mstat ||= $status;
-	}
+	$ENV{PROVE_TESTS} = "@tap_dirs";
+	# Process all tests at once for good performance
+	#my $dir = dirname($test_path);
+	my $status = tap_check('.');
+	$mstat ||= $status;
 	exit $mstat if $mstat;
 	return;
 }
