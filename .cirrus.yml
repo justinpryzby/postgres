@@ -225,18 +225,44 @@ task:
       # Do nothing if the patch doesn't update doc:
       git diff --name-only --cherry-pick --exit-code originmaster... doc && exit
 
-      time ./configure \
+      # Exercise HTML and other docs:
+      mkdir new-docs
+      cd new-docs
+      ../configure \
         --cache gcc.cache \
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache gcc" \
         CXX="ccache g++" \
         CLANG="ccache clang" \
         CFLAGS="-O0 -ggdb" \
-        CXXFLAGS="-O0 -ggdb"
+        CXXFLAGS="-O0 -ggdb" >/dev/null
       time make -s -j${BUILD_JOBS} -C doc
+      cd -
+
+      # Build unpatched docs
+      git clone . ./old-docs --shared --branch originmaster
+      cd old-docs
+      ../configure \
+        --cache gcc.cache \
+        ${LINUX_CONFIGURE_FEATURES} \
+        CC="ccache gcc" \
+        CXX="ccache g++" \
+        CLANG="ccache clang" \
+        CFLAGS="-O0 -ggdb" \
+        CXXFLAGS="-O0 -ggdb" >/dev/null
+      time make -s -C doc html
+      cd -
+
+      # Copy changed files into html_docs
+      mkdir html_docs
+      cp new-docs/doc/src/sgml/html/*.css new-docs/doc/src/sgml/html/*.svg html_docs/
+      for f in `git diff --no-index --name-only new-docs/doc/src/sgml/html old-docs/doc/src/sgml/html`
+      do
+        cp $f html_docs/
+      done
 
   html_docs_artifacts:
-    paths: ['docs/**/*.html', 'docs/**/*.png', 'docs/**/*.css']
+    paths: ['html_docs/**/*.html', 'html_docs/**/*.png', 'html_docs/**/*.css']
 
   test_world_script: |
     su postgres <<-EOF
