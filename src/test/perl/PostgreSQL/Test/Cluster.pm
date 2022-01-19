@@ -430,8 +430,35 @@ sub init
 	mkdir $self->backup_dir;
 	mkdir $self->archive_dir;
 
-	PostgreSQL::Test::Utils::system_or_bail('initdb', '-D', $pgdata, '-A', 'trust', '-N',
-		@{ $params{extra} });
+	if (defined $params{extra} or !defined $ENV{INITDB_TEMPLATE})
+	{
+		diag("*not* using initdb template");
+		PostgreSQL::Test::Utils::system_or_bail('initdb', '-D', $pgdata, '-A', 'trust', '-N',
+			@{ $params{extra} });
+	}
+	else
+	{
+		my $old_umask;
+
+		diag("using initdb template");
+
+		if (!$PostgreSQL::Test::Utils::windows_os)
+		{
+			$old_umask = umask;
+			umask 0077;
+		}
+
+		PostgreSQL::Test::RecursiveCopy::copypath(
+			$ENV{INITDB_TEMPLATE},
+			$pgdata,
+		  );
+
+		if (!$PostgreSQL::Test::Utils::windows_os)
+		{
+			umask $old_umask;
+		}
+	}
+
 	PostgreSQL::Test::Utils::system_or_bail($ENV{PG_REGRESS}, '--config-auth', $pgdata,
 		@{ $params{auth_extra} });
 

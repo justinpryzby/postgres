@@ -14,6 +14,7 @@ use Carp;
 use File::Basename;
 use File::Copy;
 use File::Find ();
+use File::Path qw(rmtree);
 
 use Exporter;
 our (@ISA, @EXPORT_OK);
@@ -182,6 +183,9 @@ sub Install
 	}
 
 	GenerateNLSFiles($target, $config->{nls}, $majorver) if ($config->{nls});
+
+	rmtree("$target/initdb_template");
+	system("$target/bin/initdb -D $target/initdb_template -A trust -N") == 0 || die "template initdb failed";
 
 	print "Installation complete.\n";
 	return;

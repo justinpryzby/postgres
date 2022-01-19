@@ -73,6 +73,7 @@ $ENV{with_icu} = $config->{icu} ? 'yes' : 'no';
 $ENV{with_gssapi} = $config->{gss} ? 'yes' : 'no';
 $ENV{with_krb_srvnam} = $config->{krb_srvnam} || 'postgres';
 $ENV{with_readline} = 'no';
+$ENV{INITDB_TEMPLATE} = "$tmp_installdir/initdb_template";
 
 $ENV{PATH} = "$topdir/$Config/libpq;$ENV{PATH}";
 
