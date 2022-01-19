@@ -201,6 +201,14 @@ task:
     cpu: $CPUS
     memory: 2G
 
+  sysinfo_script: |
+    id
+    uname -a
+    cat /proc/cmdline
+    ulimit -a -H && ulimit -a -S
+    export
+    git diff --name-only "$BASE_COMMIT"
+
   # Populate global "base cache"
   ccache_base_cache:
     fingerprint_key: $CCACHE_BASE_KEY
@@ -214,13 +222,6 @@ task:
   ccache_cache:
     folder: $CCACHE_DIR
 
-  sysinfo_script: |
-    id
-    uname -a
-    cat /proc/cmdline
-    ulimit -a -H && ulimit -a -S
-    export
-    git diff --name-only "$BASE_COMMIT"
   create_user_script: |
     useradd -m postgres
     chown -R postgres:postgres .
@@ -312,6 +313,15 @@ task:
     ulimit -a -H && ulimit -a -S
     export
 
+  # Populate global "base cache"
+  ccache_base_cache:
+    fingerprint_key: $CCACHE_BASE_KEY
+    reupload_on_changes: true
+    folder: $CCACHE_DIR.base
+  # Now populate with this branch's own cache
+  ccache_cache:
+    folder: $CCACHE_DIR
+
   setup_core_files_script:
     - mkdir ${HOME}/cores
     - sudo sysctl kern.corefile="${HOME}/cores/core.%P"
@@ -322,7 +332,6 @@ task:
     - perl -mIPC::Run -e 1 || cpan -T IPC::Run
     - perl -mIO::Pty -e 1 || cpan -T IO::Pty
   upload_caches: perl
-
 
   # XXX: Could we instead install homebrew into a cached directory? The
   # homebrew installation takes a good bit of time every time, even if the
@@ -345,15 +354,6 @@ task:
 
     brew cleanup -s # to reduce cache size
   upload_caches: homebrew
-
-  # Populate global "base cache"
-  ccache_base_cache:
-    fingerprint_key: $CCACHE_BASE_KEY
-    reupload_on_changes: true
-    folder: $CCACHE_DIR.base
-  # Now populate with this branch's own cache
-  ccache_cache:
-    folder: $CCACHE_DIR
 
   configure_script: |
     brewpath="/usr/local"
