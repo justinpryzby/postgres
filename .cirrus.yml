@@ -256,7 +256,7 @@ task:
       # Copy changed files into html_docs
       mkdir html_docs
       cp new-docs/doc/src/sgml/html/*.css new-docs/doc/src/sgml/html/*.svg html_docs/
-      for f in `git diff --no-index --name-only new-docs/doc/src/sgml/html old-docs/doc/src/sgml/html`
+      for f in `git diff --no-index --name-only old-docs/doc/src/sgml/html new-docs/doc/src/sgml/html`
       do
         cp $f html_docs/
       done
