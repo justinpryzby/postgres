@@ -1400,9 +1400,9 @@ _readMergeAction(void)
 	READ_LOCALS(MergeAction);
 
 	READ_BOOL_FIELD(matched);
-	READ_ENUM_FIELD(commandType, CmdType);
 	READ_ENUM_FIELD(override, OverridingKind);
 	READ_NODE_FIELD(qual);
+	READ_ENUM_FIELD(commandType, CmdType);
 	READ_NODE_FIELD(targetList);
 	READ_NODE_FIELD(updateColnos);
 

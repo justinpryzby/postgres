@@ -1772,9 +1772,9 @@ _outMergeAction(StringInfo str, const MergeAction *node)
 	WRITE_NODE_TYPE("MERGEACTION");
 
 	WRITE_BOOL_FIELD(matched);
-	WRITE_ENUM_FIELD(commandType, CmdType);
 	WRITE_ENUM_FIELD(override, OverridingKind);
 	WRITE_NODE_FIELD(qual);
+	WRITE_ENUM_FIELD(commandType, CmdType);
 	WRITE_NODE_FIELD(targetList);
 	WRITE_NODE_FIELD(updateColnos);
 }

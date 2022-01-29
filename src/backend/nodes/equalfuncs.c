@@ -846,9 +846,9 @@ static bool
 _equalMergeAction(const MergeAction *a, const MergeAction *b)
 {
 	COMPARE_SCALAR_FIELD(matched);
-	COMPARE_SCALAR_FIELD(commandType);
 	COMPARE_SCALAR_FIELD(override);
 	COMPARE_NODE_FIELD(qual);
+	COMPARE_SCALAR_FIELD(commandType);
 	COMPARE_NODE_FIELD(targetList);
 	COMPARE_NODE_FIELD(updateColnos);
 

@@ -2305,9 +2305,9 @@ _copyMergeAction(const MergeAction *from)
 	MergeAction *newnode = makeNode(MergeAction);
 
 	COPY_SCALAR_FIELD(matched);
-	COPY_SCALAR_FIELD(commandType);
 	COPY_SCALAR_FIELD(override);
 	COPY_NODE_FIELD(qual);
+	COPY_SCALAR_FIELD(commandType);
 	COPY_NODE_FIELD(targetList);
 	COPY_NODE_FIELD(updateColnos);
 
