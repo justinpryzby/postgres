@@ -23599,6 +23599,45 @@ SELECT pg_type_is_visible('myschema.widget'::regtype);
       <row>
        <entry role="func_table_entry"><para role="func_signature">
         <indexterm>
+         <primary>pg_get_get_flags</primary>
+        </indexterm>
+        <function>pg_get_get_flags</function> ( <parameter>guc</parameter> <type>text</type> )
+        <returnvalue>text[]</returnvalue>
+       </para>
+       <para>
+        Returns an array of the flags associated with the given GUC, or
+        <literal>NULL</literal> if the  does not exist.  The result is
+        an empty array if the GUC exists but there are no flags to show,
+        as supported by the list below.
+        The following flags are exposed (the most meaningful ones are
+        included):
+        <simplelist>
+         <member>
+          <literal>EXPLAIN</literal>, parameters included in
+          <command>EXPLAIN</command> commands.
+         </member>
+         <member>
+          <literal>NO_SHOW_ALL</literal>, parameters excluded from
+          <command>SHOW ALL</command> commands.
+         </member>
+         <member>
+          <literal>NO_RESET_ALL</literal>, parameters excluded from
+          <command>RESET ALL</command> commands.
+         </member>
+         <member>
+          <literal>NOT_IN_SAMPLE</literal>, parameters not included in
+          <filename>postgresql.conf</filename> by default.
+         </member>
+         <member>
+          <literal>RUNTIME_COMPUTED</literal>, runtime-computed parameters.
+         </member>
+        </simplelist>
+       </para></entry>
+      </row>
+
+      <row>
+       <entry role="func_table_entry"><para role="func_signature">
+        <indexterm>
          <primary>pg_get_indexdef</primary>
         </indexterm>
         <function>pg_get_indexdef</function> ( <parameter>index</parameter> <type>oid</type> <optional>, <parameter>column</parameter> <type>integer</type>, <parameter>pretty</parameter> <type>boolean</type> </optional> )
