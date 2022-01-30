@@ -5431,6 +5431,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode,
 			Oid			NewAccessMethod;
 			Oid			NewTableSpace;
 			char		persistence;
+			TransactionId	relfrozenxid;
 
 			OldHeap = table_open(tab->relid, NoLock);
 
@@ -5485,6 +5486,13 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode,
 			persistence = tab->chgPersistence ?
 				tab->newrelpersistence : OldHeap->rd_rel->relpersistence;
 
+
+			if (TransactionIdIsValid(OldHeap->rd_rel->relfrozenxid) &&
+					TransactionIdPrecedes(RecentXmin, OldHeap->rd_rel->relfrozenxid))
+				relfrozenxid = OldHeap->rd_rel->relfrozenxid;
+			else
+				relfrozenxid = RecentXmin;
+
 			table_close(OldHeap, NoLock);
 
 			/*
@@ -5538,7 +5546,7 @@ ATRewriteTables(AlterTableStmt *parsetree, List **wqueue, LOCKMODE lockmode,
 			finish_heap_swap(tab->relid, OIDNewHeap,
 							 false, false, true,
 							 !OidIsValid(tab->newTableSpace),
-							 RecentXmin,
+							 relfrozenxid,
 							 ReadNextMultiXactId(),
 							 persistence);
 
