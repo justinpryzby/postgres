@@ -242,7 +242,7 @@ cost_seqscan(Path *path, PlannerInfo *root,
 	if (param_info)
 		path->rows = param_info->ppi_rows;
 	else
-		path->rows = baserel->rows;
+		path->rows = baserel->filtered_rows;
 
 	if (!enable_seqscan)
 		startup_cost += disable_cost;
@@ -540,7 +540,7 @@ cost_index(IndexPath *path, PlannerInfo *root, double loop_count,
 	}
 	else
 	{
-		path->path.rows = baserel->rows;
+		path->path.rows = baserel->filtered_rows;
 		/* qpquals come from just the rel's restriction clauses */
 		qpquals = extract_nonindex_conditions(path->indexinfo->indrestrictinfo,
 											  path->indexclauses);
@@ -979,7 +979,7 @@ cost_bitmap_heap_scan(Path *path, PlannerInfo *root, RelOptInfo *baserel,
 	if (param_info)
 		path->rows = param_info->ppi_rows;
 	else
-		path->rows = baserel->rows;
+		path->rows = baserel->filtered_rows;
 
 	if (!enable_bitmapscan)
 		startup_cost += disable_cost;
@@ -1210,7 +1210,7 @@ cost_tidscan(Path *path, PlannerInfo *root,
 	if (param_info)
 		path->rows = param_info->ppi_rows;
 	else
-		path->rows = baserel->rows;
+		path->rows = baserel->filtered_rows;
 
 	/* Count how many tuples we expect to retrieve */
 	ntuples = 0;
@@ -1321,7 +1321,7 @@ cost_tidrangescan(Path *path, PlannerInfo *root,
 	if (param_info)
 		path->rows = param_info->ppi_rows;
 	else
-		path->rows = baserel->rows;
+		path->rows = baserel->filtered_rows;
 
 	/* Count how many tuples and pages we expect to scan */
 	selectivity = clauselist_selectivity(root, tidrangequals, baserel->relid,
@@ -5276,6 +5276,17 @@ set_baserel_size_estimates(PlannerInfo *root, RelOptInfo *rel)
 								   false /* include_derived */);
 
 	rel->rows = clamp_row_est(nrows);
+
+	nrows = rel->tuples *
+		clauselist_selectivity_ext(root,
+								   rel->baserestrictinfo,
+								   0,
+								   JOIN_INNER,
+								   NULL,
+								   true,
+								   true /* include_derived, for filtered rows */);
+
+	rel->filtered_rows = clamp_row_est(nrows);
 
 	cost_qual_eval(&rel->baserestrictcost, rel->baserestrictinfo, root);
 
