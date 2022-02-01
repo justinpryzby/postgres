@@ -1368,23 +1368,55 @@ generate_base_implied_equalities_no_const(PlannerInfo *root,
 				rightexpr = (Expr *) ef->ef_const;
 			}
 
-			opno = get_opfamily_member(family,
-										exprType((Node *) leftexpr),
-										exprType((Node *) rightexpr),
-										strategy);
+			if (ef->ef_expr_type == T_OpExpr)
+			{
+				opno = get_opfamily_member(family,
+										   exprType((Node *) leftexpr),
+										   exprType((Node *) rightexpr),
+										   strategy);
 
-			if (opno == InvalidOid)
-				continue;
+				if (opno == InvalidOid)
+					continue;
 
-			rinfo = process_implied_equality(root, opno,
-											 ec->ec_collation,
-											 leftexpr,
-											 rightexpr,
-											 bms_copy(ec->ec_relids),
-											 bms_copy(cur_em->em_nullable_relids),
-											 ec->ec_min_security,
-											 ec->ec_below_outer_join,
-											 false);
+				rinfo = process_implied_equality(root, opno,
+												 ec->ec_collation,
+												 leftexpr,
+												 rightexpr,
+												 bms_copy(ec->ec_relids),
+												 bms_copy(cur_em->em_nullable_relids),
+												 ec->ec_min_security,
+												 ec->ec_below_outer_join,
+												 false);
+			}
+			else
+			{
+				ScalarArrayOpExpr *arr_opexpr;
+				Relids relids;
+
+				Assert(ef->ef_expr_type == T_ScalarArrayOpExpr);
+				arr_opexpr = makeNode(ScalarArrayOpExpr);
+				arr_opexpr->opno = ef->ef_opno;
+				arr_opexpr->opfuncid = get_opcode(ef->ef_opno);
+				arr_opexpr->useOr = true; /* See is_simple_filter_qual */
+				arr_opexpr->args = list_make2(leftexpr, ef->ef_const);
+				arr_opexpr->inputcollid = ec->ec_collation;
+
+				relids = pull_varnos(root, (Node *)arr_opexpr);
+
+				rinfo = make_restrictinfo(root,
+										  (Expr *) arr_opexpr,
+										  true,
+										  false,
+										  false, /* perudoconstant */
+										  ec->ec_min_security,
+										  relids,
+										  NULL,
+										  bms_copy(cur_em->em_nullable_relids));
+
+				// check_mergejoinable(rinfo);
+
+				distribute_restrictinfo_to_rels(root, rinfo);
+			}
 			rinfo->derived = ec;
 		}
 
@@ -1991,29 +2023,48 @@ distribute_filter_quals_to_eclass(PlannerInfo *root, List *quallist)
 	 */
 	foreach(l, quallist)
 	{
-		OpExpr	   *opexpr = (OpExpr *) lfirst(l);
-		Expr	   *leftexpr = (Expr *) linitial(opexpr->args);
-		Expr	   *rightexpr = (Expr *) lsecond(opexpr->args);
-		Const	   *constexpr;
-		Expr	   *varexpr;
+		Expr	*expr = lfirst(l);
+
+		List	*args;
+		Node	   *leftexpr;
+		Node	   *rightexpr;
+		Node	   *constexpr;
+		Node	   *varexpr;
+		Oid			opno;
+
 		Relids		exprrels;
 		int			relid;
 		bool		const_isleft;
 		ListCell *l2;
 
-		/*
-		 * Determine if the the OpExpr is in the form "expr op const" or
-		 * "const op expr".
-		 */
-		if (IsA(leftexpr, Const))
+		if (nodeTag(expr) == T_OpExpr)
 		{
-			constexpr = (Const *) leftexpr;
+			OpExpr	   *opexpr = (OpExpr *) lfirst(l);
+			args = opexpr->args;
+			opno = opexpr->opno;
+		}
+		else if (nodeTag(expr) == T_ScalarArrayOpExpr)
+		{
+			ScalarArrayOpExpr *arr_expr = (ScalarArrayOpExpr *) lfirst(l);
+			args = arr_expr->args;
+			opno = arr_expr->opno;
+		}
+		else
+		{
+			Assert(false);
+		}
+
+		leftexpr = linitial(args);
+		rightexpr = lsecond(args);
+		if (is_pseudo_constant_clause(leftexpr))
+		{
+			constexpr = leftexpr;
 			varexpr = rightexpr;
 			const_isleft = true;
 		}
 		else
 		{
-			constexpr = (Const *) rightexpr;
+			constexpr = rightexpr;
 			varexpr = leftexpr;
 			const_isleft = false;
 		}
@@ -2055,10 +2106,11 @@ distribute_filter_quals_to_eclass(PlannerInfo *root, List *quallist)
 				{
 					EquivalenceFilter *efilter;
 					efilter = makeNode(EquivalenceFilter);
-					efilter->ef_const = (Const *) copyObject(constexpr);
+					efilter->ef_const = (Node *)copyObject(constexpr);
 					efilter->ef_const_is_left = const_isleft;
-					efilter->ef_opno = opexpr->opno;
+					efilter->ef_opno = opno;
 					efilter->ef_source_rel = relid;
+					efilter->ef_expr_type = nodeTag(expr);
 
 					ec->ec_filters = lappend(ec->ec_filters, efilter);
 					break;		/* Onto the next eclass */

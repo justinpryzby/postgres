@@ -1036,10 +1036,11 @@ typedef struct EquivalenceFilter
 {
 	NodeTag		type;
 
-	Const	   *ef_const;		/* the constant expression to filter on */
+	Node		*ef_const;		/* pseudo const */
 	Oid			ef_opno;		/* Operator Oid of filter operator */
 	bool		ef_const_is_left; /* Is the Const on the left of the OpExrp? */
 	Index		ef_source_rel;	/* relid of originating relation. */
+	NodeTag		ef_expr_type;
 } EquivalenceFilter;
 
 /*
