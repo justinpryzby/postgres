@@ -558,10 +558,13 @@ static Plan *
 create_scan_plan(PlannerInfo *root, Path *best_path, int flags)
 {
 	RelOptInfo *rel = best_path->parent;
-	List	   *scan_clauses;
+	List	   *scan_clauses = NIL;
 	List	   *gating_clauses;
 	List	   *tlist;
 	Plan	   *plan;
+
+	List	*ppi_clauses = best_path->param_info ? best_path->param_info->ppi_clauses : NIL;
+	ListCell	*lc;
 
 	/*
 	 * Extract the relevant restriction clauses from the parent relation. The
@@ -593,8 +596,18 @@ create_scan_plan(PlannerInfo *root, Path *best_path, int flags)
 	 * For paranoia's sake, don't modify the stored baserestrictinfo list.
 	 */
 	if (best_path->param_info)
-		scan_clauses = list_concat_copy(scan_clauses,
+	{
+		List *stripped_quals = NIL;
+		foreach(lc, rel->baserestrictinfo)
+		{
+			RestrictInfo *rinfo = lfirst_node(RestrictInfo, lc);
+
+			if (!is_correlated_derived_clause(rinfo, ppi_clauses))
+				stripped_quals = lappend(stripped_quals, rinfo);
+		}
+		scan_clauses = list_concat_copy(stripped_quals,
 										best_path->param_info->ppi_clauses);
+	}
 
 	/*
 	 * Detect whether we have any pseudoconstant quals to deal with.  Then, if
@@ -4985,6 +4998,7 @@ fix_indexqual_references(PlannerInfo *root, IndexPath *index_path,
 	List	   *stripped_indexquals;
 	List	   *fixed_indexquals;
 	ListCell   *lc;
+	List	*ppi_clauses = index_path->path.param_info ? index_path->path.param_info->ppi_clauses : NIL;
 
 	stripped_indexquals = fixed_indexquals = NIL;
 
@@ -4993,6 +5007,17 @@ fix_indexqual_references(PlannerInfo *root, IndexPath *index_path,
 		IndexClause *iclause = lfirst_node(IndexClause, lc);
 		int			indexcol = iclause->indexcol;
 		ListCell   *lc2;
+
+		if (is_correlated_derived_clause(iclause->rinfo, ppi_clauses))
+		{
+			/*
+			 * bitmapscan will read this indexquals as well. so we can't just igrore
+			 * it for now. we can totally delete it.
+			 */
+			index_path->indexclauses = foreach_delete_current(index_path->indexclauses, lc);
+			continue;
+		}
+
 
 		foreach(lc2, iclause->indexquals)
 		{

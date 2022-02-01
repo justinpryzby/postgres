@@ -3332,6 +3332,28 @@ is_redundant_derived_clause(RestrictInfo *rinfo, List *clauselist)
 	return false;
 }
 
+
+bool
+is_correlated_derived_clause(RestrictInfo *rinfo, List *clauselist)
+{
+	EquivalenceClass *derived_ec = rinfo->derived;
+	ListCell   *lc;
+
+	/* Fail if it's not a potentially-derived clause from some EC */
+	if (derived_ec == NULL)
+		return false;
+
+	foreach(lc, clauselist)
+	{
+		RestrictInfo *otherrinfo = (RestrictInfo *) lfirst(lc);
+
+		if (otherrinfo->parent_ec == derived_ec)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * is_redundant_with_indexclauses
  *		Test whether rinfo is redundant with any clause in the IndexClause
