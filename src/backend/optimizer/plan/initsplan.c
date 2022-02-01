@@ -656,33 +656,42 @@ create_lateral_join_info(PlannerInfo *root)
  *             Analyzes an OpExpr to determine if it may be useful as an
  *             EquivalenceFilter. Returns true if the OpExpr may be of some use, or
  *             false if it should not be used.
+ *
  */
 static bool
-is_simple_filter_qual(PlannerInfo *root, OpExpr *expr)
+is_simple_filter_qual(PlannerInfo *root, Expr *expr)
 {
-       Expr *leftexpr;
-       Expr *rightexpr;
+       Node *leftexpr;
+       Node *rightexpr;
+	   List	*args = NIL;
 
-       if (!IsA(expr, OpExpr))
-               return false;
+       if (IsA(expr, OpExpr))
+		   args = castNode(OpExpr, expr)->args;
+	   else if (IsA(expr, ScalarArrayOpExpr))
+	   {
+		   ScalarArrayOpExpr *arr_opexpr = castNode(ScalarArrayOpExpr, expr);
+		   if (!arr_opexpr->useOr)
+			   /* Just support IN for now */
+			   return false;
+		   args = arr_opexpr->args;
+	   }
 
-       if (list_length(expr->args) != 2)
-               return false;
+       if (list_length(args) != 2)
+		   return false;
 
-       leftexpr = (Expr *) linitial(expr->args);
-       rightexpr = (Expr *) lsecond(expr->args);
+       leftexpr = linitial(args);
+       rightexpr = lsecond(args);
 
-       /* XXX should we restrict these to simple Var op Const expressions? */
-       if (IsA(leftexpr, Const))
+       if (is_pseudo_constant_clause(leftexpr))
        {
-		   if (bms_membership(pull_varnos(root, (Node *) rightexpr)) == BMS_SINGLETON &&
-			   !contain_volatile_functions((Node *) rightexpr))
+		   if (bms_membership(pull_varnos(root, rightexpr)) == BMS_SINGLETON &&
+			   !contain_volatile_functions(rightexpr))
                        return true;
        }
-       else if (IsA(rightexpr, Const))
+       else if (is_pseudo_constant_clause(rightexpr))
        {
-		   if (bms_membership(pull_varnos(root, (Node *) leftexpr)) == BMS_SINGLETON &&
-			   !contain_volatile_functions((Node *) leftexpr))
+		   if (bms_membership(pull_varnos(root, leftexpr)) == BMS_SINGLETON &&
+			   !contain_volatile_functions(leftexpr))
                        return true;
        }
 
@@ -739,7 +748,13 @@ deconstruct_jointree(PlannerInfo *root)
 
 	result = deconstruct_recurse(root, (Node *) root->parse->jointree, false,
 								 &qualscope, &inner_join_rels,
-								 &postponed_qual_list, &filter_qual_list);
+								 &postponed_qual_list,
+								 /*
+								  * geqo option here is just used for testing
+								  * during review stage, set enable_geqo to
+								  * false to disable this feature.
+								  */
+								 enable_geqo ? &filter_qual_list : NULL);
 
 	/* Shouldn't be any leftover quals */
 	Assert(postponed_qual_list == NIL);
@@ -2024,7 +2039,7 @@ distribute_qual_to_rels(PlannerInfo *root, Node *clause,
 	distribute_restrictinfo_to_rels(root, restrictinfo);
 
 	/* Check if the qual looks useful to harvest as an EquivalenceFilter */
-	if (filter_qual_list != NULL && is_simple_filter_qual(root, (OpExpr *) clause))
+	if (filter_qual_list != NULL && is_simple_filter_qual(root, (Expr *) clause))
 		*filter_qual_list = lappend(*filter_qual_list, clause);
 }
 
