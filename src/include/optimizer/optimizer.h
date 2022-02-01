@@ -68,7 +68,8 @@ extern Selectivity clause_selectivity_ext(PlannerInfo *root,
 										  int varRelid,
 										  JoinType jointype,
 										  SpecialJoinInfo *sjinfo,
-										  bool use_extended_stats);
+										  bool use_extended_stats,
+										  bool include_derived);
 extern Selectivity clauselist_selectivity(PlannerInfo *root,
 										  List *clauses,
 										  int varRelid,
@@ -79,7 +80,8 @@ extern Selectivity clauselist_selectivity_ext(PlannerInfo *root,
 											  int varRelid,
 											  JoinType jointype,
 											  SpecialJoinInfo *sjinfo,
-											  bool use_extended_stats);
+											  bool use_extended_stats,
+											  bool include_derived);
 
 /* in path/costsize.c: */
 

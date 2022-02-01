@@ -1348,6 +1348,7 @@ generate_base_implied_equalities_no_const(PlannerInfo *root,
 			int strategy;
 			Oid opno;
 			Oid family;
+			RestrictInfo *rinfo;
 
 			if (ef->ef_source_rel == relid)
 				continue;
@@ -1375,15 +1376,16 @@ generate_base_implied_equalities_no_const(PlannerInfo *root,
 			if (opno == InvalidOid)
 				continue;
 
-			process_implied_equality(root, opno,
-										ec->ec_collation,
-										leftexpr,
-										rightexpr,
-										bms_copy(ec->ec_relids),
-										bms_copy(cur_em->em_nullable_relids),
-									 	ec->ec_min_security,
-										ec->ec_below_outer_join,
-										false);
+			rinfo = process_implied_equality(root, opno,
+											 ec->ec_collation,
+											 leftexpr,
+											 rightexpr,
+											 bms_copy(ec->ec_relids),
+											 bms_copy(cur_em->em_nullable_relids),
+											 ec->ec_min_security,
+											 ec->ec_below_outer_join,
+											 false);
+			rinfo->derived = ec;
 		}
 
 		prev_ems[relid] = cur_em;

@@ -2181,6 +2181,7 @@ typedef struct RestrictInfo
 	/* hash equality operators used for memoize nodes, else InvalidOid */
 	Oid			left_hasheqoperator;
 	Oid			right_hasheqoperator;
+	EquivalenceClass *derived;
 } RestrictInfo;
 
 /*

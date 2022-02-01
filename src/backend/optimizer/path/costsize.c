@@ -5267,11 +5267,13 @@ set_baserel_size_estimates(PlannerInfo *root, RelOptInfo *rel)
 	Assert(rel->relid > 0);
 
 	nrows = rel->tuples *
-		clauselist_selectivity(root,
-							   rel->baserestrictinfo,
-							   0,
-							   JOIN_INNER,
-							   NULL);
+		clauselist_selectivity_ext(root,
+								   rel->baserestrictinfo,
+								   0,
+								   JOIN_INNER,
+								   NULL,
+								   true,
+								   false /* include_derived */);
 
 	rel->rows = clamp_row_est(nrows);
 
@@ -5303,11 +5305,14 @@ get_parameterized_baserel_size(PlannerInfo *root, RelOptInfo *rel,
 	 */
 	allclauses = list_concat_copy(param_clauses, rel->baserestrictinfo);
 	nrows = rel->tuples *
-		clauselist_selectivity(root,
-							   allclauses,
-							   rel->relid,	/* do not use 0! */
-							   JOIN_INNER,
-							   NULL);
+		clauselist_selectivity_ext(root,
+								   allclauses,
+								   rel->relid,	/* do not use 0! */
+								   JOIN_INNER,
+								   NULL,
+								   true,
+								   false /* doesn't include the derived clause */
+			);
 	nrows = clamp_row_est(nrows);
 	/* For safety, make sure result is not more than the base estimate */
 	if (nrows > rel->rows)
