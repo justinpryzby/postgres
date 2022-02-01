@@ -991,6 +991,7 @@ typedef struct EquivalenceClass
 	List	   *ec_members;		/* list of EquivalenceMembers */
 	List	   *ec_sources;		/* list of generating RestrictInfos */
 	List	   *ec_derives;		/* list of derived RestrictInfos */
+	List	   *ec_filters;
 	Relids		ec_relids;		/* all relids appearing in ec_members, except
 								 * for child members (see below) */
 	bool		ec_has_const;	/* any pseudoconstants in ec_members? */
@@ -1002,6 +1003,42 @@ typedef struct EquivalenceClass
 	Index		ec_max_security;	/* maximum security_level in ec_sources */
 	struct EquivalenceClass *ec_merged; /* set if merged into another EC */
 } EquivalenceClass;
+
+/*
+ * EquivalenceFilter - List of filters on Consts which belong to the
+ * EquivalenceClass.
+ *
+ * When building the equivalence classes we also collected a list of quals in
+ * the form of; "Expr op Const" and "Const op Expr". These are collected in the
+ * hope that we'll later generate an equivalence class which contains the
+ * "Expr" part. For example, if we parse a query such as;
+ *
+ *		SELECT * FROM t1 INNER JOIN t2 ON t1.id = t2.id WHERE t1.id < 10;
+ *
+ * then since we'll end up with an equivalence class containing {t1.id,t2.id},
+ * we'll tag the "< 10" filter onto the eclass. We are able to do this because
+ * the eclass proves equality between each class member, therefore all members
+ * must be below 10.
+ *
+ * EquivalenceFilters store the details required to allow us to push these
+ * filter clauses down into other relations which share an equivalence class
+ * containing a member which matches the expression of this EquivalenceFilter.
+ *
+ * ef_const is the Const value which this filter should filter against.
+ * ef_opno is the operator to filter on.
+ * ef_const_is_left marks if the OpExpr was in the form "Const op Expr" or
+ * "Expr op Const".
+ * ef_source_rel is the relation id of where this qual originated from.
+ */
+typedef struct EquivalenceFilter
+{
+	NodeTag		type;
+
+	Const	   *ef_const;		/* the constant expression to filter on */
+	Oid			ef_opno;		/* Operator Oid of filter operator */
+	bool		ef_const_is_left; /* Is the Const on the left of the OpExrp? */
+	Index		ef_source_rel;	/* relid of originating relation. */
+} EquivalenceFilter;
 
 /*
  * If an EC contains a const and isn't below-outer-join, any PathKey depending

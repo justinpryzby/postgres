@@ -451,3 +451,48 @@ explain (costs off)  -- this should not require a sort
    Filter: (f1 = 'foo'::name)
 (2 rows)
 
+-- test equivalence filters
+explain (costs off)
+  select * from ec0
+  inner join ec1 on ec0.ff = ec1.ff
+  where ec0.ff between 1 and 10;
+                         QUERY PLAN                         
+------------------------------------------------------------
+ Merge Join
+   Merge Cond: (ec0.ff = ec1.ff)
+   ->  Sort
+         Sort Key: ec0.ff
+         ->  Bitmap Heap Scan on ec0
+               Recheck Cond: ((ff >= 1) AND (ff <= 10))
+               ->  Bitmap Index Scan on ec0_pkey
+                     Index Cond: ((ff >= 1) AND (ff <= 10))
+   ->  Sort
+         Sort Key: ec1.ff
+         ->  Bitmap Heap Scan on ec1
+               Recheck Cond: ((ff >= 1) AND (ff <= 10))
+               ->  Bitmap Index Scan on ec1_pkey
+                     Index Cond: ((ff >= 1) AND (ff <= 10))
+(14 rows)
+
+explain (costs off)
+  select * from ec0
+  inner join ec1 on ec0.ff = ec1.ff
+  where ec1.ff between 1 and 10;
+                         QUERY PLAN                         
+------------------------------------------------------------
+ Merge Join
+   Merge Cond: (ec0.ff = ec1.ff)
+   ->  Sort
+         Sort Key: ec0.ff
+         ->  Bitmap Heap Scan on ec0
+               Recheck Cond: ((ff >= 1) AND (ff <= 10))
+               ->  Bitmap Index Scan on ec0_pkey
+                     Index Cond: ((ff >= 1) AND (ff <= 10))
+   ->  Sort
+         Sort Key: ec1.ff
+         ->  Bitmap Heap Scan on ec1
+               Recheck Cond: ((ff >= 1) AND (ff <= 10))
+               ->  Bitmap Index Scan on ec1_pkey
+                     Index Cond: ((ff >= 1) AND (ff <= 10))
+(14 rows)
+
