@@ -342,6 +342,34 @@ get_ordering_op_for_equality_op(Oid opno, bool use_lhs_type)
 }
 
 /*
+ * get_opfamilies
+ *		Returns a list of Oids of each opfamily which 'opno' belonging to
+ *		'method' access method.
+ */
+List *
+get_opfamilies(Oid opno, Oid method)
+{
+	List	   *result = NIL;
+	CatCList   *catlist;
+	int			i;
+
+	catlist = SearchSysCacheList1(AMOPOPID, ObjectIdGetDatum(opno));
+
+	for (i = 0; i < catlist->n_members; i++)
+	{
+		HeapTuple	tuple = &catlist->members[i]->tuple;
+		Form_pg_amop aform = (Form_pg_amop) GETSTRUCT(tuple);
+
+		if (aform->amopmethod == method)
+			result = lappend_oid(result, aform->amopfamily);
+	}
+
+	ReleaseSysCacheList(catlist);
+
+	return result;
+}
+
+/*
  * get_mergejoin_opfamilies
  *		Given a putatively mergejoinable operator, return a list of the OIDs
  *		of the btree opfamilies in which it represents equality.

@@ -19,6 +19,7 @@
 #include <limits.h>
 
 #include "access/stratnum.h"
+#include "catalog/pg_am.h"
 #include "catalog/pg_type.h"
 #include "nodes/makefuncs.h"
 #include "nodes/nodeFuncs.h"
@@ -1251,6 +1252,37 @@ generate_base_implied_equalities_const(PlannerInfo *root,
 }
 
 /*
+ * finds the opfamily and strategy number for the specified 'opno' and 'method'
+ * access method. Returns True if one is found and sets 'family' and
+ * 'amstrategy', or returns False if none are found.
+ */
+static bool
+find_am_family_and_stategy(Oid opno, Oid method, Oid *family, int *amstrategy)
+{
+	List *opfamilies;
+	ListCell *l;
+	int strategy;
+
+	opfamilies = get_opfamilies(opno, method);
+
+	foreach(l, opfamilies)
+	{
+		Oid opfamily = lfirst_oid(l);
+
+		strategy = get_op_opfamily_strategy(opno, opfamily);
+
+		if (strategy)
+		{
+			*amstrategy = strategy;
+			*family = opfamily;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/*
  * generate_base_implied_equalities when EC contains no pseudoconstants
  */
 static void
@@ -1259,6 +1291,7 @@ generate_base_implied_equalities_no_const(PlannerInfo *root,
 {
 	EquivalenceMember **prev_ems;
 	ListCell   *lc;
+	ListCell   *lc2;
 
 	/*
 	 * We scan the EC members once and track the last-seen member for each
@@ -1320,6 +1353,57 @@ generate_base_implied_equalities_no_const(PlannerInfo *root,
 				rinfo->right_em = cur_em;
 			}
 		}
+
+		/*
+		 * Also push any EquivalenceFilter clauses down into all relations
+		 * other than the one which the filter actually originated from.
+		 */
+		foreach(lc2, ec->ec_filters)
+		{
+			EquivalenceFilter *ef = (EquivalenceFilter *) lfirst(lc2);
+			Expr *leftexpr;
+			Expr *rightexpr;
+			int strategy;
+			Oid opno;
+			Oid family;
+
+			if (ef->ef_source_rel == relid)
+				continue;
+
+			if (!find_am_family_and_stategy(ef->ef_opno, BTREE_AM_OID,
+				&family, &strategy))
+				continue;
+
+			if (ef->ef_const_is_left)
+			{
+				leftexpr = (Expr *) ef->ef_const;
+				rightexpr = cur_em->em_expr;
+			}
+			else
+			{
+				leftexpr = cur_em->em_expr;
+				rightexpr = (Expr *) ef->ef_const;
+			}
+
+			opno = get_opfamily_member(family,
+										exprType((Node *) leftexpr),
+										exprType((Node *) rightexpr),
+										strategy);
+
+			if (opno == InvalidOid)
+				continue;
+
+			process_implied_equality(root, opno,
+										ec->ec_collation,
+										leftexpr,
+										rightexpr,
+										bms_copy(ec->ec_relids),
+										bms_copy(cur_em->em_nullable_relids),
+									 	ec->ec_min_security,
+										ec->ec_below_outer_join,
+										false);
+		}
+
 		prev_ems[relid] = cur_em;
 	}
 
@@ -1901,6 +1985,104 @@ create_join_clause(PlannerInfo *root,
 	return rinfo;
 }
 
+/*
+ * distribute_filter_quals_to_eclass
+ *		For each OpExpr in quallist look for an eclass which has an Expr
+ *		matching the Expr in the OpExpr. If a match is found we add a new
+ *		EquivalenceFilter to the eclass containing the filter details.
+ */
+void
+distribute_filter_quals_to_eclass(PlannerInfo *root, List *quallist)
+{
+	ListCell *l;
+
+	/* fast path for when no eclasses have been generated */
+	if (root->eq_classes == NIL)
+		return;
+
+	/*
+	 * For each qual in quallist try and find an eclass which contains the
+	 * non-Const part of the OpExpr. We'll tag any matches that we find onto
+	 * the correct eclass.
+	 */
+	foreach(l, quallist)
+	{
+		OpExpr	   *opexpr = (OpExpr *) lfirst(l);
+		Expr	   *leftexpr = (Expr *) linitial(opexpr->args);
+		Expr	   *rightexpr = (Expr *) lsecond(opexpr->args);
+		Const	   *constexpr;
+		Expr	   *varexpr;
+		Relids		exprrels;
+		int			relid;
+		bool		const_isleft;
+		ListCell *l2;
+
+		/*
+		 * Determine if the the OpExpr is in the form "expr op const" or
+		 * "const op expr".
+		 */
+		if (IsA(leftexpr, Const))
+		{
+			constexpr = (Const *) leftexpr;
+			varexpr = rightexpr;
+			const_isleft = true;
+		}
+		else
+		{
+			constexpr = (Const *) rightexpr;
+			varexpr = leftexpr;
+			const_isleft = false;
+		}
+
+		exprrels = pull_varnos(root, (Node *) varexpr);
+
+		/* should be filtered out, but we need to determine relid anyway */
+		if (!bms_get_singleton_member(exprrels, &relid))
+			continue;
+
+		/* search for a matching eclass member in all eclasses */
+		foreach(l2, root->eq_classes)
+		{
+			EquivalenceClass *ec = (EquivalenceClass *) lfirst(l2);
+			ListCell *l3;
+
+			if (ec->ec_broken || ec->ec_has_volatile)
+				continue;
+
+			/*
+			 * if the eclass has a const then that const will serve as the
+			 * filter, we needn't add any others.
+			 */
+			if (ec->ec_has_const)
+				continue;
+
+			/* skip this eclass no members exist which belong to this relid */
+			if (!bms_is_member(relid, ec->ec_relids))
+				continue;
+
+			foreach(l3, ec->ec_members)
+			{
+				EquivalenceMember *em = (EquivalenceMember *) lfirst(l3);
+
+				if (!bms_is_member(relid, em->em_relids))
+					continue;
+
+				if (equal(em->em_expr, varexpr))
+				{
+					EquivalenceFilter *efilter;
+					efilter = makeNode(EquivalenceFilter);
+					efilter->ef_const = (Const *) copyObject(constexpr);
+					efilter->ef_const_is_left = const_isleft;
+					efilter->ef_opno = opexpr->opno;
+					efilter->ef_source_rel = relid;
+
+					ec->ec_filters = lappend(ec->ec_filters, efilter);
+					break;		/* Onto the next eclass */
+				}
+			}
+		}
+	}
+}
 
 /*
  * reconsider_outer_join_clauses
