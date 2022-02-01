@@ -456,43 +456,29 @@ explain (costs off)
   select * from ec0
   inner join ec1 on ec0.ff = ec1.ff
   where ec0.ff between 1 and 10;
-                         QUERY PLAN                         
-------------------------------------------------------------
- Merge Join
-   Merge Cond: (ec0.ff = ec1.ff)
-   ->  Sort
-         Sort Key: ec0.ff
-         ->  Bitmap Heap Scan on ec0
-               Recheck Cond: ((ff >= 1) AND (ff <= 10))
-               ->  Bitmap Index Scan on ec0_pkey
-                     Index Cond: ((ff >= 1) AND (ff <= 10))
-   ->  Sort
-         Sort Key: ec1.ff
-         ->  Bitmap Heap Scan on ec1
-               Recheck Cond: ((ff >= 1) AND (ff <= 10))
-               ->  Bitmap Index Scan on ec1_pkey
-                     Index Cond: ((ff >= 1) AND (ff <= 10))
-(14 rows)
+                            QUERY PLAN                            
+------------------------------------------------------------------
+ Nested Loop
+   ->  Bitmap Heap Scan on ec1
+         Recheck Cond: ((ff >= 1) AND (ff <= 10))
+         ->  Bitmap Index Scan on ec1_pkey
+               Index Cond: ((ff >= 1) AND (ff <= 10))
+   ->  Index Scan using ec0_pkey on ec0
+         Index Cond: ((ff = ec1.ff) AND (ff >= 1) AND (ff <= 10))
+(7 rows)
 
 explain (costs off)
   select * from ec0
   inner join ec1 on ec0.ff = ec1.ff
   where ec1.ff between 1 and 10;
-                         QUERY PLAN                         
-------------------------------------------------------------
- Merge Join
-   Merge Cond: (ec0.ff = ec1.ff)
-   ->  Sort
-         Sort Key: ec0.ff
-         ->  Bitmap Heap Scan on ec0
-               Recheck Cond: ((ff >= 1) AND (ff <= 10))
-               ->  Bitmap Index Scan on ec0_pkey
-                     Index Cond: ((ff >= 1) AND (ff <= 10))
-   ->  Sort
-         Sort Key: ec1.ff
-         ->  Bitmap Heap Scan on ec1
-               Recheck Cond: ((ff >= 1) AND (ff <= 10))
-               ->  Bitmap Index Scan on ec1_pkey
-                     Index Cond: ((ff >= 1) AND (ff <= 10))
-(14 rows)
+                            QUERY PLAN                            
+------------------------------------------------------------------
+ Nested Loop
+   ->  Bitmap Heap Scan on ec0
+         Recheck Cond: ((ff >= 1) AND (ff <= 10))
+         ->  Bitmap Index Scan on ec0_pkey
+               Index Cond: ((ff >= 1) AND (ff <= 10))
+   ->  Index Scan using ec1_pkey on ec1
+         Index Cond: ((ff = ec0.ff) AND (ff >= 1) AND (ff <= 10))
+(7 rows)
 

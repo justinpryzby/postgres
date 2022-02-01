@@ -3337,7 +3337,7 @@ where t1.unique2 < 42 and t1.stringu1 > t2.stringu2;
    Join Filter: (t1.stringu1 > t2.stringu2)
    ->  Nested Loop
          ->  Seq Scan on int4_tbl i1
-               Filter: (f1 = 0)
+               Filter: ((f1 = 0) AND (11 < 42))
          ->  Index Scan using tenk1_unique2 on tenk1 t1
                Index Cond: ((unique2 = (11)) AND (unique2 < 42))
    ->  Index Scan using tenk1_unique1 on tenk1 t2
@@ -6490,9 +6490,10 @@ where j1.id1 % 1000 = 1 and j2.id1 % 1000 = 1 and j2.id1 = any (array[1]);
    Merge Cond: (j1.id1 = j2.id1)
    Join Filter: (j1.id2 = j2.id2)
    ->  Index Scan using j1_id1_idx on j1
+         Index Cond: (id1 = ANY ('{1}'::integer[]))
    ->  Index Scan using j2_id1_idx on j2
          Index Cond: (id1 = ANY ('{1}'::integer[]))
-(6 rows)
+(7 rows)
 
 select * from j1
 inner join j2 on j1.id1 = j2.id1 and j1.id2 = j2.id2
@@ -6507,16 +6508,17 @@ where j1.id1 % 1000 = 1 and j2.id1 % 1000 = 1 and j2.id1 = any (array[1]);
 explain (costs off) select * from j1
 inner join j2 on j1.id1 = j2.id1 and j1.id2 = j2.id2
 where j1.id1 % 1000 = 1 and j2.id1 % 1000 = 1 and j2.id1 >= any (array[1,5]);
-                      QUERY PLAN                       
--------------------------------------------------------
+                       QUERY PLAN                        
+---------------------------------------------------------
  Merge Join
-   Merge Cond: (j1.id1 = j2.id1)
-   Join Filter: (j1.id2 = j2.id2)
-   ->  Index Scan using j1_id1_idx on j1
+   Merge Cond: ((j1.id1 = j2.id1) AND (j1.id2 = j2.id2))
+   ->  Index Only Scan using j1_pkey on j1
+         Index Cond: (id1 >= ANY ('{1,5}'::integer[]))
+         Filter: ((id1 % 1000) = 1)
    ->  Index Only Scan using j2_pkey on j2
          Index Cond: (id1 >= ANY ('{1,5}'::integer[]))
          Filter: ((id1 % 1000) = 1)
-(7 rows)
+(8 rows)
 
 select * from j1
 inner join j2 on j1.id1 = j2.id1 and j1.id2 = j2.id2
@@ -6552,6 +6554,7 @@ where exists (select 1 from tenk1 t3
                Group Key: t3.thousand, t3.tenthous
                ->  Index Only Scan using tenk1_thous_tenthous on public.tenk1 t3
                      Output: t3.thousand, t3.tenthous
+                     Index Cond: (t3.thousand < 1)
          ->  Hash
                Output: t1.unique1
                ->  Index Only Scan using onek_unique1 on public.onek t1
@@ -6560,7 +6563,7 @@ where exists (select 1 from tenk1 t3
    ->  Index Only Scan using tenk1_hundred on public.tenk1 t2
          Output: t2.hundred
          Index Cond: (t2.hundred = t3.tenthous)
-(18 rows)
+(19 rows)
 
 -- ... unless it actually is unique
 create table j3 as select unique1, tenthous from onek;
@@ -6572,18 +6575,18 @@ from onek t1, tenk1 t2
 where exists (select 1 from j3
               where j3.unique1 = t1.unique1 and j3.tenthous = t2.hundred)
       and t1.unique1 < 1;
-                               QUERY PLAN                               
-------------------------------------------------------------------------
+                                 QUERY PLAN                                 
+----------------------------------------------------------------------------
  Nested Loop
    Output: t1.unique1, t2.hundred
    ->  Nested Loop
          Output: t1.unique1, j3.tenthous
-         ->  Index Only Scan using onek_unique1 on public.onek t1
-               Output: t1.unique1
-               Index Cond: (t1.unique1 < 1)
          ->  Index Only Scan using j3_unique1_tenthous_idx on public.j3
                Output: j3.unique1, j3.tenthous
-               Index Cond: (j3.unique1 = t1.unique1)
+               Index Cond: (j3.unique1 < 1)
+         ->  Index Only Scan using onek_unique1 on public.onek t1
+               Output: t1.unique1
+               Index Cond: ((t1.unique1 = j3.unique1) AND (t1.unique1 < 1))
    ->  Index Only Scan using tenk1_hundred on public.tenk1 t2
          Output: t2.hundred
          Index Cond: (t2.hundred = j3.tenthous)
