@@ -1076,7 +1076,8 @@ clauselist_apply_dependencies(PlannerInfo *root, List *clauses,
 		}
 
 		simple_sel = clauselist_selectivity_ext(root, attr_clauses, varRelid,
-												jointype, sjinfo, false);
+												jointype, sjinfo, false,
+												true /* probably no reasonable */);
 		attr_sel[attidx++] = simple_sel;
 	}
 

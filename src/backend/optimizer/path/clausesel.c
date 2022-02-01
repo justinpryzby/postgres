@@ -106,7 +106,7 @@ clauselist_selectivity(PlannerInfo *root,
 					   SpecialJoinInfo *sjinfo)
 {
 	return clauselist_selectivity_ext(root, clauses, varRelid,
-									  jointype, sjinfo, true);
+									  jointype, sjinfo, true, true);
 }
 
 /*
@@ -121,7 +121,8 @@ clauselist_selectivity_ext(PlannerInfo *root,
 						   int varRelid,
 						   JoinType jointype,
 						   SpecialJoinInfo *sjinfo,
-						   bool use_extended_stats)
+						   bool use_extended_stats,
+						   bool include_derived)
 {
 	Selectivity s1 = 1.0;
 	RelOptInfo *rel;
@@ -137,7 +138,8 @@ clauselist_selectivity_ext(PlannerInfo *root,
 	if (list_length(clauses) == 1)
 		return clause_selectivity_ext(root, (Node *) linitial(clauses),
 									  varRelid, jointype, sjinfo,
-									  use_extended_stats);
+									  use_extended_stats,
+									  include_derived);
 
 	/*
 	 * Determine if these clauses reference a single relation.  If so, and if
@@ -183,7 +185,7 @@ clauselist_selectivity_ext(PlannerInfo *root,
 
 		/* Compute the selectivity of this clause in isolation */
 		s2 = clause_selectivity_ext(root, clause, varRelid, jointype, sjinfo,
-									use_extended_stats);
+									use_extended_stats, include_derived);
 
 		/*
 		 * Check for being passed a RestrictInfo.
@@ -412,7 +414,9 @@ clauselist_selectivity_or(PlannerInfo *root,
 			continue;
 
 		s2 = clause_selectivity_ext(root, (Node *) lfirst(lc), varRelid,
-									jointype, sjinfo, use_extended_stats);
+									jointype, sjinfo, use_extended_stats,
+									true /* we never push a derived under or clause */
+			);
 
 		s1 = s1 + s2 - s1 * s2;
 	}
@@ -694,7 +698,7 @@ clause_selectivity(PlannerInfo *root,
 				   SpecialJoinInfo *sjinfo)
 {
 	return clause_selectivity_ext(root, clause, varRelid,
-								  jointype, sjinfo, true);
+								  jointype, sjinfo, true, true);
 }
 
 /*
@@ -709,7 +713,8 @@ clause_selectivity_ext(PlannerInfo *root,
 					   int varRelid,
 					   JoinType jointype,
 					   SpecialJoinInfo *sjinfo,
-					   bool use_extended_stats)
+					   bool use_extended_stats,
+					   bool include_derived)
 {
 	Selectivity s1 = 0.5;		/* default for any unhandled clause type */
 	RestrictInfo *rinfo = NULL;
@@ -740,6 +745,9 @@ clause_selectivity_ext(PlannerInfo *root,
 		 * If the clause is marked redundant, always return 1.0.
 		 */
 		if (rinfo->norm_selec > 1)
+			return (Selectivity) 1.0;
+
+		if (rinfo->derived && !include_derived)
 			return (Selectivity) 1.0;
 
 		/*
@@ -830,7 +838,8 @@ clause_selectivity_ext(PlannerInfo *root,
 										  varRelid,
 										  jointype,
 										  sjinfo,
-										  use_extended_stats);
+										  use_extended_stats,
+										  include_derived);
 	}
 	else if (is_andclause(clause))
 	{
@@ -840,7 +849,8 @@ clause_selectivity_ext(PlannerInfo *root,
 										varRelid,
 										jointype,
 										sjinfo,
-										use_extended_stats);
+										use_extended_stats,
+										include_derived);
 	}
 	else if (is_orclause(clause))
 	{
@@ -959,7 +969,8 @@ clause_selectivity_ext(PlannerInfo *root,
 									varRelid,
 									jointype,
 									sjinfo,
-									use_extended_stats);
+									use_extended_stats,
+									include_derived);
 	}
 	else if (IsA(clause, CoerceToDomain))
 	{
@@ -969,7 +980,8 @@ clause_selectivity_ext(PlannerInfo *root,
 									varRelid,
 									jointype,
 									sjinfo,
-									use_extended_stats);
+									use_extended_stats,
+									include_derived);
 	}
 	else
 	{
