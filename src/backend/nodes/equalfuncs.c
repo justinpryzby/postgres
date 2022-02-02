@@ -2133,6 +2133,7 @@ _equalVacuumRelation(const VacuumRelation *a, const VacuumRelation *b)
 {
 	COMPARE_NODE_FIELD(relation);
 	COMPARE_SCALAR_FIELD(oid);
+	COMPARE_SCALAR_FIELD(age);
 	COMPARE_NODE_FIELD(va_cols);
 
 	return true;

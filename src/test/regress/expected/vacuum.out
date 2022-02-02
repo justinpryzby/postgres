@@ -413,3 +413,10 @@ RESET ROLE;
 DROP TABLE vacowned;
 DROP TABLE vacowned_parted;
 DROP ROLE regress_vacuum;
+VACUUM(EMERGENCY, PROCESS_TOAST); -- fails
+ERROR:  option "process_toast" is incompatible with EMERGENCY
+LINE 1: VACUUM(EMERGENCY, PROCESS_TOAST);
+                          ^
+VACUUM(EMERGENCY) pg_class; -- fails
+ERROR:  a relation list is not supported with the EMERGENCY option
+VACUUM(EMERGENCY);
