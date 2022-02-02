@@ -104,6 +104,7 @@ extern DefElem *makeDefElemExtended(char *nameSpace, char *name, Node *arg,
 
 extern GroupingSet *makeGroupingSet(GroupingSetKind kind, List *content, int location);
 
-extern VacuumRelation *makeVacuumRelation(RangeVar *relation, Oid oid, List *va_cols);
+extern VacuumRelation *makeVacuumRelation(RangeVar *relation, Oid oid,
+										  TransactionId age, List *va_cols);
 
 #endif							/* MAKEFUNC_H */

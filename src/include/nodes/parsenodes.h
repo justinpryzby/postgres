@@ -3421,6 +3421,7 @@ typedef struct VacuumRelation
 	NodeTag		type;
 	RangeVar   *relation;		/* table name to process, or NULL */
 	Oid			oid;			/* table's OID; InvalidOid if not looked up */
+	TransactionId		age;			/* table's age or 0 if unknown*/
 	List	   *va_cols;		/* list of column names, or NIL for all */
 } VacuumRelation;
 

@@ -318,3 +318,7 @@ RESET ROLE;
 DROP TABLE vacowned;
 DROP TABLE vacowned_parted;
 DROP ROLE regress_vacuum;
+
+VACUUM(EMERGENCY, PROCESS_TOAST false); -- fails
+VACUUM(EMERGENCY) pg_class; -- fails
+VACUUM(EMERGENCY);

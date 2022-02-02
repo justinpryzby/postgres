@@ -4148,6 +4148,7 @@ _copyVacuumRelation(const VacuumRelation *from)
 
 	COPY_NODE_FIELD(relation);
 	COPY_SCALAR_FIELD(oid);
+	COPY_SCALAR_FIELD(age);
 	COPY_NODE_FIELD(va_cols);
 
 	return newnode;

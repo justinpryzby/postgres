@@ -224,7 +224,7 @@ ExecVacuum(ParseState *pstate, VacuumStmt *vacstmt, bool isTopLevel)
 		(freeze ? VACOPT_FREEZE : 0) |
 		(full ? VACOPT_FULL : 0) |
 		(disable_page_skipping ? VACOPT_DISABLE_PAGE_SKIPPING : 0) |
-		(process_toast ? VACOPT_PROCESS_TOAST : 0) |
+		(process_toast && !emergency ? VACOPT_PROCESS_TOAST : 0) |
 		(emergency ? VACOPT_EMERGENCY : 0);
 
 	/* sanity checks on options */
@@ -291,8 +291,8 @@ ExecVacuum(ParseState *pstate, VacuumStmt *vacstmt, bool isTopLevel)
 		// params.min_xid_age = 1000 * 1000 * 1000;
 		// params.min_mxid_age = 1000 * 1000 * 1000;
 		// FIXME to speed up testing
-		params.min_xid_age = 1000 * 1000;
-		params.min_mxid_age = 1000 * 1000;
+		params.min_xid_age = 1000 ;
+		params.min_mxid_age = 1000 ;
 	}
 
 	/*
@@ -889,6 +889,7 @@ expand_vacuum_rel(VacuumRelation *vrel, int options)
 			oldcontext = MemoryContextSwitchTo(vac_context);
 			vacrels = lappend(vacrels, makeVacuumRelation(vrel->relation,
 														  relid,
+														  0,
 														  vrel->va_cols));
 			MemoryContextSwitchTo(oldcontext);
 		}
@@ -926,6 +927,7 @@ expand_vacuum_rel(VacuumRelation *vrel, int options)
 				oldcontext = MemoryContextSwitchTo(vac_context);
 				vacrels = lappend(vacrels, makeVacuumRelation(NULL,
 															  part_oid,
+															  0,
 															  vrel->va_cols));
 				MemoryContextSwitchTo(oldcontext);
 			}
@@ -946,6 +948,26 @@ expand_vacuum_rel(VacuumRelation *vrel, int options)
 	}
 
 	return vacrels;
+}
+
+/*
+ * Helper function for qsort()
+ *
+ * The result is in order of decreasing age.
+ */
+static int
+compare_xidage(const void *a, const void *b)
+{
+	const ListCell *alc = a;
+	const ListCell *blc = b;
+	VacuumRelation *aa = (VacuumRelation *) lfirst(alc);
+	VacuumRelation *bb = (VacuumRelation *) lfirst(blc);
+
+	if (aa->age < bb->age)
+		return +1;
+	if (aa->age > bb->age)
+		return -1;
+	return 0;
 }
 
 /*
@@ -971,6 +993,7 @@ get_all_vacuum_rels(VacuumParams *params)
 		Form_pg_class classForm = (Form_pg_class) GETSTRUCT(tuple);
 		MemoryContext oldcontext;
 		Oid			relid = classForm->oid;
+		TransactionId	age = 0; // XXX: -1 ?
 
 		/* check permissions of relation */
 		if (!vacuum_is_relation_owner(relid, classForm, params->options))
@@ -993,6 +1016,7 @@ get_all_vacuum_rels(VacuumParams *params)
 
 			table_xid_age = DirectFunctionCall1(xid_age, classForm->relfrozenxid);
 			table_mxid_age = DirectFunctionCall1(mxid_age, classForm->relminmxid);
+			age = Max(table_xid_age, table_mxid_age);
 
 			if ((table_xid_age < params->min_xid_age) &&
 				(table_mxid_age < params->min_mxid_age))
@@ -1016,12 +1040,20 @@ get_all_vacuum_rels(VacuumParams *params)
 		oldcontext = MemoryContextSwitchTo(vac_context);
 		vacrels = lappend(vacrels, makeVacuumRelation(NULL,
 													  relid,
+													  age,
 													  NIL));
 		MemoryContextSwitchTo(oldcontext);
 	}
 
 	table_endscan(scan);
 	table_close(pgclass, AccessShareLock);
+
+	if ((params->options & VACOPT_EMERGENCY) && vacrels != NIL)
+	{
+		/* Sort the list in order of deceasing XID age */
+		qsort(vacrels->elements, list_length(vacrels), sizeof(ListCell),
+				compare_xidage);
+	}
 
 	return vacrels;
 }

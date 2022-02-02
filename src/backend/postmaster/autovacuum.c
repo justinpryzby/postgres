@@ -3241,7 +3241,7 @@ autovacuum_do_vac_analyze(autovac_table *tab, BufferAccessStrategy bstrategy)
 
 	/* Set up one VacuumRelation target, identified by OID, for vacuum() */
 	rangevar = makeRangeVar(tab->at_nspname, tab->at_relname, -1);
-	rel = makeVacuumRelation(rangevar, tab->at_relid, NIL);
+	rel = makeVacuumRelation(rangevar, tab->at_relid, 0, NIL);
 	rel_list = list_make1(rel);
 
 	vacuum(rel_list, &tab->at_params, bstrategy, true);
