@@ -516,7 +516,7 @@ vacuum(List *relations, VacuumParams *params,
 		ListCell   *cur;
 
 		in_vacuum = true;
-		if (params->VACOPT_EMERGENCY)
+		if (params->options & VACOPT_EMERGENCY)
 			VacuumCostActive = false;
 		else
 			VacuumCostActive = (VacuumCostDelay > 0);
