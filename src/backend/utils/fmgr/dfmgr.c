@@ -25,6 +25,7 @@
 #include "miscadmin.h"
 #include "storage/fd.h"
 #include "storage/shmem.h"
+#include "utils/guc_tables.h"
 #include "utils/hsearch.h"
 
 
@@ -203,11 +204,18 @@ internal_load_library(const char *libname, const char *gucname)
 		 * Check for same files - different paths (ie, symlink or link)
 		 */
 		if (stat(libname, &stat_buf) == -1)
+		{
+			char	   *errstr = strerror(errno);
+			int			linenum;
+			char	   *sourcefile = gucname ? GetConfigSourceFile(gucname, &linenum) : NULL;
+
 			ereport(ERROR,
 					(errcode_for_file_access(),
 					 gucname ? errcontext("while loading shared libraries for setting \"%s\"", gucname) : 0,
-					 errmsg("could not access file \"%s\": %m",
-							libname)));
+					 sourcefile ? errcontext("from %s:%d", sourcefile, linenum) : 0,
+					 errmsg("could not access file \"%s\": %s",
+							libname, errstr)));
+		}
 
 		for (file_scanner = file_list;
 			 file_scanner != NULL &&
@@ -271,7 +279,7 @@ internal_load_library(const char *libname, const char *gucname)
 		}
 		else
 		{
-			/* try to close library */
+			/* try to close library */ // Not needed due to ERROR ? //
 			dlclose(file_scanner->handle);
 			free(file_scanner);
 			/* complain */
