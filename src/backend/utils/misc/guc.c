@@ -8506,6 +8506,27 @@ GetConfigOptionFlags(const char *name, bool missing_ok)
 	return record->flags;
 }
 
+/*
+ * Get the source file and line associated with the given option.
+ *
+ * If the option doesn't exist, return 0 if missing_ok is true,
+ * otherwise throw an ereport and don't return.
+ */
+char *
+GetConfigSourceFile(const char *name, int *linenum)
+{
+	struct config_generic *record;
+
+	record = find_option(name, false, false, ERROR);
+
+	/* Should not happen */
+	if (record == NULL)
+		return 0;
+
+	*linenum = record->sourceline;
+	return record->sourcefile;
+}
+
 
 /*
  * flatten_set_variable_args
