@@ -264,7 +264,7 @@ task:
       done
 
   html_docs_artifacts:
-    paths: ['html_docs/**/*.html', 'html_docs/**/*.png', 'html_docs/**/*.css']
+    path: 'html_docs**'
 
   test_world_script: |
     su postgres <<-EOF
@@ -283,7 +283,7 @@ task:
       #git diff --name-only --cherry-pick postgres/master... '*.c' |xargs -r gcov --demangled-names --
 
   coverage_artifacts:
-    paths: ['coverage/**/*.html', 'coverage/**/*.png', 'coverage/**/*.css']
+    path: 'coverage**'
 
   on_failure:
     <<: *on_failure
