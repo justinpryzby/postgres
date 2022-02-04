@@ -79,11 +79,11 @@ $node_primary->wait_for_catchup($node_standby_1, 'replay',
 # Perform a logical dump of primary and standby, and check that they match
 command_ok(
 	[ 'pg_dumpall', '-f', $outputdir . '/primary.dump', '--no-sync',
-	  '-p', $node_primary->port ],
+	  '-p', $node_primary->port, "--host=$node_primary->host" ],
 	'dump primary server');
 command_ok(
 	[ 'pg_dumpall', '-f', $outputdir . '/standby.dump', '--no-sync',
-	  '-p', $node_standby_1->port ],
+	  '-p', $node_standby_1->port, "--host=$node_standby_1->host" ],
 	'dump standby server');
 command_ok(
 	[ 'diff', $outputdir . '/primary.dump', $outputdir . '/standby.dump' ],
