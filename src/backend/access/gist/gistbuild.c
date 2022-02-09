@@ -411,7 +411,7 @@ gist_indexsortbuild(GISTBuildState *state)
 	state->pages_allocated = 0;
 	state->pages_written = 0;
 	state->ready_num_pages = 0;
-	unbuffered_prep(&state->ub_wstate, false, false);
+	unbuffered_prep(&state->ub_wstate, false, false, false);
 
 	/*
 	 * Write an empty page as a placeholder for the root page. It will be
@@ -650,7 +650,7 @@ gist_indexsortbuild_flush_ready_pages(GISTBuildState *state)
 	if (state->ready_num_pages == 0)
 		return;
 
-	unbuffered_prep(&state->ub_wstate, false, false);
+	unbuffered_prep(&state->ub_wstate, false, false, false);
 
 	for (int i = 0; i < state->ready_num_pages; i++)
 	{

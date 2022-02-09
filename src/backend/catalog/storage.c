@@ -470,7 +470,7 @@ RelationCopyStorage(SMgrRelation src, SMgrRelation dst,
 	use_wal = XLogIsNeeded() &&
 		(relpersistence == RELPERSISTENCE_PERMANENT || copying_initfork);
 
-	unbuffered_prep(&wstate, (use_wal || copying_initfork), false);
+	unbuffered_prep(&wstate, false, (use_wal || copying_initfork), false);
 
 	nblocks = smgrnblocks(src, forkNum);
 

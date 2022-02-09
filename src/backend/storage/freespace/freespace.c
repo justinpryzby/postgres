@@ -627,7 +627,7 @@ fsm_extend(Relation rel, BlockNumber fsm_nblocks)
 	 */
 	LockRelationForExtension(rel, ExclusiveLock);
 
-	unbuffered_prep(&ub_wstate, false, true);
+	unbuffered_prep(&ub_wstate, false, false, true);
 
 	/*
 	 * Caution: re-using this smgr pointer could fail if the relcache entry

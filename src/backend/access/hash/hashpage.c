@@ -1003,7 +1003,7 @@ _hash_alloc_buckets(Relation rel, BlockNumber firstblock, uint32 nblocks)
 	if (lastblock < firstblock || lastblock == InvalidBlockNumber)
 		return false;
 
-	unbuffered_prep(&ub_wstate, false, true);
+	unbuffered_prep(&ub_wstate, false, false, true);
 
 	page = (Page) zerobuf.data;
 

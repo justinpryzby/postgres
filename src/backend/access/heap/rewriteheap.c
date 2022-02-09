@@ -267,7 +267,7 @@ begin_heap_rewrite(Relation old_heap, Relation new_heap, TransactionId oldest_xm
 	state->rs_cutoff_multi = cutoff_multi;
 	state->rs_cxt = rw_cxt;
 
-	unbuffered_prep(&state->rs_unbuffered_wstate,
+	unbuffered_prep(&state->rs_unbuffered_wstate, false,
 			RelationNeedsWAL(state->rs_new_rel), false);
 
 	/* Initialize hash tables used to track update chains */

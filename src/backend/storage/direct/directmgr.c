@@ -15,15 +15,26 @@
 #include "postgres.h"
 
 
+#include "access/xlog.h"
 #include "access/xloginsert.h"
 #include "storage/directmgr.h"
 
+// TODO: do_optimization can be derived from request_fsync and fsync_self, I
+// think. but is that true in all cases and also is it confusing?
 void
-unbuffered_prep(UnBufferedWriteState *wstate, bool fsync_self, bool
-		request_fsync)
+unbuffered_prep(UnBufferedWriteState *wstate, bool do_optimization, bool
+		fsync_self, bool request_fsync)
 {
+	/*
+	 * No reason to do optimization when not required to fsync self
+	 */
+	Assert(!do_optimization || (do_optimization && fsync_self));
+
+	wstate->do_optimization = do_optimization;
 	wstate->fsync_self = fsync_self;
 	wstate->request_fsync = request_fsync;
+
+	wstate->redo = do_optimization ? GetRedoRecPtr() : InvalidXLogRecPtr;
 }
 
 void
@@ -73,6 +84,9 @@ unbuffered_finish(UnBufferedWriteState *wstate, SMgrRelation smgrrel,
 		ForkNumber forknum)
 {
 	if (!wstate->fsync_self)
+		return;
+
+	if (wstate->do_optimization && !RedoRecPtrChanged(wstate->redo))
 		return;
 
 	smgrimmedsync(smgrrel, forknum);

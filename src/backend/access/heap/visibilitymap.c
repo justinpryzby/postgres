@@ -633,7 +633,7 @@ vm_extend(Relation rel, BlockNumber vm_nblocks)
 	 * by the time we get the lock.
 	 */
 	LockRelationForExtension(rel, ExclusiveLock);
-	unbuffered_prep(&ub_wstate, false, true);
+	unbuffered_prep(&ub_wstate, false, false, true);
 
 	/*
 	 * Caution: re-using this smgr pointer could fail if the relcache entry

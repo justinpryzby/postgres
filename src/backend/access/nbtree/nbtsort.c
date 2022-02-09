@@ -1186,7 +1186,10 @@ _bt_load(BTWriteState *wstate, BTSpool *btspool, BTSpool *btspool2)
 	bool		deduplicate;
 
 
-	unbuffered_prep(&wstate->ub_wstate, wstate->btws_use_wal, false);
+	/*
+	 * Only bother fsync'ing the data to permanent storage if WAL logging
+	 */
+	unbuffered_prep(&wstate->ub_wstate, false, wstate->btws_use_wal, false);
 
 	deduplicate = wstate->inskey->allequalimage && !btspool->isunique &&
 		BTGetDeduplicateItems(wstate->index);
