@@ -93,6 +93,7 @@
 #include "miscadmin.h"
 #include "port/pg_bitutils.h"
 #include "storage/bufmgr.h"
+#include "storage/directmgr.h"
 #include "storage/lmgr.h"
 #include "storage/smgr.h"
 #include "utils/inval.h"
@@ -617,6 +618,7 @@ vm_extend(Relation rel, BlockNumber vm_nblocks)
 	BlockNumber vm_nblocks_now;
 	PGAlignedBlock pg;
 	SMgrRelation reln;
+	UnBufferedWriteState ub_wstate;
 
 	PageInit((Page) pg.data, BLCKSZ, 0);
 
@@ -631,6 +633,7 @@ vm_extend(Relation rel, BlockNumber vm_nblocks)
 	 * by the time we get the lock.
 	 */
 	LockRelationForExtension(rel, ExclusiveLock);
+	unbuffered_prep(&ub_wstate, false, true);
 
 	/*
 	 * Caution: re-using this smgr pointer could fail if the relcache entry
@@ -655,11 +658,12 @@ vm_extend(Relation rel, BlockNumber vm_nblocks)
 	/* Now extend the file */
 	while (vm_nblocks_now < vm_nblocks)
 	{
-		PageSetChecksumInplace((Page) pg.data, vm_nblocks_now);
-
-		smgrextend(reln, VISIBILITYMAP_FORKNUM, vm_nblocks_now, pg.data, false);
+		unbuffered_extend(&ub_wstate, false, reln, VISIBILITYMAP_FORKNUM,
+				vm_nblocks_now, (Page) pg.data, false);
 		vm_nblocks_now++;
 	}
+
+	unbuffered_finish(&ub_wstate, reln, VISIBILITYMAP_FORKNUM);
 
 	/*
 	 * Send a shared-inval message to force other backends to close any smgr

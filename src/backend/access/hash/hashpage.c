@@ -33,6 +33,7 @@
 #include "access/xloginsert.h"
 #include "miscadmin.h"
 #include "port/pg_bitutils.h"
+#include "storage/directmgr.h"
 #include "storage/lmgr.h"
 #include "storage/predicate.h"
 #include "storage/smgr.h"
@@ -991,6 +992,7 @@ _hash_alloc_buckets(Relation rel, BlockNumber firstblock, uint32 nblocks)
 	PGAlignedBlock zerobuf;
 	Page		page;
 	HashPageOpaque ovflopaque;
+	UnBufferedWriteState ub_wstate;
 
 	lastblock = firstblock + nblocks - 1;
 
@@ -1000,6 +1002,8 @@ _hash_alloc_buckets(Relation rel, BlockNumber firstblock, uint32 nblocks)
 	 */
 	if (lastblock < firstblock || lastblock == InvalidBlockNumber)
 		return false;
+
+	unbuffered_prep(&ub_wstate, false, true);
 
 	page = (Page) zerobuf.data;
 
@@ -1018,16 +1022,10 @@ _hash_alloc_buckets(Relation rel, BlockNumber firstblock, uint32 nblocks)
 	ovflopaque->hasho_flag = LH_UNUSED_PAGE;
 	ovflopaque->hasho_page_id = HASHO_PAGE_ID;
 
-	if (RelationNeedsWAL(rel))
-		log_newpage(&rel->rd_node,
-					MAIN_FORKNUM,
-					lastblock,
-					zerobuf.data,
-					true);
+	unbuffered_extend(&ub_wstate, RelationNeedsWAL(rel), RelationGetSmgr(rel),
+			MAIN_FORKNUM, lastblock, zerobuf.data, false);
 
-	PageSetChecksumInplace(page, lastblock);
-	smgrextend(RelationGetSmgr(rel), MAIN_FORKNUM, lastblock, zerobuf.data,
-			   false);
+	unbuffered_finish(&ub_wstate, RelationGetSmgr(rel), MAIN_FORKNUM);
 
 	return true;
 }

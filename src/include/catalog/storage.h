@@ -15,6 +15,7 @@
 #define STORAGE_H
 
 #include "storage/block.h"
+#include "storage/directmgr.h"
 #include "storage/relfilenode.h"
 #include "storage/smgr.h"
 #include "utils/relcache.h"

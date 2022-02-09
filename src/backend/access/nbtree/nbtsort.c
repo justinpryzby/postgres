@@ -57,6 +57,7 @@
 #include "executor/instrument.h"
 #include "miscadmin.h"
 #include "pgstat.h"
+#include "storage/directmgr.h"
 #include "storage/smgr.h"
 #include "tcop/tcopprot.h"		/* pgrminclude ignore */
 #include "utils/rel.h"
@@ -256,6 +257,7 @@ typedef struct BTWriteState
 	BlockNumber btws_pages_alloced; /* # pages allocated */
 	BlockNumber btws_pages_written; /* # pages written out */
 	Page		btws_zeropage;	/* workspace for filling zeroes */
+	UnBufferedWriteState ub_wstate;
 } BTWriteState;
 
 
@@ -643,13 +645,6 @@ _bt_blnewpage(uint32 level)
 static void
 _bt_blwritepage(BTWriteState *wstate, Page page, BlockNumber blkno)
 {
-	/* XLOG stuff */
-	if (wstate->btws_use_wal)
-	{
-		/* We use the XLOG_FPI record type for this */
-		log_newpage(&wstate->index->rd_node, MAIN_FORKNUM, blkno, page, true);
-	}
-
 	/*
 	 * If we have to write pages nonsequentially, fill in the space with
 	 * zeroes until we come back and overwrite.  This is not logically
@@ -661,32 +656,27 @@ _bt_blwritepage(BTWriteState *wstate, Page page, BlockNumber blkno)
 	{
 		if (!wstate->btws_zeropage)
 			wstate->btws_zeropage = (Page) palloc0(BLCKSZ);
-		/* don't set checksum for all-zero page */
-		smgrextend(RelationGetSmgr(wstate->index), MAIN_FORKNUM,
-				   wstate->btws_pages_written++,
-				   (char *) wstate->btws_zeropage,
-				   true);
+
+		unbuffered_extend(&wstate->ub_wstate, false,
+				RelationGetSmgr(wstate->index), MAIN_FORKNUM,
+				wstate->btws_pages_written++, wstate->btws_zeropage, true);
 	}
 
-	PageSetChecksumInplace(page, blkno);
 
-	/*
-	 * Now write the page.  There's no need for smgr to schedule an fsync for
-	 * this write; we'll do it ourselves before ending the build.
-	 */
+	/* Now write the page. Either we are extending the file... */
 	if (blkno == wstate->btws_pages_written)
 	{
-		/* extending the file... */
-		smgrextend(RelationGetSmgr(wstate->index), MAIN_FORKNUM, blkno,
-				   (char *) page, true);
+		unbuffered_extend(&wstate->ub_wstate, wstate->btws_use_wal,
+				RelationGetSmgr(wstate->index), MAIN_FORKNUM, blkno, page,
+				false);
+
 		wstate->btws_pages_written++;
 	}
+
+	/* or we are overwriting a block we zero-filled before. */
 	else
-	{
-		/* overwriting a block we zero-filled before */
-		smgrwrite(RelationGetSmgr(wstate->index), MAIN_FORKNUM, blkno,
-				  (char *) page, true);
-	}
+		unbuffered_write(&wstate->ub_wstate, wstate->btws_use_wal,
+				RelationGetSmgr(wstate->index), MAIN_FORKNUM, blkno, page);
 
 	pfree(page);
 }
@@ -1195,6 +1185,9 @@ _bt_load(BTWriteState *wstate, BTSpool *btspool, BTSpool *btspool2)
 	int64		tuples_done = 0;
 	bool		deduplicate;
 
+
+	unbuffered_prep(&wstate->ub_wstate, wstate->btws_use_wal, false);
+
 	deduplicate = wstate->inskey->allequalimage && !btspool->isunique &&
 		BTGetDeduplicateItems(wstate->index);
 
@@ -1421,17 +1414,8 @@ _bt_load(BTWriteState *wstate, BTSpool *btspool, BTSpool *btspool2)
 	/* Close down final pages and write the metapage */
 	_bt_uppershutdown(wstate, state);
 
-	/*
-	 * When we WAL-logged index pages, we must nonetheless fsync index files.
-	 * Since we're building outside shared buffers, a CHECKPOINT occurring
-	 * during the build has no way to flush the previously written data to
-	 * disk (indeed it won't know the index even exists).  A crash later on
-	 * would replay WAL from the checkpoint, therefore it wouldn't replay our
-	 * earlier WAL entries. If we do not fsync those pages here, they might
-	 * still not be on disk when the crash occurs.
-	 */
-	if (wstate->btws_use_wal)
-		smgrimmedsync(RelationGetSmgr(wstate->index), MAIN_FORKNUM);
+	unbuffered_finish(&wstate->ub_wstate, RelationGetSmgr(wstate->index),
+			MAIN_FORKNUM);
 }
 
 /*
