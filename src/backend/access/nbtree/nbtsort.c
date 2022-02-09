@@ -1188,8 +1188,15 @@ _bt_load(BTWriteState *wstate, BTSpool *btspool, BTSpool *btspool2)
 
 	/*
 	 * Only bother fsync'ing the data to permanent storage if WAL logging
+	 *
+	 * The self-fsync optimization requires that the backend both add an fsync
+	 * request to the checkpointer's pending-ops table as well as be prepared
+	 * to fsync the page data itself. Because none of these are required if the
+	 * relation is not WAL-logged, pass btws_use_wal for all parameters of the
+	 * prep function.
 	 */
-	unbuffered_prep(&wstate->ub_wstate, false, wstate->btws_use_wal, false);
+	unbuffered_prep(&wstate->ub_wstate, wstate->btws_use_wal,
+			wstate->btws_use_wal, wstate->btws_use_wal);
 
 	deduplicate = wstate->inskey->allequalimage && !btspool->isunique &&
 		BTGetDeduplicateItems(wstate->index);
