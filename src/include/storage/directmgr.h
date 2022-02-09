@@ -14,6 +14,7 @@
 #ifndef DIRECTMGR_H
 #define DIRECTMGR_H
 
+#include "access/xlogdefs.h"
 #include "common/relpath.h"
 #include "storage/block.h"
 #include "storage/bufpage.h"
@@ -31,19 +32,27 @@ typedef struct UnBufferedWriteState
 	 * associated WAL entries. To avoid this, callers in this situation must
 	 * fsync the pages they have written themselves.
 	 *
+	 * These callers can optionally use the following optimization:
+	 * attempt to use the sync request queue and fall back to fsync'ing the
+	 * pages themselves if the redo pointer moves between the start and finish
+	 * of their write. In order to do this, they must set do_optimization to
+	 * true so that the redo pointer is saved before the write begins.
+	 *
 	 * Callers able to use the checkpointer's sync request queue when writing
 	 * data outside shared buffers (like fsm and vm) can set request_fsync to
 	 * true so that these fsync requests are added to the queue.
 	 */
+	bool do_optimization;
 	bool fsync_self;
 	bool request_fsync;
+	XLogRecPtr redo;
 } UnBufferedWriteState;
 /*
  * prototypes for functions in directmgr.c
  */
 extern void
-unbuffered_prep(UnBufferedWriteState *wstate, bool fsync_self, bool
-		request_fsync);
+unbuffered_prep(UnBufferedWriteState *wstate, bool do_optimization, bool
+		fsync_self, bool request_fsync);
 extern void
 unbuffered_write(UnBufferedWriteState *wstate, bool do_wal, SMgrRelation
 		smgrrel, ForkNumber forknum, BlockNumber blocknum, Page page);

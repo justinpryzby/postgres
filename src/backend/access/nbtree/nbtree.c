@@ -155,7 +155,7 @@ btbuildempty(Relation index)
 	Page		metapage;
 	UnBufferedWriteState wstate;
 
-	unbuffered_prep(&wstate, true, false);
+	unbuffered_prep(&wstate, false, true, false);
 
 	/* Construct metapage. */
 	metapage = (Page) palloc(BLCKSZ);

@@ -576,7 +576,7 @@ heapam_relation_set_new_filenode(Relation rel,
 	SMgrRelation srel;
 	UnBufferedWriteState ub_wstate;
 
-	unbuffered_prep(&ub_wstate, true, false);
+	unbuffered_prep(&ub_wstate, false, true, false);
 	/*
 	 * Initialize to the minimum XID that could put tuples in the table. We
 	 * know that no xacts older than RecentXmin are still running, so that

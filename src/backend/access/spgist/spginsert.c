@@ -159,7 +159,7 @@ spgbuildempty(Relation index)
 	Page		page;
 	UnBufferedWriteState wstate;
 
-	unbuffered_prep(&wstate, true, false);
+	unbuffered_prep(&wstate, false, true, false);
 
 	/* Construct metapage. */
 	page = (Page) palloc(BLCKSZ);
