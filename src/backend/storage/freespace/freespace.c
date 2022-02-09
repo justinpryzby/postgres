@@ -27,6 +27,7 @@
 #include "access/xloginsert.h"
 #include "access/xlogutils.h"
 #include "miscadmin.h"
+#include "storage/directmgr.h"
 #include "storage/freespace.h"
 #include "storage/fsm_internals.h"
 #include "storage/lmgr.h"
@@ -609,8 +610,10 @@ fsm_extend(Relation rel, BlockNumber fsm_nblocks)
 	BlockNumber fsm_nblocks_now;
 	PGAlignedBlock pg;
 	SMgrRelation reln;
+	UnBufferedWriteState ub_wstate;
 
 	PageInit((Page) pg.data, BLCKSZ, 0);
+
 
 	/*
 	 * We use the relation extension lock to lock out other backends trying to
@@ -623,6 +626,8 @@ fsm_extend(Relation rel, BlockNumber fsm_nblocks)
 	 * by the time we get the lock.
 	 */
 	LockRelationForExtension(rel, ExclusiveLock);
+
+	unbuffered_prep(&ub_wstate, false, true);
 
 	/*
 	 * Caution: re-using this smgr pointer could fail if the relcache entry
@@ -648,14 +653,15 @@ fsm_extend(Relation rel, BlockNumber fsm_nblocks)
 	/* Extend as needed. */
 	while (fsm_nblocks_now < fsm_nblocks)
 	{
-		PageSetChecksumInplace((Page) pg.data, fsm_nblocks_now);
-
-		smgrextend(reln, FSM_FORKNUM, fsm_nblocks_now,
-				   pg.data, false);
+		unbuffered_extend(&ub_wstate, false, reln, FSM_FORKNUM,
+				fsm_nblocks_now, (Page) pg.data, false);
 		fsm_nblocks_now++;
 	}
 
+	unbuffered_finish(&ub_wstate, reln, FSM_FORKNUM);
+
 	UnlockRelationForExtension(rel, ExclusiveLock);
+
 }
 
 /*
