@@ -295,11 +295,14 @@ sub bincheck
 	return;
 }
 
+# Run all the tap tests in a single prove instance for good performance
 sub alltaptests
 {
 	InstallTemp();
 
-	my $mstat = 0;
+	# Fetch and adjust PROVE_FLAGS, handling multiple arguments.
+	my $prove_flags_val = $ENV{PROVE_FLAGS} || "";
+	my @prove_flags = split(/\s+/, $prove_flags_val);
 
 	# Find out all the existing TAP tests by looking for t/ directories
 	# in the tree.
@@ -308,19 +311,30 @@ sub alltaptests
 	File::Find::find(
 		{   wanted => sub {
 			/^t\z/s
-			  && $File::Find::name !~ /kerberos|ldap|ssl/
-			  && push(@tap_dirs, "$File::Find::name/*.pl");
+			  && $File::Find::name !~ /\/(kerberos|ldap|ssl)\// # opt-in
+			  #&& $File::Find::name !~ /libpq_pipeline/ # needs installation
+			  && push(@tap_dirs, "$File::Find::name");
 			}
 		},
 		@top_dir);
 
+	$ENV{PATH} = "$topdir/src/test/modules/libpq_pipeline;$ENV{PATH}";
+	$ENV{TESTDIR} = "$topdir/src/test/recovery"; # XXX
 	$ENV{REGRESS_OUTPUTDIR} = "$topdir/src/test/recovery/tmp_check";
-	$ENV{PROVE_TESTS} = "@tap_dirs";
-	# Process all tests at once for good performance
-	#my $dir = dirname($test_path);
-	my $status = tap_check('.');
-	$mstat ||= $status;
-	exit $mstat if $mstat;
+	$ENV{TOPDIR} = "$topdir";
+
+	$ENV{PERL5LIB}      = "$topdir/src/test/perl;$ENV{PERL5LIB}";
+	$ENV{PG_REGRESS}    = "$topdir/$Config/pg_regress/pg_regress";
+	$ENV{REGRESS_SHLIB} = "$topdir/src/test/regress/regress.dll";
+	my @args = ("prove", '--ext=*.pl', @prove_flags, @tap_dirs);
+
+	print "============================================================\n";
+	print "Checking @args\n";
+
+	rmtree('tmp_check');
+	system(@args);
+	my $status = $? >> 8;
+	exit $status if $status;
 	return;
 }
 
