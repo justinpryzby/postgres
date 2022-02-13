@@ -481,6 +481,8 @@ task:
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
+  test_tap_script: |
+    perl src/tools/msvc/vcregress.pl alltaptests
 
   test_regress_parallel_script: |
     %T_C% perl src/tools/msvc/vcregress.pl check parallel
@@ -503,8 +505,6 @@ task:
   test_ssl_script: |
     set with_ssl=openssl
     %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
-  test_tap_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl alltaptests
   test_pg_upgrade_script: |
     %T_C% perl src/tools/msvc/vcregress.pl upgradecheck
   test_ecpg_script: |
