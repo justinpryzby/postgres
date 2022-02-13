@@ -366,9 +366,9 @@ task:
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
     # tests internally should have shorter timeouts, but that's proven to not
-    # be sufficient. 15min currently is fast enough to finish individual test
+    # be sufficient. 20min currently is fast enough to finish individual test
     # "suites".
-    T_C: "\"C:/Program Files/Git/usr/bin/timeout.exe\" -v -k60s 15m"
+    T_C: "\"C:/Program Files/Git/usr/bin/timeout.exe\" -v -k60s 20m"
 
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
