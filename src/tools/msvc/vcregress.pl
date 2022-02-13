@@ -329,6 +329,10 @@ sub alltaptests
 {
 	InstallTemp();
 
+	# Fetch and adjust PROVE_FLAGS, handling multiple arguments.
+	my $prove_flags_val = $ENV{PROVE_FLAGS} || "";
+	my @prove_flags = split(/\s+/, $prove_flags_val);
+
 	# Find out all the existing TAP tests by looking for t/ directories
 	# in the tree.
 	my @tap_dirs = ();
@@ -343,8 +347,20 @@ sub alltaptests
 		@top_dir);
 
 	# Run all the tap tests in a single prove instance for good performance
-	$ENV{PROVE_TESTS} = "@tap_dirs";
-	my $status = tap_check('PROVE_FLAGS=--ext=.pl --state=failed,slow,save', "$topdir");
+	$ENV{TESTDIR} = "$topdir";
+
+	$ENV{PERL5LIB}      = "$topdir/src/test/perl;$ENV{PERL5LIB}";
+	$ENV{PG_REGRESS}    = "$topdir/$Config/pg_regress/pg_regress";
+	$ENV{REGRESS_SHLIB} = "$topdir/src/test/regress/regress.dll";
+#  '--ext=.pl',
+	my @args = ("prove", '--state=failed,slow,save', @prove_flags, @tap_dirs);
+
+	print "============================================================\n";
+	print "Checking @args\n";
+
+	rmtree('tmp_check');
+	system(@args);
+	my $status = $? >> 8;
 	exit $status if $status;
 	return;
 }
