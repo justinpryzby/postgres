@@ -516,9 +516,15 @@ task:
     - choco install -y strawberryperl
     - choco install --force -y visualstudio2019-workload-vctools --package-parameters "--includeOptional"
     - choco list --localonly
+    #- REM choco install -y ...
+    - cp src/test/prove/_* .
 
   msbcache_cache:
     folder: msbcache
+
+  # _prove is saved to CWD, but cirrus wants to cache a directory
+  prove_cache:
+    folder: src/test/prove
 
   configure_script:
     # copy errors out when using forward slashes
@@ -545,6 +551,7 @@ task:
   test_tap_script: |
     cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl alltaptests
+    cp _prove src/test/prove
 
   test_regress_parallel_script: |
     cd /d c:\build.d
@@ -596,6 +603,9 @@ task:
       #- zipinfo -htz tmp_install.zip
     #install_artifacts:
       #path: 'tmp_install.zip'
+
+    prove_state_artifacts:
+      path: src/test/prove/_prove
 
   on_failure:
     <<: *on_failure

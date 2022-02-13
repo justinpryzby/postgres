@@ -343,7 +343,7 @@ sub alltaptests
 
 	# Run all the tap tests in a single prove instance for good performance
 	$ENV{PROVE_TESTS} = "@tap_dirs";
-	my $status = tap_check('PROVE_FLAGS=--ext=.pl', "$topdir");
+	my $status = tap_check('PROVE_FLAGS=--ext=.pl --state=failed,slow,save', "$topdir");
 	exit $status if $status;
 	return;
 }
