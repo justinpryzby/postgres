@@ -375,10 +375,7 @@ task:
     # of a single vcregress test target. Due to that, it's useful to run prove
     # with multiple jobs. For the other tasks it isn't, because two sources
     # (make and prove) of concurrency can overload machines.
-    #
-    # The concrete choice of 10 is based on a small bit of experimentation and
-    # likely can be improved upon further.
-    PROVE_FLAGS: -j10 --timer
+    PROVE_FLAGS: -j4 --timer
 
     # The default cirrus working dir is in a directory msbuild complains about
     CIRRUS_WORKING_DIR: "c:/cirrus"
@@ -434,6 +431,9 @@ task:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
 
+  test_tap_script: |
+    %T_C% perl src/tools/msvc/vcregress.pl alltaptests
+
   test_regress_parallel_script: |
     %T_C% perl src/tools/msvc/vcregress.pl check parallel
   startcreate_script: |
@@ -455,8 +455,6 @@ task:
   test_ssl_script: |
     set with_ssl=openssl
     %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
-  test_tap_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl alltaptests
   test_pg_upgrade_script: |
     %T_C% perl src/tools/msvc/vcregress.pl upgradecheck
   test_ecpg_script: |

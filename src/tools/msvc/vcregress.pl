@@ -306,14 +306,18 @@ sub alltaptests
 		{   wanted => sub {
 			/^t\z/s
 			  && $File::Find::name !~ /\/(kerberos|ldap|ssl|ssl_passphrase_callback)\// # opt-in
-			  && push(@tap_dirs, $File::Find::name);
+			  && push(@tap_dirs, "$File::Find::name/*.pl");
 			}
 		},
 		@top_dir);
 
+	# subscription/ and recovery/ are slowest - run them first
+	@tap_dirs = reverse(@tap_dirs);
+
 	# Run all the tap tests in a single prove instance for good performance
 	$ENV{PROVE_TESTS} = "@tap_dirs";
-	my $status = tap_check('PROVE_FLAGS=--ext=.pl', "$topdir");
+# 'PROVE_FLAGS=--ext=.pl', 
+	my $status = tap_check("$topdir");
 	exit $status if $status;
 	return;
 }
