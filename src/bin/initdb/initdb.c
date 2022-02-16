@@ -1185,6 +1185,12 @@ setup_config(void)
 							  "#update_process_title = off");
 #endif
 
+#ifdef USE_LZ4
+	conflines = replace_token(conflines,
+							  "#default_toast_compression = 'pglz'",
+							  "#default_toast_compression = 'lz4'");
+#endif
+
 	/*
 	 * Change password_encryption setting to md5 if md5 was chosen as an
 	 * authentication method, unless scram-sha-256 was also chosen.

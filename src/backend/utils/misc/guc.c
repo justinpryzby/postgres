@@ -4727,7 +4727,11 @@ static struct config_enum ConfigureNamesEnum[] =
 			NULL
 		},
 		&default_toast_compression,
+#ifdef USE_LZ4
+		TOAST_LZ4_COMPRESSION,
+#else
 		TOAST_PGLZ_COMPRESSION,
+#endif
 		default_toast_compression_options,
 		NULL, NULL, NULL
 	},
