@@ -58,9 +58,9 @@ system_or_bail($ENV{PG_REGRESS} . " $extra_opts " .
 			   "--bindir= " .
 			   "--host=" . $node_primary->host . " " .
 			   "--port=" . $node_primary->port . " " .
-			   "--schedule=../regress/parallel_schedule " .
+			   "--schedule=\"$dlpath/parallel_schedule\" " .
 			   "--max-concurrent-tests=20 " .
-			   "--inputdir=../regress " .
+			   "--inputdir=\"$dlpath\" " .
 			   "--outputdir=\"$outputdir\"");
 
 # Clobber all sequences with their next value, so that we don't have
