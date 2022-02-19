@@ -295,8 +295,6 @@ sub alltaptests
 {
 	InstallTemp();
 
-	my $mstat = 0;
-
 	# Find out all the existing TAP tests by looking for t/ directories
 	# in the tree.
 	my @tap_dirs = ();
@@ -310,14 +308,10 @@ sub alltaptests
 		},
 		@top_dir);
 
-	# Process each test
-	foreach my $test_path (@tap_dirs)
-	{
-		my $dir = dirname($test_path);
-		my $status = tap_check($dir);
-		$mstat ||= $status;
-	}
-	exit $mstat if $mstat;
+	# Run all the tap tests in a single prove instance for good performance
+	$ENV{PROVE_TESTS} = "@tap_dirs";
+	my $status = tap_check('PROVE_FLAGS=--ext=.pl', "$topdir");
+	exit $status if $status;
 	return;
 }
 
