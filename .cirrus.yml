@@ -449,8 +449,8 @@ task:
     upload_caches: ccache
 
     # Fail if the file exists and is non-empty
-    compiler_warnings_script:
-      - sh -ec 'f=msbuild.warn.log; [ -s "$f" ] && cat "$f" && exit 1; exit 0'
+    xcompiler_warnings_script:
+      - sh -exc 'f=msbuild.warn.log; [ -s $f ] && cat $f && exit 1; exit 0'
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc

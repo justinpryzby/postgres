@@ -66,7 +66,6 @@ bbsink_gzip_new(bbsink *next, int compresslevel)
 	ereport(ERROR,
 			(errcode(ERRCODE_FEATURE_NOT_SUPPORTED),
 			 errmsg("gzip compression is not supported by this build")));
-	return NULL;				/* keep compiler quiet */
 #else
 	bbsink_gzip *sink;
 
