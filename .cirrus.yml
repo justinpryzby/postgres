@@ -397,6 +397,8 @@ task:
     MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo /p:CLToolExe=clcache.exe
 #/p:CLToolPath=c:\path\to\the\clcache
 
+    DebugInformationFormat: OldStyle
+
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
     # tests internally should have shorter timeouts, but that's proven to not
@@ -440,7 +442,7 @@ task:
     - perl src/tools/msvc/mkvcbuild.pl
   build_script:
     - vcvarsall x64
-    - msbuild %MSBFLAGS% pgsql.sln
+    - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
     - clcache.exe -s
 
   always:
