@@ -448,9 +448,9 @@ task:
   always:
     upload_caches: ccache
 
-    xcompiler_warnings_script: |
-      type msbuild.warn.log || exit /b 0
-      exit /b 1
+    # Fail if the file exists and is non-empty
+    compiler_warnings_script:
+      - sh -ec 'f=msbuild.warn.log; [ -s "$f" ] && cat "$f" && exit 1; exit 0'
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
@@ -490,9 +490,9 @@ task:
     %T_C% perl vcregress.pl ecpgcheck
 
   always:
-    compiler_warnings_script: |
-      findstr "warning " msbuild.warn.log || exit /b 0
-      exit /b 1
+    # Fail if the file exists and is non-empty
+    compiler_warnings_script:
+      - sh -ec 'f=msbuild.warn.log; [ -s "$f" ] && cat "$f" && exit 1; exit 0'
 
   on_failure:
     <<: *on_failure
