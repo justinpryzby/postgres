@@ -393,9 +393,9 @@ task:
     # ForceNoAlign prevents msbuild from introducing line-breaks for long lines
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
+    # -fileLoggerParameters1: write to msbuild.warn.log.
     # XXX: to send /Z7 to override the PDB(ProgramDatabase) debug format set in MSBuildProject.pm, as required for clcache
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo /p:CLToolExe=clcache.exe
-#/p:CLToolPath=c:\path\to\the\clcache
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo /p:CLToolExe=clcache.exe -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log
 
     DebugInformationFormat: OldStyle
 
@@ -448,6 +448,10 @@ task:
   always:
     upload_caches: ccache
 
+    xcompiler_warnings_script: |
+      type msbuild.warn.log || exit /b 0
+      exit /b 1
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
@@ -484,6 +488,11 @@ task:
     rem References ecpg_regression.proj in the current dir
     cd src/tools/msvc
     %T_C% perl vcregress.pl ecpgcheck
+
+  always:
+    compiler_warnings_script: |
+      findstr "warning " msbuild.warn.log || exit /b 0
+      exit /b 1
 
   on_failure:
     <<: *on_failure
