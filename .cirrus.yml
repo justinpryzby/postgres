@@ -463,7 +463,8 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ProgramData\chocolatey\bin\cl.exe
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /outputResultsCache:src/tools/msvc/cache
+#/inputResultsCaches src/tools/msvc/cache*
 
     SCCACHE_DIR: "sccache"
     SCCACHE_LOG: trace
@@ -505,14 +506,16 @@ task:
     chcp
     systeminfo
     powershell -Command get-psdrive -psprovider filesystem
+    perl --version
+    prove --version
     set
 
   setup_additional_packages_script:
     - choco install -y --no-progress sccache
     - copy \ProgramData\chocolatey\bin\sccache.exe \ProgramData\chocolatey\bin\cl.exe
 
-  sccache_cache:
-    folder: $SCCACHE_DIR
+  msbcache_cache:
+    folder: msbcache
 
   configure_script:
     # copy errors out when using forward slashes
@@ -528,15 +531,12 @@ task:
     #- grep initdb *.vcxproj
   build_script:
     - vcvarsall x64
-    - sccache --start-server
-    - sccache --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
-    - sccache --show-stats
     - false
   always:
-    upload_caches: sccache
-    sccache_log_artifacts:
-     path: 'sccache.*'
+    mscache_artifacts:
+      path: src/tools/msvc/cache
+    upload_caches: msbcache
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
