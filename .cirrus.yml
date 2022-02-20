@@ -393,7 +393,9 @@ task:
     # ForceNoAlign prevents msbuild from introducing line-breaks for long lines
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo
+    # XXX: to send /Z7 to override the PDB(ProgramDatabase) debug format set in MSBuildProject.pm, as required for clcache
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo /p:CLToolExe=clcache.exe
+#/p:CLToolPath=c:\path\to\the\clcache
 
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
@@ -402,6 +404,10 @@ task:
     # "suites".
     T_C: "\"C:/Program Files/Git/usr/bin/timeout.exe\" -v -k60s 20m"
 
+    CLCACHE_DIR: "clcache"
+    CLCACHE_HARDLINK: 1
+    #CLCACHE_SERVER: 1
+    #CLCACHE_LOG: 1
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
 
@@ -416,8 +422,16 @@ task:
     powershell -Command get-psdrive -psprovider filesystem
     set
 
-  setup_os_script: |
-    REM choco install -y ...
+  setup_os_script:
+    # choco install -y ...
+    - curl -L https://github.com/frerich/clcache/releases/download/v4.2.0/clcache.4.2.0.nupkg --output clcache.4.2.0.nupkg
+    - choco install --verbose clcache --source=.
+
+  ccache_cache:
+    folder: $CLCACHE_DIR
+
+  #clcache_server_script:
+    #- ps: Start-Process clcache-server
 
   configure_script:
     # copy errors out when using forward slashes
@@ -427,6 +441,11 @@ task:
   build_script:
     - vcvarsall x64
     - msbuild %MSBFLAGS% pgsql.sln
+    - clcache.exe -s
+
+  always:
+    upload_caches: ccache
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
