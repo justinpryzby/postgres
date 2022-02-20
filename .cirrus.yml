@@ -385,6 +385,8 @@ task:
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
     MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log
 
+    DebugInformationFormat: OldStyle
+
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
     # tests internally should have shorter timeouts, but that's proven to not
