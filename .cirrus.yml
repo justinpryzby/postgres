@@ -463,7 +463,9 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=true -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log -fileLoggerParameters2:verbosity=detailed;logfile=\cirrus\msbuild.detail.log
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true -fileLoggerParameters2:verbosity=detailed;logfile=\cirrus\msbuild.detail.log
+    #MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /outputResultsCache:src/tools/msvc/cache /p:BuildingSolutionFile /p:"CurrentSolutionConfigurationContents=<SolutionConfiguration>"
+#/inputResultsCaches src/tools/msvc/cache*
 
     DebugInformationFormat: OldStyle
 
