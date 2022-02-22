@@ -454,10 +454,6 @@ task:
 task:
   name: CompilerWarnings
 
-  # To limit unnecessary work only run this once the normal linux test succeeds
-  depends_on:
-    - Linux - Debian Bullseye
-
   env:
     CPUS: 4
     BUILD_JOBS: 4
@@ -471,7 +467,7 @@ task:
 
   # task that did not run, count as a success, so we need to recheck Linux'
   # condition here ...
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*warnings.*'
 
   container:
     image: $CONTAINER_REPO/linux_debian_bullseye_ci:latest
