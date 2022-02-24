@@ -463,24 +463,12 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=\buildcache\bin\buildcache.exe /p:MultiProcMaxCount=8
-# -graph /p:EnforceProcessCountAcrossBuilds=true
-# /p:BuildInParallel=true
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ProgramData\chocolatey\bin\cl.exe
 
-    CCLASH_DIR: "C:/Users/ContainerAdministrator/AppData/Local/cclash"
-    CCLASH_SERVER: 1
-    CCLASH_DEBUG: cclash.debug
-# --cachedir= --debug
-
-    BUILDCACHE_IMPERSONATE: cl.exe
-    BUILDCACHE_DIR: bccache
-    BUILDCACHE_DEBUG: 2
-    BUILDCACHE_LOG_FILE: bccache.log
-    #BUILDCACHE_PERF: 1
-    #BUILDCACHE_DIRECT_MODE: 1
-    #BUILDCACHE_COMPRESS_FORMAT: ZSTD
-    #BUILDCACHE_COMPRESS_LEVEL: 1
-    #BUILDCACHE_COMPRESS: 0
+    SCCACHE_DIR: "sccache"
+    SCCACHE_LOG: trace
+    SCCACHE_ERROR_LOG: sccache.log
+    SCCACHE_IGNORE_SERVER_IO_ERROR: 1
 
     DebugInformationFormat: OldStyle
 
@@ -520,13 +508,11 @@ task:
     set
 
   setup_additional_packages_script:
-    #- choco install -y --no-progress ...
-    #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
-    - curl -L https://github.com/mbitsnbites/buildcache/releases/download/v0.27.6/buildcache-windows.zip --output buildcache-windows.zip
-    - powershell Expand-Archive buildcache-windows.zip /
+    - choco install -y --no-progress sccache
+    - copy \ProgramData\chocolatey\bin\sccache.exe \ProgramData\chocolatey\bin\cl.exe
 
-  bccache_cache:
-    folder: $BUILDCACHE_DIR
+  sccache_cache:
+    folder: $SCCACHE_DIR
 
   configure_script:
     # copy errors out when using forward slashes
@@ -542,9 +528,16 @@ task:
     #- grep initdb *.vcxproj
   build_script:
     - vcvarsall x64
+    - sccache --start-server
+    - sccache --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
-    #- env _LINK_=/LTCG 'msbuild %MSBFLAGS% initdb.vcxproj /p:Configuration=Release'
-    #- msbuild %MSBFLAGS% initdb.vcxproj /p:Configuration=Release
+    - sccache --show-stats
+    - false
+  always:
+    upload_caches: sccache
+    sccache_log_artifacts:
+     path: 'sccache.*'
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
