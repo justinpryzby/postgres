@@ -1,2 +1,3 @@
 /testclient
 /uri-regress
+/libpq_pipeline
