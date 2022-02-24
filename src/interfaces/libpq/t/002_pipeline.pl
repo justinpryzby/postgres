@@ -50,7 +50,7 @@ for my $testname (@tests)
 		my $expected;
 		my $result;
 
-		my $inputdir = "$ENV{'TESTDIR'}";
+		my $inputdir = "$ENV{'TESTDIR'}/test";
 		$expected = slurp_file_eval("$inputdir/traces/$testname.trace");
 		next unless $expected ne "";
 		$result = slurp_file_eval($traceout);
