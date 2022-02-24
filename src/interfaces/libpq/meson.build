@@ -106,6 +106,7 @@ install_data('pg_service.conf.sample',
 
 subdir('test')
 
+#testprep_targets += libpq_pipeline
 tests += {
   'name': 'libpq',
   'sd': meson.current_source_dir(),
@@ -117,6 +118,7 @@ tests += {
       't/003_load_balance_host_list.pl',
       't/004_load_balance_dns.pl',
       't/005_negotiate_encryption.pl',
+      't/006_libpq_pipeline.pl',
     ],
     'env': {
       'with_ssl': ssl_library,
@@ -124,6 +126,7 @@ tests += {
       'with_krb_srvnam': 'postgres',
     },
     'deps': libpq_test_deps,
+    #'deps': [libpq_pipeline],
   },
 }
 

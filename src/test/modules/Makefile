@@ -10,7 +10,6 @@ SUBDIRS = \
 		  delay_execution \
 		  dummy_index_am \
 		  dummy_seclabel \
-		  libpq_pipeline \
 		  plsample \
 		  spgist_name_ops \
 		  test_bloomfilter \

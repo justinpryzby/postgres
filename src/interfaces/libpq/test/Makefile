@@ -14,7 +14,7 @@ endif
 override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
 LDFLAGS_INTERNAL += $(libpq_pgport)
 
-PROGRAMS = libpq_testclient libpq_uri_regress
+PROGRAMS = libpq_testclient libpq_uri_regress libpq_pipeline
 
 all: $(PROGRAMS)
 
