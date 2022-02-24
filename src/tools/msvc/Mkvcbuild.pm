@@ -37,13 +37,14 @@ my @unlink_on_exit;
 # Set of variables for modules in contrib/ and src/test/modules/
 my $contrib_defines = {};
 my @contrib_uselibpq = ();
-my @contrib_uselibpgport = ('libpq_uri_regress', 'libpq_testclient');
-my @contrib_uselibpgcommon = ();
+my @contrib_uselibpgport = ('libpq_uri_regress', 'libpq_testclient', 'libpq_pipeline');
+my @contrib_uselibpgcommon = ('libpq_pipeline');
 my $contrib_extralibs = { 'libpq_pipeline' => ['ws2_32.lib'] };
 my $contrib_extraincludes = {};
 my $contrib_extrasource = {
 	'libpq_uri_regress' => ['src/interfaces/libpq/test/libpq_uri_regress.c'],
 	'libpq_testclient'  => ['src/interfaces/libpq/test/libpq_testclient.c'],
+	'libpq_pipeline'    => ['src/interfaces/libpq/test/libpq_pipeline.c'],
 };
 my @contrib_excludes = (
 	'bool_plperl', 'commit_ts',

@@ -108,6 +108,7 @@ install_data('pg_service.conf.sample',
 )
 
 
+#testprep_targets += libpq_pipeline
 tests += {
   'name': 'libpq',
   'sd': meson.current_source_dir(),
@@ -118,6 +119,7 @@ tests += {
       't/002_api.pl',
       't/003_load_balance_host_list.pl',
       't/004_load_balance_dns.pl',
+      't/005_libpq_pipeline.pl',
     ],
     'env': {'with_ssl': ssl_library},
   },
