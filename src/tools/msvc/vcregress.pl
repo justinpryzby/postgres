@@ -51,7 +51,7 @@ if (-e "src/tools/msvc/buildenv.pl")
 
 my $what = shift || "";
 if ($what =~
-	/^(check|installcheck|plcheck|contribcheck|modulescheck|ecpgcheck|isolationcheck|upgradecheck|bincheck|recoverycheck|taptest)$/i
+	/^(check|installcheck|plcheck|contribcheck|modulescheck|ecpgcheck|isolationcheck|upgradecheck|bincheck|recoverycheck|taptest|alltaptests)$/i
   )
 {
 	$what = uc $what;
@@ -109,6 +109,7 @@ my %command = (
 	BINCHECK => \&bincheck,
 	RECOVERYCHECK => \&recoverycheck,
 	UPGRADECHECK => \&upgradecheck,    # no-op
+	ALLTAPTESTS => \&alltaptests,
 	TAPTEST => \&taptest,);
 
 my $proc = $command{$what};
@@ -298,6 +299,9 @@ sub tap_check
 	# add the module build dir as the second element in the PATH
 	$ENV{PATH} =~ s!;!;$topdir/$Config/$module;!;
 
+	print "============================================================\n";
+	print "Checking $dir: @args\n";
+
 	rmtree('tmp_check');
 	system(@args);
 	my $status = $? >> 8;
@@ -312,8 +316,7 @@ sub bincheck
 
 	my $mstat = 0;
 
-	# Find out all the existing TAP tests by looking for t/ directories
-	# in the tree.
+	# Find the TAP tests by looking for t/ directories
 	my @bin_dirs = glob("$topdir/src/bin/*");
 
 	# Process each test
@@ -321,6 +324,36 @@ sub bincheck
 	{
 		next unless -d "$dir/t";
 
+		my $status = tap_check($dir);
+		$mstat ||= $status;
+	}
+	exit $mstat if $mstat;
+	return;
+}
+
+sub alltaptests
+{
+	InstallTemp();
+
+	my $mstat = 0;
+
+	# Find out all the existing TAP tests by looking for t/ directories
+	# in the tree.
+	my @tap_dirs = ();
+	my @top_dir = ($topdir);
+	File::Find::find(
+		{   wanted => sub {
+			/^t\z/s
+			  && $File::Find::name !~ /\/(kerberos|ldap|ssl|ssl_passphrase_callback)\// # opt-in: warn about these?
+			  && push(@tap_dirs, $File::Find::name);
+			}
+		},
+		@top_dir);
+
+	# Process each test
+	foreach my $test_path (@tap_dirs)
+	{
+		my $dir = dirname($test_path);
 		my $status = tap_check($dir);
 		$mstat ||= $status;
 	}
@@ -644,6 +677,7 @@ sub usage
 	print STDERR
 	  "Usage: vcregress.pl <mode> [<arg>]\n\n",
 	  "Options for <mode>:\n",
+	  "  alltaptests    run all tap tests (except kerberos, ldap, ssl, ssl_passphrase_callback)\n",
 	  "  bincheck       run tests of utilities in src/bin/\n",
 	  "  check          deploy instance and run regression tests on it\n",
 	  "  contribcheck   run tests of modules in contrib/\n",
@@ -659,6 +693,7 @@ sub usage
 	  "  serial         serial mode\n",
 	  "  parallel       parallel mode\n",
 	  "\nOption for <arg>: for taptest\n",
-	  "  TEST_DIR       (required) directory where tests reside\n";
+	  "  TEST_DIR       (required) directory where tests reside\n",
+	  "  PROVE_FLAGS    flags to pass to prove\n";
 	exit(1);
 }
