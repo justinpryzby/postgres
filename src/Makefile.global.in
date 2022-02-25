@@ -440,7 +440,7 @@ ld_library_path_var = LD_LIBRARY_PATH
 # need something more here. If not defined then the expansion does
 # nothing.
 with_temp_install = \
-	PATH="$(abs_top_builddir)/tmp_install$(bindir):$(CURDIR):$$PATH" \
+	PATH="$(abs_top_builddir)/tmp_install$(bindir):$$PATH" \
 	$(call add_to_path,$(strip $(ld_library_path_var)),$(abs_top_builddir)/tmp_install$(libdir)) \
 	$(with_temp_install_extra)
 
@@ -452,7 +452,7 @@ echo "+++ tap install-check in $(subdir) +++" && \
 rm -rf '$(CURDIR)'/tmp_check && \
 $(MKDIR_P) '$(CURDIR)'/tmp_check && \
 cd $(srcdir) && \
-   PATH="$(bindir):$(CURDIR):$$PATH" \
+   PATH="$(bindir):$$PATH" \
    PGPORT='6$(DEF_PGPORT)' top_builddir='$(CURDIR)/$(top_builddir)' \
    PG_SUBDIR='$(CURDIR)' \
    PG_REGRESS='$(CURDIR)/$(top_builddir)/src/test/regress/pg_regress' \
@@ -464,7 +464,7 @@ echo "+++ tap install-check in $(subdir) +++" && \
 rm -rf '$(CURDIR)'/tmp_check && \
 $(MKDIR_P) '$(CURDIR)'/tmp_check && \
 cd $(srcdir) && \
-   PATH="$(bindir):$(CURDIR):$$PATH" \
+   PATH="$(bindir):$$PATH" \
    PGPORT='6$(DEF_PGPORT)' top_builddir='$(top_builddir)' \
    PG_SUBDIR='$(CURDIR)' \
    PG_REGRESS='$(top_builddir)/src/test/regress/pg_regress' \
