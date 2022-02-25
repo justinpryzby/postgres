@@ -437,14 +437,8 @@ task:
   test_ssl_script: |
     set with_ssl=openssl
     %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
-  test_subscription_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/subscription/
-  test_authentication_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/authentication/
-  test_recovery_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl recoverycheck
-  test_bin_script: |
-    %T_C% perl src/tools/msvc/vcregress.pl bincheck
+  test_tap_script: |
+    %T_C% perl src/tools/msvc/vcregress.pl alltaptests
   test_ecpg_script: |
     rem tries to build additional stuff
     vcvarsall x64
