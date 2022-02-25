@@ -143,6 +143,7 @@ install: all installdirs install-lib
 test-build:
 	$(MAKE) -C test all
 
+# XXX
 check: test-build all
 	PATH="$(CURDIR)/test:$$PATH" && $(prove_check)
 

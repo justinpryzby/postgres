@@ -195,6 +195,16 @@ INIT
 
 	$ENV{TESTDIR} = $test_dir;
 
+	if ($PostgreSQL::Test::Utils::windows_os &&
+		$Config{osname} eq 'MSWin32')
+	{
+		$ENV{PATH} =~ s!;!;$test_dir;!;
+	}
+	else
+	{
+		$ENV{PATH} =~ s!:!:$test_dir:!;
+	}
+
 	# Determine output directories, and create them.
 	$tmp_check = "$test_dir/tmp_check";
 	$log_path = "$tmp_check/log";
