@@ -941,15 +941,81 @@ LINE 1: ...ICATION testpub5 ADD TABLE testpub_rf_tbl1 WHERE (b < '2' CO...
 DETAIL:  User-defined collations are not allowed.
 -- ok - NULLIF is allowed
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE (NULLIF(1,2) = a);
+\d+ testpub_rf_tbl1
+                              Table "public.testpub_rf_tbl1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+-----------+----------+---------+----------+--------------+-------------
+ a      | integer |           |          |         | plain    |              | 
+ b      | text    |           |          |         | extended |              | 
+Publications:
+    "testpub5" WHERE (NULLIF(1, 2) = a)
+
+\dRp+ testpub5
+                                    Publication testpub5
+          Owner           | All tables | Inserts | Updates | Deletes | Truncates | Via root 
+--------------------------+------------+---------+---------+---------+-----------+----------
+ regress_publication_user | f          | t       | f       | f       | f         | f
+Tables:
+    "public.testpub_rf_tbl1" WHERE (NULLIF(1, 2) = a)
+
 -- ok - built-in operators are allowed
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE (a IS NULL);
+\d+ testpub_rf_tbl1
+                              Table "public.testpub_rf_tbl1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+-----------+----------+---------+----------+--------------+-------------
+ a      | integer |           |          |         | plain    |              | 
+ b      | text    |           |          |         | extended |              | 
+Publications:
+    "testpub5" WHERE (a IS NULL)
+
+\dRp+ testpub5
+                                    Publication testpub5
+          Owner           | All tables | Inserts | Updates | Deletes | Truncates | Via root 
+--------------------------+------------+---------+---------+---------+-----------+----------
+ regress_publication_user | f          | t       | f       | f       | f         | f
+Tables:
+    "public.testpub_rf_tbl1" WHERE (a IS NULL)
+
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE ((a > 5) IS FALSE);
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE (a IS DISTINCT FROM 5);
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE ((a, a + 1) < (2, 3));
 -- ok - built-in type coercions between two binary compatible datatypes are allowed
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl1 WHERE (b::varchar < '2');
+\d+ testpub_rf_tbl1
+                              Table "public.testpub_rf_tbl1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+-----------+----------+---------+----------+--------------+-------------
+ a      | integer |           |          |         | plain    |              | 
+ b      | text    |           |          |         | extended |              | 
+Publications:
+    "testpub5" WHERE (((b)::character varying)::text < '2'::text)
+
+\dRp+ testpub5
+                                    Publication testpub5
+          Owner           | All tables | Inserts | Updates | Deletes | Truncates | Via root 
+--------------------------+------------+---------+---------+---------+-----------+----------
+ regress_publication_user | f          | t       | f       | f       | f         | f
+Tables:
+    "public.testpub_rf_tbl1" WHERE (((b)::character varying)::text < '2'::text)
+
 -- ok - immutable built-in functions are allowed
 ALTER PUBLICATION testpub5 SET TABLE testpub_rf_tbl4 WHERE (length(g) < 6);
+\d+ testpub_rf_tbl1
+                              Table "public.testpub_rf_tbl1"
+ Column |  Type   | Collation | Nullable | Default | Storage  | Stats target | Description 
+--------+---------+-----------+----------+---------+----------+--------------+-------------
+ a      | integer |           |          |         | plain    |              | 
+ b      | text    |           |          |         | extended |              | 
+
+\dRp+ testpub5
+                                    Publication testpub5
+          Owner           | All tables | Inserts | Updates | Deletes | Truncates | Via root 
+--------------------------+------------+---------+---------+---------+-----------+----------
+ regress_publication_user | f          | t       | f       | f       | f         | f
+Tables:
+    "public.testpub_rf_tbl4" WHERE (length(g) < 6)
+
 -- fail - user-defined types are not allowed
 CREATE TYPE rf_bug_status AS ENUM ('new', 'open', 'closed');
 CREATE TABLE rf_bug (id serial, description text, status rf_bug_status);
