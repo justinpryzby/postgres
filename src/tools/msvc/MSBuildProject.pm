@@ -86,7 +86,7 @@ EOF
 		$f, 'Debug',
 		{
 			defs    => "_DEBUG;DEBUG=1",
-			opt     => 'Disabled',
+			opt     => $ENV{MSBUILD_OPTIMIZE} || 'Disabled',
 			strpool => 'false',
 			runtime => 'MultiThreadedDebugDLL',
 			debugformat => $debugformat,
@@ -96,7 +96,7 @@ EOF
 		'Release',
 		{
 			defs    => "",
-			opt     => 'Full',
+			opt     => $ENV{MSBUILD_OPTIMIZE} || 'Full',
 			strpool => 'true',
 			runtime => 'MultiThreadedDLL',
 			debugformat => $debugformat,
