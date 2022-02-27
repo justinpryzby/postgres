@@ -472,6 +472,13 @@ task:
     compiler_warnings_script:
       - sh src\tools\ci\windows-compiler-warnings msbuild.warn.log
 
+    # XXX: only run if requested?  Do not run if cfbot?
+    #compress_install_script:
+      #- powershell Compress-Archive tmp_install tmp_install.zip
+      #- zipinfo -htz tmp_install.zip
+    #install_artifacts:
+      #path: 'tmp_install.zip'
+
   on_failure:
     <<: *on_failure
     crashlog_artifacts:
