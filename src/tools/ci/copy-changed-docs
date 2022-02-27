@@ -1,0 +1,16 @@
+#! /bin/sh
+# Copy HTML which differ into html_docs
+set -e
+
+outdir=html_docs
+
+mkdir "$outdir"
+cp new-docs/src/sgml/html/*.css new-docs/src/sgml/html/*.svg "$outdir/"
+
+changed=`git diff --no-index --name-only old-docs/src/sgml/html new-docs/src/sgml/html` ||
+	[ $? -eq 1 ]
+
+for f in $changed
+do
+	cp "$f" "$outdir"
+done
