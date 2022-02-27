@@ -467,6 +467,13 @@ task:
 
   # These should be last, so all the important checks are always run
   always:
+    compress_install_script:
+      - powershell Compress-Archive tmp_install tmp_install.zip
+      - zipinfo -htz tmp_install.zip
+
+    #install_artifacts:
+      #path: 'tmp_install.zip'
+
     # Success if the file doesn't exist or is empty, else fail
     compiler_warnings_script:
       - sh src\tools\ci\windows-compiler-warnings msbuild.warn.log
