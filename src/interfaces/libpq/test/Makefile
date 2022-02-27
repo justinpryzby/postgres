@@ -11,9 +11,9 @@ endif
 override CPPFLAGS := -I$(libpq_srcdir) $(CPPFLAGS)
 LDFLAGS_INTERNAL += $(libpq_pgport)
 
-PROGS = uri-regress
+PROGRAM = uri-regress
 
-all: $(PROGS)
+all: $(PROGRAM)
 
 clean distclean maintainer-clean:
-	rm -f $(PROGS) *.o
+	rm -f $(PROGRAM) *.o

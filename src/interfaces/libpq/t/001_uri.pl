@@ -2,6 +2,7 @@
 use strict;
 use warnings;
 
+use Config;
 use PostgreSQL::Test::Utils;
 use Test::More;
 use IPC::Run;
@@ -234,6 +235,17 @@ sub test_uri
 	# use is_deeply so there's one test result for each test above, without
 	# losing the information whether stdout/stderr mismatched.
 	is_deeply(\%result, \%expect, $uri);
+}
+
+my $test_dir = $ENV{TESTDIR};
+if ($PostgreSQL::Test::Utils::windows_os &&
+	$Config{osname} eq 'MSWin32')
+{
+	$ENV{PATH} =~ s!;!;$test_dir\\test;!;
+}
+else
+{
+	$ENV{PATH} =~ s!:!:$test_dir/test:!;
 }
 
 foreach (@tests)
