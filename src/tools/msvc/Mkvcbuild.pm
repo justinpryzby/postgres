@@ -37,11 +37,14 @@ my @unlink_on_exit;
 # Set of variables for modules in contrib/ and src/test/modules/
 my $contrib_defines = {};
 my @contrib_uselibpq = ();
-my @contrib_uselibpgport   = ();
+my @contrib_uselibpgport   = ('uri-regress', 'testclient');
 my @contrib_uselibpgcommon = ();
 my $contrib_extralibs     = { 'libpq_pipeline' => ['ws2_32.lib'] };
 my $contrib_extraincludes  = {};
-my $contrib_extrasource    = {};
+my $contrib_extrasource    = {
+	'uri-regress' => ['src/interfaces/libpq/test/uri-regress.c'],
+	'testclient' => ['src/interfaces/libpq/test/testclient.c'],
+};
 my @contrib_excludes = (
 	'bool_plperl',      'commit_ts',
 	'hstore_plperl',    'hstore_plpython',
@@ -456,7 +459,7 @@ sub mkvcbuild
 		push @contrib_excludes, 'uuid-ossp';
 	}
 
-	foreach my $subdir ('contrib', 'src/test/modules')
+	foreach my $subdir ('contrib', 'src/test/modules', 'src/interfaces/libpq')
 	{
 		opendir($D, $subdir) || croak "Could not opendir on $subdir!\n";
 		while (my $d = readdir($D))
@@ -965,6 +968,15 @@ sub AddContrib
 		my $proj = $solution->AddProject($1, 'exe', 'contrib', "$subdir/$n");
 		AdjustContribProj($proj);
 		push @projects, $proj;
+	}
+	elsif ($mf =~ /^PROGRAMS\s*=\s*(.*)$/mg)
+	{
+		foreach my $proj (split /\s+/, $1)
+		{
+			my $p = $solution->AddProject($proj, 'exe', 'contrib', "$subdir/$n");
+			AdjustContribProj($p);
+			push @projects, $p;
+		}
 	}
 	else
 	{
