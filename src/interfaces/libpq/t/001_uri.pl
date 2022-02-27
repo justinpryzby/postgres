@@ -3,7 +3,6 @@ use strict;
 use warnings;
 
 use Config;
-use File::Spec;
 use PostgreSQL::Test::Utils;
 use Test::More;
 use IPC::Run;
@@ -12,9 +11,7 @@ my $test_dir = $ENV{TESTDIR};
 if ($PostgreSQL::Test::Utils::windows_os &&
 	$Config{osname} eq 'MSWin32')
 {
-	#$ENV{PATH} =~ s!;!;$test_dir\\test;!;
-	my $x = File::Spec->rel2abs('..\\..\\..\\Debug\\uri-regress');
-	$ENV{PATH} =~ s!;!;$x;!;
+	$ENV{PATH} =~ s!;!;$test_dir\\test;!;
 }
 else
 {
