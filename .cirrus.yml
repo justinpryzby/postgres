@@ -435,6 +435,8 @@ task:
 
     DebugInformationFormat: OldStyle
 
+    MSBUILD_OPTIMIZE: MaxSpeed
+
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
     # tests internally should have shorter timeouts, but that's proven to not
