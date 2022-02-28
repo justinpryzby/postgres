@@ -516,6 +516,9 @@ task:
   prove_cache:
     folder: src/test/prove
 
+  debug_compile_cache:
+    folder: debug
+
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
@@ -523,15 +526,18 @@ task:
     - vcvarsall x64
     - set
     - cd C:\Users\ContainerAdministrator\AppData\Local\Temp\cirrus-ci-build
-    - perl src/tools/msvc/mkvcbuild.pl
+    - perl src/tools/msvc/mkvcbuild.pl debug
   #build_script:
     - vcvarsall x64
-    - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
-    - cd /d c:\
-    - tar cf \build.cache.d\build.tar.gz build.d
-    - false
+    - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=debug
+
   always:
-    upload_caches: msbuild
+    mscache_artifacts:
+      path: src/tools/msvc/cache
+    upload_caches: msbcache
+
+  upload_caches: debug_compile
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd /d c:/build.d/src/tools/msvc && perl install.pl c:/build.d/tmp_install
