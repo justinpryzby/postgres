@@ -402,7 +402,12 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=true -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log -fileLoggerParameters2:verbosity=detailed;logfile=\cirrus\msbuild.detail.log
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:CLToolExe=clcache.exe
+
+    CLCACHE_DIR: "clcache"
+    CLCACHE_HARDLINK: 1
+    #CLCACHE_SERVER: 1
+    #CLCACHE_LOG: 1
 
     DebugInformationFormat: OldStyle
 
@@ -433,71 +438,61 @@ task:
     powershell -Command get-psdrive -psprovider filesystem
     set
 
-  setup_additional_packages_script: |
-    choco install -y --no-progress rsync
-  msbuild_cache:
-    folder: '\build.cache.d'
+  setup_additional_packages_script:
+    #- choco install -y ...
+    #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
+    - curl -L https://github.com/frerich/clcache/releases/download/v4.2.0/clcache.4.2.0.nupkg --output clcache.4.2.0.nupkg
+    - choco install --verbose --no-progress clcache --source=.
+
+  clcache_cache:
+    folder: $CLCACHE_DIR
 
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
-    - cd \
-    - tar xf \build.cache.d\build.tar.gz||true
-    - rsync -rvi --checksum cirrus/ build.d
-    - cd /d c:\build.d
     - vcvarsall x64
     - perl src/tools/msvc/mkvcbuild.pl
   build_script:
-    - cd /d c:\build.d
     - vcvarsall x64
+    - clcache.exe -z
     - msbuild %MSBFLAGS% pgsql.sln
-    - cd /d c:\
-    - tar cf \build.cache.d\build.tar.gz build.d
+    - clcache.exe -s
+
   always:
-    upload_caches: msbuild
+    upload_caches: clcache
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
-    - cd /d c:/build.d/src/tools/msvc && perl install.pl c:/build.d/tmp_install
+    - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
 
   test_tap_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl alltaptests
 
   test_regress_parallel_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl check parallel
   startcreate_script: |
     rem paths to binaries need backslashes
-    cd /d c:\build.d
     tmp_install\bin\pg_ctl.exe initdb -D tmp_check/db -l tmp_check/initdb.log --options=--no-sync
     echo include '%TEMP_CONFIG%' >> tmp_check/db/postgresql.conf
     tmp_install\bin\pg_ctl.exe start -D tmp_check/db -l tmp_check/postmaster.log
 
   test_pl_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl plcheck
   test_isolation_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl isolationcheck
   test_modules_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl modulescheck install
   test_contrib_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl contribcheck install
   stop_script: |
-    cd /d c:\build.d
     tmp_install\bin\pg_ctl.exe stop -D tmp_check/db -l tmp_check/postmaster.log
   test_ssl_script: |
-    cd /d c:\build.d
     set with_ssl=openssl
     %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
   test_pg_upgrade_script: |
-    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl upgradecheck
   test_ecpg_script: |
     rem tries to build additional stuff
-    cd /d c:\build.d
     vcvarsall x64
     rem References ecpg_regression.proj in the current dir
     cd src/tools/msvc
@@ -506,7 +501,6 @@ task:
   # These should be last, so all the important checks are always run
   always:
     compress_install_script:
-      - cd /d c:\build.d
       - powershell Compress-Archive tmp_install tmp_install.zip
       - zipinfo -htz tmp_install.zip
 
@@ -515,7 +509,6 @@ task:
 
     # Success if the file doesn't exist or is empty, else fail
     compiler_warnings_script:
-      - cd /d c:\build.d
       - sh src\tools\ci\windows-compiler-warnings msbuild.warn.log
 
   on_failure:
