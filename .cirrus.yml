@@ -402,14 +402,12 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=\buildcache\bin\buildcache.exe /p:MultiProcMaxCount=8
-# -graph /p:EnforceProcessCountAcrossBuilds=true
-# /p:BuildInParallel=true
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=ccache.exe
+# src\tools\ci\ccache-wrapper'
 
-    CCLASH_DIR: "C:/Users/ContainerAdministrator/AppData/Local/cclash"
-    CCLASH_SERVER: 1
-    CCLASH_DEBUG: cclash.debug
-# --cachedir= --debug
+    CCACHE_DIR: .ccache
+    CCACHE_LOGFILE: ccache.log
+    CCACHE_COMPILERTYPE: msvc
 
     BUILDCACHE_IMPERSONATE: cl.exe
     BUILDCACHE_DIR: bccache
@@ -451,13 +449,10 @@ task:
     set
 
   setup_additional_packages_script:
-    #- choco install -y --no-progress ...
-    #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
-    - curl -L https://github.com/mbitsnbites/buildcache/releases/download/v0.27.6/buildcache-windows.zip --output buildcache-windows.zip
-    - powershell Expand-Archive buildcache-windows.zip /
+    - choco install -y --no-progress ccache --version 4.6
 
-  bccache_cache:
-    folder: $BUILDCACHE_DIR
+  ccache_cache:
+    folder: $CCACHE_DIR
 
   configure_script:
     # copy errors out when using forward slashes
@@ -472,12 +467,12 @@ task:
 
   build_script:
     - vcvarsall x64
-    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --zero-stats
+    - ccache --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
-    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --show-stats
+    - ccache.exe --show-stats
 
   always:
-    upload_caches: bccache
+    upload_caches: ccache
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
