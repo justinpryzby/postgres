@@ -44,6 +44,7 @@ my $contrib_extraincludes  = {};
 my $contrib_extrasource    = {
 	'uri-regress' => ['src/interfaces/libpq/test/uri-regress.c'],
 	'testclient' => ['src/interfaces/libpq/test/testclient.c'],
+	'libpq_pipeline' => ['src/interfaces/libpq/test/libpq_pipeline.c'],
 };
 my @contrib_excludes       = (
 	'bool_plperl',     'commit_ts',
@@ -460,7 +461,7 @@ sub mkvcbuild
 		push @contrib_excludes, 'uuid-ossp';
 	}
 
-	foreach my $subdir ('contrib', 'src/test/modules', 'src/interfaces/libpq')
+	foreach my $subdir ('contrib', 'src/test/modules') #, 'src/interfaces/libpq')
 	{
 		opendir($D, $subdir) || croak "Could not opendir on $subdir!\n";
 		while (my $d = readdir($D))
@@ -788,6 +789,20 @@ sub mkvcbuild
 		my $p = $solution->AddProject($sub, 'dll', 'conversion procs', $dir);
 		$p->AddFile("$dir/$sub.c");    # implicit source file
 		$p->AddReference($postgres);
+	}
+
+	$mf = Project::read_file('src/interfaces/libpq/test/Makefile');
+	$mf =~ s{\\\r?\n}{}g;
+	$mf =~ m{PROGRAMS\s*=\s*(.*)$}m
+	  || die 'Could not match in src/interfaces/libpq/test/Makefile' . "\n";
+	foreach my $prg (split /\s+/, $1)
+	{
+		my $proj = $solution->AddProject($prg, 'exe', 'bin');
+		$proj->AddFile("src/interfaces/libpq/test/$prg.c"); # implicit source file
+		$proj->AddIncludeDir('src/interfaces/libpq');
+		# XXX: pipeline needs pgcommon and ws2, but uri-regress doesn't
+		$proj->AddReference($libpq, $libpgport, $libpgcommon);
+		$proj->AddLibrary('ws2_32.lib');
 	}
 
 	$mf = Project::read_file('src/bin/scripts/Makefile');
