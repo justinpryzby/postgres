@@ -36,13 +36,14 @@ my @unlink_on_exit;
 
 # Set of variables for modules in contrib/ and src/test/modules/
 my $contrib_defines = {};
-my @contrib_uselibpq = ();
+my @contrib_uselibpq = ('uri-regress', 'libpq_pipeline');
 my @contrib_uselibpgport   = ('uri-regress');
 my @contrib_uselibpgcommon = ();
 my $contrib_extralibs     = { 'libpq_pipeline' => ['ws2_32.lib'] };
 my $contrib_extraincludes  = {};
 my $contrib_extrasource    = {
-	'uri-regress' => ['src/interfaces/libpq/test/uri-regress.c']
+	'uri-regress' => ['src/interfaces/libpq/test/uri-regress.c'],
+	'libpq_pipeline' => ['src/interfaces/libpq/test/libpq_pipeline.c'],
 };
 my @contrib_excludes = (
 	'bool_plperl',      'commit_ts',
@@ -458,7 +459,7 @@ sub mkvcbuild
 		push @contrib_excludes, 'uuid-ossp';
 	}
 
-	foreach my $subdir ('contrib', 'src/test/modules', 'src/interfaces/libpq')
+	foreach my $subdir ('contrib', 'src/test/modules') #, 'src/interfaces/libpq')
 	{
 		opendir($D, $subdir) || croak "Could not opendir on $subdir!\n";
 		while (my $d = readdir($D))
@@ -785,6 +786,20 @@ sub mkvcbuild
 		my $p = $solution->AddProject($sub, 'dll', 'conversion procs', $dir);
 		$p->AddFile("$dir/$sub.c");    # implicit source file
 		$p->AddReference($postgres);
+	}
+
+	$mf = Project::read_file('src/interfaces/libpq/test/Makefile');
+	$mf =~ s{\\\r?\n}{}g;
+	$mf =~ m{PROGRAM\s*=\s*(.*)$}m
+	  || die 'Could not match in src/interfaces/libpq/test/Makefile' . "\n";
+	foreach my $prg (split /\s+/, $1)
+	{
+		my $p = $solution->AddProject($prg, 'exe', 'bin');
+		$p->AddFile("src/interfaces/libpq/test/$prg.c"); # implicit source file
+		$p->AddIncludeDir('src/interfaces/libpq');
+		# XXX: pipeline needs pgcommon and ws2, but uri-regress doesn't
+		$p->AddReference($libpq, $libpgport, $libpgcommon);
+		$p->AddLibrary('ws2_32.lib');
 	}
 
 	$mf = Project::read_file('src/bin/scripts/Makefile');
