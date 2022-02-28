@@ -418,7 +418,16 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=pgccache.exe
+#c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6-windows-64\ccache.exe
+#c:\ProgramData\chocolatey\bin\ccache.exe
+
+    CCACHE_DIR: $CIRRUS_WORKING_DIR/.ccache
+    CCACHE_LOGFILE: ccache.log
+    #CCACHE_PREFIX: cl.exe
+    #CCACHE_PREFIX_CPP: cl.exe
+    CCACHE_COMPILERTYPE: msvc
+    CCACHE_COMPILER: cl.exe
 
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
@@ -447,8 +456,12 @@ task:
     powershell -Command get-psdrive -psprovider filesystem
     set
 
-  setup_additional_packages_script: |
-    REM choco install -y --no-progress ...
+  setup_additional_packages_script:
+    - choco install -y --no-progress ccache --version 4.6.1
+    - cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6-windows-64\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
+
+  ccache_cache:
+    folder: $CCACHE_DIR
 
   configure_script:
     # copy errors out when using forward slashes
@@ -457,7 +470,13 @@ task:
     - perl src/tools/msvc/mkvcbuild.pl
   build_script:
     - vcvarsall x64
+    - ccache --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
+    - ccache.exe --show-stats
+
+  always:
+    upload_caches: ccache
+
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
