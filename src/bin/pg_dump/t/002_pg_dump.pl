@@ -2479,12 +2479,12 @@ my %tests = (
 		},
 	},
 
-	'ALTER PUBLICATION pub1 ADD TABLE test_second_table' => {
+	'ALTER PUBLICATION pub1 ADD TABLE test_second_table WHERE (col1 = 1)' => {
 		create_order => 52,
 		create_sql =>
-		  'ALTER PUBLICATION pub1 ADD TABLE dump_test.test_second_table;',
+		  'ALTER PUBLICATION pub1 ADD TABLE dump_test.test_second_table WHERE (col1 = 1);',
 		regexp => qr/^
-			\QALTER PUBLICATION pub1 ADD TABLE ONLY dump_test.test_second_table;\E
+			\QALTER PUBLICATION pub1 ADD TABLE ONLY dump_test.test_second_table WHERE ((col1 = 1));\E
 			/xm,
 		like => { %full_runs, section_post_data => 1, },
 		unlike => { exclude_dump_test_schema => 1, },
