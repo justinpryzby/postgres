@@ -654,7 +654,7 @@ task:
     cp -r doc old-docs
 
   copy_changed_docs_script: |
-    src/tools/ci/copy-changed-docs "old-docs" "new-docs" "html_docs"
+    src/tools/ci/copy-changed-docs "old-docs" "new-docs" "html_docs" "$CIRRUS_BRANCH"
 
   html_docs_artifacts:
     paths: ['html_docs/*.html', 'html_docs/*.png', 'html_docs/*.css']
