@@ -33,7 +33,7 @@ env:
   # And does the right thing for any 1-patch commits.
   # Patch series manually submitted to cirrus would benefit from setting this to the
   # number of patches in the series (or directly to the commit the series was rebased on).
-  BASE_COMMIT: HEAD~1
+  BASE_COMMIT: HEAD~2
 
 
 # What files to preserve in case tests fail
@@ -694,7 +694,7 @@ task:
     cp -r doc old-docs
 
   copy_changed_docs_script: |
-    src/tools/ci/copy-changed-docs "old-docs" "new-docs" "html_docs"
+    src/tools/ci/copy-changed-docs "old-docs" "new-docs" "html_docs" "$CIRRUS_BRANCH"
 
   html_docs_artifacts:
     paths: ['html_docs/*.html', 'html_docs/*.png', 'html_docs/*.css']
