@@ -402,11 +402,15 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=ccache.exe
-# src\tools\ci\ccache-wrapper'
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ProgramData\chocolatey\bin\pgccache.exe
+# /p:CLToolExe=c:\ProgramData\chocolatey\bin\ccache.exe
+# src\tools\ci\ccache-wrapper.bat'
 
     CCACHE_DIR: .ccache
     CCACHE_LOGFILE: ccache.log
+    #CCACHE_PREFIX: cl.exe
+    #CCACHE_PREFIX_CPP: cl.exe
+    CCACHE_COMPILER: cl.exe
     CCACHE_COMPILERTYPE: msvc
 
     BUILDCACHE_IMPERSONATE: cl.exe
@@ -450,6 +454,10 @@ task:
 
   setup_additional_packages_script:
     - choco install -y --no-progress ccache --version 4.6
+    #- dir /s \cl.*
+    - cp \ProgramData\chocolatey\bin\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
+    #- mv c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl.exe c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl-real.exe
+    #- cp \ProgramData\chocolatey\bin\ccache.exe c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl.exe
 
   ccache_cache:
     folder: $CCACHE_DIR
@@ -470,6 +478,7 @@ task:
     - ccache --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
     - ccache.exe --show-stats
+    - false
 
   always:
     upload_caches: ccache
