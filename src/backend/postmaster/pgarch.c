@@ -766,7 +766,7 @@ pgarch_die(int code, Datum arg)
  *
  * This is called in the loops pgarch_MainLoop and pgarch_ArchiverCopyLoop.
  * It checks for barrier events, config update, request for logging of
- * memory contexts and backtrace, but not shutdown request because how to
+ * memory contexts and backtraces, but not shutdown request because how to
  * handle shutdown request is different between those loops.
  */
 static void

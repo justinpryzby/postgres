@@ -25366,8 +25366,8 @@ SELECT collation for ('foo' COLLATE "de_DE");
        <para>
         Requests to log the backtrace of the backend with the
         specified process ID.  This function can send the request to
-        backends and auxiliary processes except logger and statistics
-        collector.  These backtraces will be logged at <literal>LOG</literal>
+        backends and auxiliary processes except the logger and statistics
+        collector.  The backtraces will be logged at <literal>LOG</literal>
         message level. They will appear in the server log based on the log
         configuration set (See <xref linkend="runtime-config-logging"/> for
         more information), but will not be sent to the client regardless of
@@ -25631,7 +25631,7 @@ For example:
         /lib64/libc.so.6(__libc_start_main+0xf5) [0x7f2107bbd505]
         postgres: postgresdba postgres [local] SELECT() [0x4842a9]
 </screen>
-    You can get the file name and line number from the logged details by using
+    You can obtain the file name and line number from the logged details by using
     gdb/addr2line in linux platforms (users must ensure gdb/addr2line is
     already installed).
    </para>

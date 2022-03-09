@@ -3198,7 +3198,7 @@ CheckPostgresProcessId(int pid, bool chk_auxiliary_proc, BackendId *backendId)
 	 * to acquire a lock on an arbitrary process to prevent that. But since
 	 * this mechanism is usually used to debug a backend or an auxiliary
 	 * process running and consuming lots of memory, that it might end on its
-	 * own first and its memory contexts are not logged is not a problem.
+	 * own first without logging the requested info is not a problem.
 	 */
 	if (result == NULL)
 	{
@@ -3208,10 +3208,10 @@ CheckPostgresProcessId(int pid, bool chk_auxiliary_proc, BackendId *backendId)
 		 */
 		if (chk_auxiliary_proc)
 			ereport(WARNING,
-					(errmsg("PID %d is not a PostgreSQL server process", pid)));
+					errmsg("PID %d is not a PostgreSQL server process", pid));
 		else
 			ereport(WARNING,
-					(errmsg("PID %d is not a PostgreSQL backend process", pid)));
+					errmsg("PID %d is not a PostgreSQL backend process", pid));
 	}
 
 	return result;

@@ -290,9 +290,9 @@ pg_rotate_logfile_v2(PG_FUNCTION_ARGS)
  *		Signal a backend or an auxiliary process to log its backtrace.
  *
  * By default, only superusers are allowed to signal to log the backtrace
- * because allowing any users to issue this request at an unbounded
- * rate would cause lots of log messages and which can lead to denial of
- * service. Additional roles can be permitted with GRANT.
+ * because allowing any user to issue this request at an unbounded
+ * rate would cause lots of log messages which can lead to denial of service.
+ * Additional roles can be permitted with GRANT.
  *
  * On receipt of this signal, a backend or an auxiliary process sets the flag
  * in the signal handler, which causes the next CHECK_FOR_INTERRUPTS()
@@ -311,7 +311,7 @@ pg_log_backtrace(PG_FUNCTION_ARGS)
 	PG_RETURN_BOOL(false);
 #endif
 
-	/* Get the process id of the backend or an auxiliary process */
+	/* Get the process id of the backend or auxiliary process */
 	if (!CheckPostgresProcessId(pid, true, &backendId))
 		PG_RETURN_BOOL(false);
 
@@ -324,7 +324,7 @@ pg_log_backtrace(PG_FUNCTION_ARGS)
 	if (SendProcSignal(pid, PROCSIG_LOG_BACKTRACE, backendId))
 	{
 		ereport(WARNING,
-				(errmsg("could not send signal to process %d: %m", pid)));
+				errmsg("could not send signal to process %d: %m", pid));
 		PG_RETURN_BOOL(false);
 	}
 

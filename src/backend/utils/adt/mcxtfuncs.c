@@ -133,9 +133,9 @@ pg_get_backend_memory_contexts(PG_FUNCTION_ARGS)
  *		Signal a backend or an auxiliary process to log its memory contexts.
  *
  * By default, only superusers are allowed to signal to log the memory
- * contexts because allowing any users to issue this request at an unbounded
- * rate would cause lots of log messages and which can lead to denial of
- * service. Additional roles can be permitted with GRANT.
+ * contexts because allowing any user to issue this request at an unbounded
+ * rate would cause lots of log messages which can lead to denial of service.
+ * Additional roles can be permitted with GRANT.
  *
  * On receipt of this signal, a backend or an auxiliary process sets the flag
  * in the signal handler, which causes the next CHECK_FOR_INTERRUPTS()
@@ -147,7 +147,7 @@ pg_log_backend_memory_contexts(PG_FUNCTION_ARGS)
 	int			pid = PG_GETARG_INT32(0);
 	BackendId	backendId = InvalidBackendId;
 
-	/* Get the process id of the backend or an auxiliary process */
+	/* Get the process id of the backend or auxiliary process */
 	if (!CheckPostgresProcessId(pid, true, &backendId))
 		PG_RETURN_BOOL(false);
 
