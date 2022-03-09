@@ -402,12 +402,24 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=\cclash-0.3.16\bin\cl.exe
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=\buildcache\bin\buildcache.exe /p:MultiProcMaxCount=8
+# -graph /p:EnforceProcessCountAcrossBuilds=true
+# /p:BuildInParallel=true
 
     CCLASH_DIR: "C:/Users/ContainerAdministrator/AppData/Local/cclash"
     CCLASH_SERVER: 1
     CCLASH_DEBUG: cclash.debug
 # --cachedir= --debug
+
+    BUILDCACHE_IMPERSONATE: cl.exe
+    BUILDCACHE_DIR: bccache
+    BUILDCACHE_DEBUG: 1
+    BUILDCACHE_LOG_FILE: bccache.log
+    BUILDCACHE_DIRECT_MODE: 1
+    #BUILDCACHE_PERF: 1
+    #BUILDCACHE_COMPRESS_FORMAT: ZSTD
+    #BUILDCACHE_COMPRESS_LEVEL: 1
+    #BUILDCACHE_COMPRESS: 0
 
     DebugInformationFormat: OldStyle
 
@@ -439,12 +451,13 @@ task:
     set
 
   setup_additional_packages_script:
-    #- choco install -y ...
-    - curl -L https://github.com/inorton/cclash/releases/download/0.3.16/cclash-0.3.16.zip --output cclash.zip
-    - powershell Expand-Archive cclash.zip /
+    #- choco install -y --no-progress ...
+    #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
+    - curl -L https://github.com/mbitsnbites/buildcache/releases/download/v0.27.6/buildcache-windows.zip --output buildcache-windows.zip
+    - powershell Expand-Archive buildcache-windows.zip /
 
-  cclash_cache:
-    folder: $CCLASH_DIR
+  bccache_cache:
+    folder: $BUILDCACHE_DIR
 
   configure_script:
     # copy errors out when using forward slashes
@@ -459,16 +472,12 @@ task:
 
   build_script:
     - vcvarsall x64
-    #- \cclash-0.3.16\bin\cl.exe --cclash --clear
+    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
-    - \cclash-0.3.16\bin\cl.exe --cclash --show-stats
-    - cat cclash.debug |cat
-    - cat cclash.debug.serv |cat
+    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --show-stats
 
   always:
-    upload_caches: cclash
-    cclash_debug_artifacts:
-      path: '**/cclash.debug*'
+    upload_caches: bccache
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
