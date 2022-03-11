@@ -37,6 +37,10 @@
  * The XLogRecordBlockHeader, XLogRecordDataHeaderShort and
  * XLogRecordDataHeaderLong structs all begin with a single 'id' byte. It's
  * used to distinguish between block references, and the main data structs.
+ *
+ * Note that xlogreader.c limits the total size of the xl_tot_len to
+ * MaxAllocSize (1GB - 1). This means that this is also the maximum size
+ * of a single WAL record - we would be unable to replay any larger record.
  */
 typedef struct XLogRecord
 {

@@ -141,6 +141,17 @@ static XLogRecData *XLogRecordAssemble(RmgrId rmid, uint8 info,
 									   bool *topxid_included);
 static bool XLogCompressBackupBlock(char *page, uint16 hole_offset,
 									uint16 hole_length, char *dest, uint16 *dlen);
+static inline void XLogErrorDataLimitExceeded();
+
+/*
+ * Error due to exceeding the maximum size of a WAL record, or registering
+ * more datas than are being accounted for by the XLog infrastructure.
+ */
+inline void
+XLogErrorDataLimitExceeded()
+{
+	elog(ERROR, "too much WAL data");
+}
 
 /*
  * Begin constructing a WAL record. This must be called before the
@@ -348,14 +359,20 @@ XLogRegisterBlock(uint8 block_id, RelFileNode *rnode, ForkNumber forknum,
  * XLogRecGetData().
  */
 void
-XLogRegisterData(char *data, int len)
+XLogRegisterData(char *data, uint32 len)
 {
 	XLogRecData *rdata;
 
-	Assert(begininsert_called);
+	Assert(begininsert_called && AllocSizeIsValid(len));
 
-	if (num_rdatas >= max_rdatas)
-		elog(ERROR, "too much WAL data");
+	/*
+	 * Check against max_rdatas; and ensure we don't fill a record with
+	 * more data than can be replayed
+	 */
+	if (unlikely(num_rdatas >= max_rdatas) ||
+		unlikely(!AllocSizeIsValid((uint64) mainrdata_len + (uint64) len)))
+		XLogErrorDataLimitExceeded();
+
 	rdata = &rdatas[num_rdatas++];
 
 	rdata->data = data;
@@ -386,12 +403,12 @@ XLogRegisterData(char *data, int len)
  * limited)
  */
 void
-XLogRegisterBufData(uint8 block_id, char *data, int len)
+XLogRegisterBufData(uint8 block_id, char *data, uint32 len)
 {
 	registered_buffer *regbuf;
 	XLogRecData *rdata;
 
-	Assert(begininsert_called);
+	Assert(begininsert_called && len <= UINT16_MAX);
 
 	/* find the registered buffer struct */
 	regbuf = &registered_buffers[block_id];
@@ -399,8 +416,14 @@ XLogRegisterBufData(uint8 block_id, char *data, int len)
 		elog(ERROR, "no block with id %d registered with WAL insertion",
 			 block_id);
 
-	if (num_rdatas >= max_rdatas)
-		elog(ERROR, "too much WAL data");
+	/*
+	 * Check against max_rdatas; and ensure we don't register more data per
+	 * buffer than can be handled by the physical record format.
+	 */
+	if (unlikely(num_rdatas >= max_rdatas) ||
+		unlikely(regbuf->rdata_len + len > UINT16_MAX))
+		XLogErrorDataLimitExceeded();
+
 	rdata = &rdatas[num_rdatas++];
 
 	rdata->data = data;
@@ -519,7 +542,7 @@ XLogRecordAssemble(RmgrId rmid, uint8 info,
 				   XLogRecPtr *fpw_lsn, int *num_fpi, bool *topxid_included)
 {
 	XLogRecData *rdt;
-	uint32		total_len = 0;
+	uint64		total_len = 0;
 	int			block_id;
 	pg_crc32c	rdata_crc;
 	registered_buffer *prev_regbuf = NULL;
@@ -757,11 +780,17 @@ XLogRecordAssemble(RmgrId rmid, uint8 info,
 		if (needs_data)
 		{
 			/*
+			 * When copying to XLogRecordBlockHeader, the length is narrowed
+			 * to an uint16. We double-check that that is still correct.
+			 */
+			Assert(regbuf->rdata_len <= UINT16_MAX);
+
+			/*
 			 * Link the caller-supplied rdata chain for this buffer to the
 			 * overall list.
 			 */
 			bkpb.fork_flags |= BKPBLOCK_HAS_DATA;
-			bkpb.data_length = regbuf->rdata_len;
+			bkpb.data_length = (uint16) regbuf->rdata_len;
 			total_len += regbuf->rdata_len;
 
 			rdt_datas_last->next = regbuf->rdata_head;
@@ -857,6 +886,13 @@ XLogRecordAssemble(RmgrId rmid, uint8 info,
 	COMP_CRC32C(rdata_crc, hdr_scratch + SizeOfXLogRecord, hdr_rdt.len - SizeOfXLogRecord);
 	for (rdt = hdr_rdt.next; rdt != NULL; rdt = rdt->next)
 		COMP_CRC32C(rdata_crc, rdt->data, rdt->len);
+
+	/*
+	 * Ensure that xlogreader.c can read the record by ensuring that the
+	 * data section of the WAL record can be allocated.
+	 */
+	if (unlikely(!AllocSizeIsValid(total_len)))
+		XLogErrorDataLimitExceeded();
 
 	/*
 	 * Fill in the fields in the record header. Prev-link is filled in later,
