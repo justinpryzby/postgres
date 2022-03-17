@@ -494,7 +494,8 @@ task:
     LINK: /LTCG
 
   windows_container:
-    image: $CONTAINER_REPO/windows_ci_vs_2019:latest
+    image: cirrusci/windowsservercore:2019
+    #image: $CONTAINER_REPO/windows_ci_vs_2019:latest
     cpu: $CPUS
     memory: 4G
 
@@ -506,27 +507,28 @@ task:
     prove --version
     set
 
-  setup_additional_packages_script: |
-    choco install -y --no-progress rsync
-  msbuild_cache:
-    folder: '\build.cache.d'
+  setup_additional_packages_script:
+    #- choco install -y --no-progress ...
+    - choco list --localonly
+    - choco install -y winflexbison diffutils
+    - rename c:\ProgramData\chocolatey\bin\win_flex.exe flex.exe
+    - rename c:\ProgramData\chocolatey\bin\win_bison.exe bison.exe
+    - choco install -y strawberryperl
+    - choco install --force -y visualstudio2019-workload-vctools --package-parameters "--includeOptional"
+    - choco list --localonly
+
+  msbcache_cache:
+    folder: msbcache
 
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
-    - cd \
-    - tar xf \build.cache.d\build.tar.gz||true
-    - rsync -rvi --checksum cirrus/ build.d
-    - cd /d c:\build.d
+    - cd "c:/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Auxiliary/Build"
     - vcvarsall x64
     - set
+    - cd C:\Users\ContainerAdministrator\AppData\Local\Temp\cirrus-ci-build
     - perl src/tools/msvc/mkvcbuild.pl
-    #- dir /s \*.proj
-    #- dir /s \*.*proj
-    #- dir /s \initdb.*
-    #- grep initdb *.vcxproj
-  build_script:
-    - cd /d c:\build.d
+  #build_script:
     - vcvarsall x64
     - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
     - cd /d c:\
