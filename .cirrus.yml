@@ -402,12 +402,12 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:CLToolExe=clcache.exe
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=\cclash-0.3.16\bin\cl.exe
 
-    CLCACHE_DIR: "clcache"
-    CLCACHE_HARDLINK: 1
-    CLCACHE_SERVER: 1
-    #CLCACHE_LOG: 1
+    CCLASH_DIR: "C:/Users/ContainerAdministrator/AppData/Local/cclash"
+    CCLASH_SERVER: 1
+    CCLASH_DEBUG: cclash.debug
+# --cachedir= --debug
 
     DebugInformationFormat: OldStyle
 
@@ -440,30 +440,35 @@ task:
 
   setup_additional_packages_script:
     #- choco install -y ...
-    #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
-    - curl -L https://github.com/frerich/clcache/releases/download/v4.2.0/clcache.4.2.0.nupkg --output clcache.4.2.0.nupkg
-    - choco install --verbose --no-progress clcache --source=.
-    - pip install asyncio
+    - curl -L https://github.com/inorton/cclash/releases/download/0.3.16/cclash-0.3.16.zip --output cclash.zip
+    - powershell Expand-Archive cclash.zip /
 
-  clcache_cache:
-    folder: $CLCACHE_DIR
-
-  clcache_server_background_script:
-    - python src/tools/ci/clcachesrv.py
+  cclash_cache:
+    folder: $CCLASH_DIR
 
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
     - vcvarsall x64
     - perl src/tools/msvc/mkvcbuild.pl
+
+  cclash_server_background_script:
+    - vcvarsall x64
+    - \cclash-0.3.16\bin\cl.exe --cclash --start
+#--cclash-server
+
   build_script:
     - vcvarsall x64
-    - clcache.exe -z
+    #- \cclash-0.3.16\bin\cl.exe --cclash --clear
     - msbuild %MSBFLAGS% pgsql.sln
-    - clcache.exe -s
+    - \cclash-0.3.16\bin\cl.exe --cclash --show-stats
+    - cat cclash.debug |cat
+    - cat cclash.debug.serv |cat
 
   always:
-    upload_caches: clcache
+    upload_caches: cclash
+    cclash_debug_artifacts:
+      path: '**/cclash.debug*'
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
