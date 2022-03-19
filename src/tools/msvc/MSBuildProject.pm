@@ -331,8 +331,8 @@ sub WriteItemDefinitionGroup
       <AssemblerOutput>
       </AssemblerOutput>
       <AssemblerListingLocation>.\\$cfgname\\$self->{name}\\</AssemblerListingLocation>
-      <ObjectFileName>.\\$cfgname\\$self->{name}\\</ObjectFileName>
-      <ProgramDataBaseFileName>.\\$cfgname\\$self->{name}\\</ProgramDataBaseFileName>
+      <ObjectFileName>.\\$cfgname\\$self->{name}\\%(Filename).obj</ObjectFileName>
+      <ProgramDataBaseFileName>.\\$cfgname\\$self->{name}\\%(Filename)</ProgramDataBaseFileName>
       <BrowseInformation>false</BrowseInformation>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
