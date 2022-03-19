@@ -463,13 +463,9 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /outputResultsCache:src/tools/msvc/cache
-#/inputResultsCaches src/tools/msvc/cache*
-
-    SCCACHE_DIR: "sccache"
-    SCCACHE_LOG: trace
-    SCCACHE_ERROR_LOG: sccache.log
-    SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=true -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log -fileLoggerParameters2:verbosity=detailed;logfile=\cirrus\msbuild.detail.log
+# -fileLoggerParameters3:verbosity=diag;logfile=\cirrus\msbuild.diag.log
+# /p:TrackerLogDirectory=\build.d\tracker
 
     DebugInformationFormat: OldStyle
 
@@ -510,18 +506,22 @@ task:
     prove --version
     set
 
-  setup_additional_packages_script:
-    - choco install -y --no-progress sccache
-    - copy \ProgramData\chocolatey\bin\sccache.exe \ProgramData\chocolatey\bin\cl.exe
-
-  msbcache_cache:
-    folder: msbcache
+  setup_additional_packages_script: |
+    choco install -y --no-progress rsync
+  msbuild_cache:
+    #folders: ['\build', 'Debug', 'Release']
+    folder: '\build.d'
 
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
-    #- cd \
-    #- tar xf \build.cache.d\build.tar.gz||true
+    - cd \
+    - rsync -rvi --checksum cirrus/ build.d
+    #- pwd
+    #- dir
+    #- dir \
+    #- dir c:\build.d
+    - cd /d c:\build.d
     - vcvarsall x64
     - set
     - perl src/tools/msvc/mkvcbuild.pl
@@ -530,46 +530,60 @@ task:
     #- dir /s \initdb.*
     #- grep initdb *.vcxproj
   build_script:
+    - cd /d c:\build.d
+    - tar xzf build.tar.gz||true
     - vcvarsall x64
     - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
+    - tar czf \build.tar.gz .
+    - mv \build.tar.gz .
     - false
   always:
-    mscache_artifacts:
-      path: src/tools/msvc/cache
-    upload_caches: msbcache
-
+    upload_caches: msbuild
+    build_log_artifacts:
+      #path: 'msbuild.*.log'
+      path: '**/*.tlog'
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
-    - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
+    - cd /d c:/build.d/src/tools/msvc && perl install.pl c:/build.d/tmp_install
 
   this_tap_script: |
     %T_C% perl src/tools/msvc/vcregress.pl taptest src/interfaces/libpq
   test_tap_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl alltaptests
 
   test_regress_parallel_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl check parallel
   startcreate_script: |
     rem paths to binaries need backslashes
+    cd /d c:\build.d
     tmp_install\bin\pg_ctl.exe initdb -D tmp_check/db -l tmp_check/initdb.log --options=--no-sync
     echo include '%TEMP_CONFIG%' >> tmp_check/db/postgresql.conf
     tmp_install\bin\pg_ctl.exe start -D tmp_check/db -l tmp_check/postmaster.log
 
   test_pl_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl plcheck
   test_isolation_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl isolationcheck
   test_modules_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl modulescheck install
   test_contrib_script: |
+    cd /d c:\build.d
     %T_C% perl src/tools/msvc/vcregress.pl contribcheck install
   stop_script: |
+    cd /d c:\build.d
     tmp_install\bin\pg_ctl.exe stop -D tmp_check/db -l tmp_check/postmaster.log
   test_ssl_script: |
+    cd /d c:\build.d
     set with_ssl=openssl
     %T_C% perl src/tools/msvc/vcregress.pl taptest ./src/test/ssl/
   test_ecpg_script: |
     rem tries to build additional stuff
+    cd /d c:\build.d
     vcvarsall x64
     rem References ecpg_regression.proj in the current dir
     cd src/tools/msvc
@@ -578,10 +592,12 @@ task:
   # These should be last, so all the important checks are always run
   always:
     compiler_warnings_script:
+      - cd /d c:\build.d
       - sh src\tools\ci\windows-compiler-warnings msbuild.warn.log
 
     # XXX: only run if requested?  Do not run if cfbot?
     #compress_install_script:
+      #- cd /d c:\build.d
       #- powershell Compress-Archive tmp_install tmp_install.zip
       #- zipinfo -htz tmp_install.zip
     #install_artifacts:
