@@ -402,9 +402,7 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ProgramData\chocolatey\bin\pgccache.exe
-# /p:CLToolExe=c:\ProgramData\chocolatey\bin\ccache.exe
-# src\tools\ci\ccache-wrapper.bat'
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ccache\bin\pgccache.exe
 
     CCACHE_DIR: .ccache
     CCACHE_LOGFILE: ccache.log
@@ -412,6 +410,12 @@ task:
     #CCACHE_PREFIX_CPP: cl.exe
     CCACHE_COMPILER: cl.exe
     CCACHE_COMPILERTYPE: msvc
+    CCACHE_DEBUGDIR: ccache_debug
+    CCACHE_SLOPPINESS: system_headers,pch_defines,locale
+# file_stat_matches,
+    #CCACHE_DEPEND: 1
+    #CCACHE_DIRECT: 0
+    #CCACHE_DEBUG: 1
 
     BUILDCACHE_IMPERSONATE: cl.exe
     BUILDCACHE_DIR: bccache
@@ -453,9 +457,19 @@ task:
     set
 
   setup_additional_packages_script:
-    - choco install -y --no-progress ccache --version 4.6
-    #- dir /s \cl.*
-    - cp \ProgramData\chocolatey\bin\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
+    - choco install -y --no-progress cmake make
+    - git clone https://github.com/justinpryzby/ccache
+    - mkdir ccache-build
+    - cd ccache-build
+    - git log -1
+    # Define pre-processor values.  '#' is translated to '='
+    - set _CL_=/DBLAKE3_NO_AVX512#1 /DBLAKE3_NO_AVX2#1 /DBLAKE3_NO_SSE41#1 /DBLAKE3_NO_SSE2#1
+    - '"C:/Program Files\CMake/bin/cmake.exe" ../ccache -DZSTD_FROM_INTERNET=ON -DREDIS_STORAGE_BACKEND=OFF -DCMAKE_INSTALL_PREFIX=/ccache -DCCACHE_DEV_MODE=NO'
+# -DCMAKE_BUILD_TYPE=Release
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --parallel 4'
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --target install'
+    - cp \ccache\bin\ccache.exe \ccache\bin\pgccache.exe
+
     #- mv c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl.exe c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl-real.exe
     #- cp \ProgramData\chocolatey\bin\ccache.exe c:\BuildTools\VC\Tools\MSVC\14.29.30133\bin\Hostx64\x64\cl.exe
 
@@ -466,6 +480,7 @@ task:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
     - vcvarsall x64
+    - set
     - perl src/tools/msvc/mkvcbuild.pl
 
   cclash_server_background_script:
@@ -475,17 +490,29 @@ task:
 
   build_script:
     - vcvarsall x64
-    - ccache --zero-stats
+    - \ccache\bin\ccache.exe --zero-stats
+    # TODO: set _CL_=-showIncludes
     - msbuild %MSBFLAGS% pgsql.sln
-    - ccache.exe --show-stats
-    - false
 
   always:
+    ccache_stats_script:
+      - \ccache\bin\ccache.exe --show-stats
+      - \ccache\bin\ccache.exe --show-compression
+      - \ccache\bin\ccache.exe --evict-older-than 1d
     upload_caches: ccache
+    #ccache_log_artifacts:
+     #paths: 'ccache_debug/**'
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
+
+  test_xcpg_script: |
+    rem tries to build additional stuff
+    vcvarsall x64
+    rem References ecpg_regression.proj in the current dir
+    cd src/tools/msvc
+    %T_C% perl vcregress.pl ecpgcheck
 
   test_tap_script: |
     %T_C% perl src/tools/msvc/vcregress.pl alltaptests
