@@ -403,8 +403,6 @@ task:
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
     MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=true -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log -fileLoggerParameters2:verbosity=detailed;logfile=\cirrus\msbuild.detail.log
-# -fileLoggerParameters3:verbosity=diag;logfile=\cirrus\msbuild.diag.log
-# /p:TrackerLogDirectory=\build.d\tracker
 
     DebugInformationFormat: OldStyle
 
@@ -438,34 +436,25 @@ task:
   setup_additional_packages_script: |
     choco install -y --no-progress rsync
   msbuild_cache:
-    #folders: ['\build', 'Debug', 'Release']
-    folder: '\build.d'
+    folder: '\build.cache.d'
 
   configure_script:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
     - cd \
+    - tar xf \build.cache.d\build.tar.gz||true
     - rsync -rvi --checksum cirrus/ build.d
-    #- pwd
-    #- dir
-    #- dir \
-    #- dir c:\build.d
     - cd /d c:\build.d
     - vcvarsall x64
     - perl src/tools/msvc/mkvcbuild.pl
   build_script:
     - cd /d c:\build.d
-    - tar xzf build.tar.gz||true
     - vcvarsall x64
     - msbuild %MSBFLAGS% pgsql.sln
-    - tar czf \build.tar.gz .
-    - mv \build.tar.gz .
-    - false
+    - cd /d c:\
+    - tar cf \build.cache.d\build.tar.gz build.d
   always:
     upload_caches: msbuild
-    build_log_artifacts:
-      #path: 'msbuild.*.log'
-      path: '**/*.tlog'
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd /d c:/build.d/src/tools/msvc && perl install.pl c:/build.d/tmp_install
