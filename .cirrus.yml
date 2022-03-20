@@ -418,7 +418,7 @@ task:
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
     # -fileLoggerParameters1: write warnings to msbuild.warn.log.
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=pgccache.exe
+    MSBFLAGS: -m:8 -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log /p:UseMultiToolTask=true /p:CLToolExe=c:\ccache\bin\pgccache.exe /p:CL_MPCount=8
 #c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6-windows-64\ccache.exe
 #c:\ProgramData\chocolatey\bin\ccache.exe
 
@@ -428,6 +428,10 @@ task:
     #CCACHE_PREFIX_CPP: cl.exe
     CCACHE_COMPILERTYPE: msvc
     CCACHE_COMPILER: cl.exe
+    CCACHE_DEBUGDIR: ccache_debug
+    CCACHE_SLOPPINESS: system_headers,pch_defines,locale
+# file_stat_matches,
+    CCACHE_DEPEND: 1
 
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
@@ -457,8 +461,19 @@ task:
     set
 
   setup_additional_packages_script:
-    - choco install -y --no-progress ccache --version 4.6.1
-    - cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6-windows-64\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
+    - choco install -y --no-progress cmake make
+    - git clone -b justin https://github.com/justinpryzby/ccache
+    #- git clone https://github.com/ccache/ccache/
+    - mkdir ccache-build
+    - cd ccache-build
+    - git log -1
+    # Define pre-processor values.  '#' is translated to '='
+    - set _CL_=/DBLAKE3_NO_AVX512#1 /DBLAKE3_NO_AVX2#1 /DBLAKE3_NO_SSE41#1 /DBLAKE3_NO_SSE2#1
+    - '"C:/Program Files\CMake/bin/cmake.exe" ../ccache -DZSTD_FROM_INTERNET=ON -DREDIS_STORAGE_BACKEND=OFF -DCMAKE_INSTALL_PREFIX=/ccache -DCCACHE_DEV_MODE=NO'
+# -DCMAKE_BUILD_TYPE=Release
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --parallel 4'
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --target install'
+    - cp \ccache\bin\ccache.exe \ccache\bin\pgccache.exe
 
   ccache_cache:
     folder: $CCACHE_DIR
@@ -467,15 +482,21 @@ task:
     # copy errors out when using forward slashes
     - copy src\tools\ci\windows_build_config.pl src\tools\msvc\config.pl
     - vcvarsall x64
+    - set
     - perl src/tools/msvc/mkvcbuild.pl
   build_script:
     - vcvarsall x64
-    - ccache --zero-stats
+    - \ccache\bin\ccache.exe --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
-    - ccache.exe --show-stats
+    - \ccache\bin\ccache.exe --show-stats
 
   always:
+    ccache_stats_script:
+      - \ccache\bin\ccache.exe --show-stats
+      - \ccache\bin\ccache.exe --show-compression
     upload_caches: ccache
+    #ccache_log_artifacts:
+     #paths: 'ccache_debug/**'
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
