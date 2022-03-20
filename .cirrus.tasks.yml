@@ -598,8 +598,8 @@ task:
   env:
     TEST_JOBS: 8 # wild guess, data based value welcome
 
-    #CC: C:\ProgramData\chocolatey\bin\ccache.exe cl.exe
-    CC: c:\msys64\ucrt64\bin\ccache.exe cl.exe
+    CC: C:\ProgramData\chocolatey\bin\ccache.exe cl.exe
+    #CC: c:\msys64\ucrt64\bin\ccache.exe cl.exe
     #-p:CLToolPath=c:\ProgramData\chocolatey\bin
     #-p:EnforceProcessCountAcrossBuilds=true
     #-p:TrackFileAccess=false
@@ -612,6 +612,7 @@ task:
     CCACHE_LOGFILE: $CIRRUS_WORKING_DIR/build/meson-logs/ccache.log.txt
     #CCACHE_DEBUG: 1
     #CCACHE_DEBUGDIR: ""
+    #CCACHE_SLOPPINESS: system_headers,pch_defines,locale
     #include_file_mtime,include_file_ctime,system_headers,locale,file_stat_matches,file_stat_matches_ctime
 
     # Cirrus defaults to SetErrorMode(SEM_NOGPFAULTERRORBOX | ...). That
@@ -627,8 +628,20 @@ task:
   <<: *windows_task_template
 
   setup_additional_packages_script:
-    - choco install -y --no-progress ccache --version 4.10.0
+    #- choco install -y --no-progress ccache --version 4.10.0 --prerelease
     #- cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.10-windows-x86_64\ccache.exe \ProgramData\chocolatey\bin\cl.exe
+    - choco install -y --no-progress cmake make
+    #- git clone -b justin3 https://github.com/justinpryzby/ccache
+    - git clone https://github.com/ccache/ccache/
+    - mkdir ccache-build
+    - cd ccache-build
+    - git log -1
+    # Define pre-processor values.  '#' is translated to '='
+    - set _CL_=/DBLAKE3_NO_AVX512#1 /DBLAKE3_NO_AVX2#1 /DBLAKE3_NO_SSE41#1 /DBLAKE3_NO_SSE2#1
+    - '"C:/Program Files\CMake/bin/cmake.exe" ../ccache -DZSTD_FROM_INTERNET=ON -DREDIS_STORAGE_BACKEND=OFF -DCMAKE_INSTALL_PREFIX=/ccache -DCCACHE_DEV_MODE=NO -DCMAKE_BUILD_TYPE=DEBUG -DCMAKE_C_FLAGS_DEBUG=/Ot -DCMAKE_CXX_FLAGS_DEBUG=/Ot'
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --parallel 4'
+    - '"C:/Program Files\CMake/bin/cmake.exe" --build . --target install'
+    - cp \ccache\bin\ccache.exe \ccache\bin\cl.exe
 
   ccache_cache:
     *ccache
@@ -645,7 +658,8 @@ task:
     vcvarsall x64
     mkdir subprojects
     meson wrap install --allow-insecure zstd
-    set CC=c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.10-windows-x86_64\ccache.exe cl.exe
+
+    set CC=c:\ccache\bin\cl.exe
     REM -Db_pch=false
     meson setup build --backend ninja --buildtype debug -Dc_link_args=/DEBUG:FASTLINK -Dcassert=true -Dinjection_points=true -Db_pch=true -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=%TAR% -Dc_args="/Z7 /MDd" -D zstd=enabled -D zstd:multi_thread=enabled --force-fallback-for=zstd
 
@@ -663,14 +677,17 @@ task:
     REM without the pipe, exiting now if it fails, to avoid trying to run checks
     ninja -C build > nul
 
-    c:\msys64\ucrt64\bin\ccache.exe --show-log-stats -v
-    c:\msys64\ucrt64\bin\ccache.exe --show-stats -v
-    c:\msys64\ucrt64\bin\ccache.exe --show-compression
+    \ccache\bin\ccache.exe --show-log-stats -v
+    \ccache\bin\ccache.exe --show-stats -v
+    \ccache\bin\ccache.exe --show-stats --show-compression
     SET CCACHE_MAXSIZE=500M
-    c:\msys64\ucrt64\bin\ccache.exe --cleanup
+    \ccache\bin\ccache.exe --cleanup
 
   always:
     upload_caches: [ccache]
+    ccache_stats_script:
+      - \ccache\bin\ccache.exe --show-stats
+      - \ccache\bin\ccache.exe --show-compression
 
   check_world_script: |
     vcvarsall x64
