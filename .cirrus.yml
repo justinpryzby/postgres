@@ -422,7 +422,7 @@ task:
 
     CLCACHE_DIR: "clcache"
     CLCACHE_HARDLINK: 1
-    #CLCACHE_SERVER: 1
+    CLCACHE_SERVER: 1
     #CLCACHE_LOG: 1
 
     DebugInformationFormat: OldStyle
@@ -461,9 +461,13 @@ task:
     #- pip install --quiet git+https://github.com/frerich/clcache.git@v4.2.0
     - curl -L https://github.com/frerich/clcache/releases/download/v4.2.0/clcache.4.2.0.nupkg --output clcache.4.2.0.nupkg
     - choco install --verbose --no-progress clcache --source=.
+    - pip install asyncio
 
   clcache_cache:
     folder: $CLCACHE_DIR
+
+  clcache_server_background_script:
+    - python src/tools/ci/clcachesrv.py
 
   configure_script:
     # copy errors out when using forward slashes
