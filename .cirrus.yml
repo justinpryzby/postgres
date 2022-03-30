@@ -614,6 +614,7 @@ task:
     gcc -v
     clang -v
     export
+    ccache --version
 
   ccache_cache:
     folder: $CCACHE_DIR
@@ -644,8 +645,12 @@ task:
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
+      ccache --show-stats
+      ccache --show-compression
+      ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
       ccache --print-stats
+      #ccache --show-stats
       ccache --show-compression
 
   # gcc, cassert on, dtrace off
@@ -657,8 +662,10 @@ task:
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
+      ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
       ccache --print-stats
+      #ccache --show-stats
       ccache --show-compression
 
   # clang, cassert off, dtrace off
@@ -669,8 +676,10 @@ task:
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache clang" CXX="ccache clang++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
+      ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
       ccache --print-stats
+      #ccache --show-stats
       ccache --show-compression
 
   # clang, cassert on, dtrace on
@@ -683,8 +692,10 @@ task:
         ${LINUX_CONFIGURE_FEATURES} \
         CC="ccache clang" CXX="ccache clang++" CLANG="ccache clang"
       make -s -j${BUILD_JOBS} clean
+      ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
       ccache --print-stats
+      #ccache --show-stats
       ccache --show-compression
 
   # cross-compile to windows
@@ -696,10 +707,11 @@ task:
         CC="ccache x86_64-w64-mingw32-gcc" \
         CXX="ccache x86_64-w64-mingw32-g++"
       make -s -j${BUILD_JOBS} clean
+      ccache --zero-stats
       time make -s -j${BUILD_JOBS} world-bin
       ccache --print-stats
+      #ccache --show-stats
       ccache --show-compression
-
 
   ###
   # Verify headerscheck / cpluspluscheck succeed
