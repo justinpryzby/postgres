@@ -502,6 +502,12 @@ task:
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-msvc.*'
 
+# /Gy wasn't helpful at all
+    #_CL_: /Gy /Ob1 /GL
+    #_CL_: /Oi /Ob1 /RTC-
+    CL: /GL
+    LINK: /LTCG
+
   windows_container:
     image: $CONTAINER_REPO/windows_ci_vs_2019:latest
     cpu: $CPUS
@@ -530,22 +536,15 @@ task:
     - vcvarsall x64
     - set
     - perl src/tools/msvc/mkvcbuild.pl
-
-  cclash_server_background_script:
-    - vcvarsall x64
-    - \cclash-0.3.16\bin\cl.exe --cclash --start
-#--cclash-server
-
+    #- dir /s \*.proj
+    #- dir /s \*.*proj
+    #- dir /s \initdb.*
+    #- grep initdb *.vcxproj
   build_script:
     - vcvarsall x64
-    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --zero-stats
-    - msbuild %MSBFLAGS% pgsql.sln
-    - env BUILDCACHE_IMPERSONATE= \buildcache\bin\buildcache.exe --show-stats
-    - false
-
-  always:
-    upload_caches: bccache
-
+    - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
+    #- env _LINK_=/LTCG 'msbuild %MSBFLAGS% initdb.vcxproj /p:Configuration=Release'
+    #- msbuild %MSBFLAGS% initdb.vcxproj /p:Configuration=Release
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
