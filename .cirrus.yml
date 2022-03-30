@@ -492,6 +492,7 @@ task:
     - vcvarsall x64
     - \ccache\bin\ccache.exe --zero-stats
     - msbuild %MSBFLAGS% pgsql.sln
+    - msbuild %MSBFLAGS% pgsql.sln /p:Configuration=Release
     - \ccache\bin\ccache.exe --show-stats
 
   always:
