@@ -119,7 +119,7 @@ static void show_instrumentation_count(const char *qlabel, int which,
 static void show_foreignscan_info(ForeignScanState *fsstate, ExplainState *es);
 static void show_eval_params(Bitmapset *bms_params, ExplainState *es);
 static void show_loop_info(Instrumentation *instrument, bool isworker,
-		ExplainState *es);
+						   ExplainState *es);
 static const char *explain_get_index_name(Oid indexId);
 static void show_buffer_usage(ExplainState *es, const BufferUsage *usage,
 							  bool planning);
@@ -540,6 +540,9 @@ ExplainOnePlan(PlannedStmt *plannedstmt, IntoClause *into, ExplainState *es,
 		instrument_option |= INSTRUMENT_BUFFERS;
 	if (es->wal)
 		instrument_option |= INSTRUMENT_WAL;
+
+	if (es->verbose)
+		instrument_option |= INSTRUMENT_EXTRA;
 
 	/*
 	 * We always collect timing for the entire statement, even when node-level
@@ -1624,6 +1627,7 @@ ExplainNode(PlanState *planstate, List *ancestors,
 			appendStringInfoString(es->str, " (never executed)");
 		else
 		{
+			/* without min and max values because actual result is 0 */
 			if (es->timing)
 			{
 				ExplainPropertyFloat("Actual Startup Time", "ms", 0.0, 3, es);
@@ -4049,6 +4053,11 @@ show_loop_info(Instrumentation *instrument, bool isworker, ExplainState *es)
 	double		startup_ms = 1000.0 * instrument->startup / nloops;
 	double		total_ms = 1000.0 * instrument->total / nloops;
 	double		rows = instrument->ntuples / nloops;
+	double		loop_total_rows = instrument->ntuples;
+	double		loop_min_r = instrument->min_tuples;
+	double		loop_max_r = instrument->max_tuples;
+	double		loop_min_t_ms = 1000.0 * instrument->min_t;
+	double		loop_max_t_ms = 1000.0 * instrument->max_t;
 
 	if (es->format == EXPLAIN_FORMAT_TEXT)
 	{
@@ -4068,6 +4077,21 @@ show_loop_info(Instrumentation *instrument, bool isworker, ExplainState *es)
 
 		if (!isworker)
 			appendStringInfoChar(es->str, ')');
+
+		if (nloops > 1 && es->verbose)
+		{
+			appendStringInfoChar(es->str, '\n');
+			ExplainIndentText(es);
+
+			if (es->timing)
+				appendStringInfo(es->str,
+								 "Loop Min Rows: %.0f  Max Rows: %.0f  Total Rows: %.0f  Min Time: %.3f  Max Time: %.3f",
+								 loop_min_r, loop_max_r, loop_total_rows, loop_min_t_ms, loop_max_t_ms);
+			else
+				appendStringInfo(es->str,
+								 "Loop Min Rows: %.0f  Max Rows: %.0f  Total Rows: %.0f",
+								 loop_min_r, loop_max_r, loop_total_rows);
+		}
 	}
 	else
 	{
@@ -4077,8 +4101,24 @@ show_loop_info(Instrumentation *instrument, bool isworker, ExplainState *es)
 								 3, es);
 			ExplainPropertyFloat("Actual Total Time", "ms", total_ms,
 								 3, es);
+			if (nloops > 1 && es->verbose)
+			{
+				ExplainPropertyFloat("Loop Min Time", "ms", loop_min_t_ms,
+									 3, es);
+				ExplainPropertyFloat("Loop Max Time", "ms", loop_max_t_ms,
+									 3, es);
+			}
 		}
+
 		ExplainPropertyFloat("Actual Rows", NULL, rows, 0, es);
+
+		if (nloops > 1 && es->verbose)
+		{
+			ExplainPropertyFloat("Loop Min Rows", NULL, loop_min_r, 0, es);
+			ExplainPropertyFloat("Loop Max Rows", NULL, loop_max_r, 0, es);
+			ExplainPropertyFloat("Loop Total Rows", NULL, loop_total_rows, 0, es);
+		}
+
 		ExplainPropertyFloat("Actual Loops", NULL, nloops, 0, es);
 	}
 }
