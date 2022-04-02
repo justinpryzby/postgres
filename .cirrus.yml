@@ -203,8 +203,8 @@ task:
         CC="ccache gcc" \
         CXX="ccache g++" \
         CLANG="ccache clang" \
-        CFLAGS="-Og -ggdb" \
-        CXXFLAGS="-Og -ggdb"
+        CFLAGS="-Og -ggdb -fsanitize=undefined,alignment -fno-sanitize-recover=all" \
+        CXXFLAGS="-Og -ggdb -fsanitize=undefined,alignment -fno-sanitize-recover=all"
     EOF
   build_script: su postgres -c "make -s -j${BUILD_JOBS} world-bin"
   upload_caches: ccache
