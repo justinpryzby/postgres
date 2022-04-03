@@ -297,6 +297,7 @@ task:
     CIRRUS_WORKING_DIR: ${HOME}/pgsql/
     CCACHE_DIR: ${HOME}/ccache
     CCACHE_BASE_KEY: "postgresql.org/$CIRRUS_TASK_NAME"
+    CCACHE_SECONDARY_STORAGE: file:${HOME}/ccache.base|read-only=true share-hits=false
     HOMEBREW_CACHE: ${HOME}/homebrew-cache
     PERL5LIB: ${HOME}/perl5/lib/perl5
 
@@ -350,10 +351,6 @@ task:
     fingerprint_key: $CCACHE_BASE_KEY
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
-  # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script: |
-    mkdir -p "$CCACHE_DIR.base"
-    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
