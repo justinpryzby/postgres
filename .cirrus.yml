@@ -56,6 +56,7 @@ task:
     TEST_JOBS: 3
 
     CCACHE_DIR: /tmp/ccache_dir
+    CCACHE_BASE_KEY: postgresql.org/$CIRRUS_TASK_NAME
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*freebsd.*'
 
@@ -75,12 +76,13 @@ task:
 
   # Populate global "base cache"
   ccache_base_cache:
-    fingerprint_key: postgresql.org/$CIRRUS_TASK_NAME
+    fingerprint_key: $CCACHE_BASE_KEY
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    mkdir -p "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -91,7 +93,7 @@ task:
     pw useradd postgres
     chown -R postgres:postgres .
     mkdir -p ${CCACHE_DIR}
-    chown -R postgres:postgres ${CCACHE_DIR}
+    chown -R postgres:postgres ${CCACHE_DIR} ${CCACHE_DIR}.base
   setup_core_files_script: |
     mkdir -m 770 /tmp/cores
     chown root:postgres /tmp/cores
@@ -139,8 +141,8 @@ task:
     #ccache --show-compression
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR" "$CCACHE_DIR.base/"
   upload_caches: ['ccache', 'ccache_base']
 
   # The use of script avoids make -Otarget complaints about fcntl() on
@@ -185,6 +187,7 @@ task:
     TEST_JOBS: 8 # experimentally derived to be a decent choice
 
     CCACHE_DIR: /tmp/ccache_dir
+    CCACHE_BASE_KEY: "postgresql.org/$CIRRUS_TASK_NAME"
     DEBUGINFOD_URLS: "https://debuginfod.debian.net"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
@@ -200,12 +203,13 @@ task:
 
   # Populate global "base cache"
   ccache_base_cache:
-    fingerprint_key: postgresql.org/$CIRRUS_TASK_NAME
+    fingerprint_key: $CCACHE_BASE_KEY
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    mkdir -p "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -221,7 +225,7 @@ task:
     useradd -m postgres
     chown -R postgres:postgres .
     mkdir -p ${CCACHE_DIR}
-    chown -R postgres:postgres ${CCACHE_DIR}
+    chown -R postgres:postgres ${CCACHE_DIR} ${CCACHE_DIR}.base
     echo '* - memlock 134217728' > /etc/security/limits.d/postgres.conf
     su postgres -c "ulimit -l -H && ulimit -l -S"
   setup_core_files_script: |
@@ -229,8 +233,8 @@ task:
     chown root:postgres /tmp/cores
     sysctl kernel.core_pattern='/tmp/cores/%e-%s-%p.core'
   setup_additional_packages_script: |
-    #apt-get update
-    #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get -y install rsync
 
   configure_script: |
     su postgres <<-EOF
@@ -259,8 +263,9 @@ task:
     #time ccache --recompress 2
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR" "$CCACHE_DIR.base/"
+    rsync -a --del --info=stats,progress2 "$CCACHE_DIR" "$CCACHE_DIR.base/" # TESTING
   upload_caches: ['ccache', 'ccache_base']
 
   test_world_script: |
@@ -291,6 +296,7 @@ task:
 
     CIRRUS_WORKING_DIR: ${HOME}/pgsql/
     CCACHE_DIR: ${HOME}/ccache
+    CCACHE_BASE_KEY: "postgresql.org/$CIRRUS_TASK_NAME"
     HOMEBREW_CACHE: ${HOME}/homebrew-cache
     PERL5LIB: ${HOME}/perl5/lib/perl5
 
@@ -341,12 +347,13 @@ task:
 
   # Populate global "base cache"
   ccache_base_cache:
-    fingerprint_key: postgresql.org/$CIRRUS_TASK_NAME
+    fingerprint_key: $CCACHE_BASE_KEY
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    mkdir -p "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -407,8 +414,8 @@ task:
     #time ccache --recompress 2
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR" "$CCACHE_DIR.base/"
   upload_caches: ['ccache', 'ccache_base']
 
   test_world_script: |
@@ -668,6 +675,7 @@ task:
     # flag combinations
     CCACHE_MAXSIZE: "1GB"
     CCACHE_DIR: "/tmp/ccache_dir"
+    CCACHE_BASE_KEY: "postgresql.org/$CIRRUS_TASK_NAME"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
 
@@ -691,12 +699,13 @@ task:
 
   # Populate global "base cache"
   ccache_base_cache:
-    fingerprint_key: postgresql.org/$CIRRUS_TASK_NAME
+    fingerprint_key: $CCACHE_BASE_KEY
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    mkdir -p "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -820,8 +829,8 @@ task:
 
   always:
     # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-    ccache_sync_base_script:
-      - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+    ccache_sync_base_script: |
+      [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR" "$CCACHE_DIR.base/"
     upload_caches: ['ccache', 'ccache_base']
 
 
