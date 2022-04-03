@@ -11,7 +11,11 @@ env:
   # Useful to be able to analyse what in a script takes long
   CIRRUS_LOG_TIMESTAMP: true
 
-  CCACHE_MAXSIZE: "250M"
+  CCACHE_MAXSIZE: "750M"
+  CCACHE_HARDLINK: 1
+  #CCACHE_NOCOMPRESS: 1
+  # The statslog should be stored somewhere *outside* the persistent ccache dir
+  CCACHE_STATSLOG: ${CIRRUS_WORKING_DIR}/ccache-stats.log
 
   # target to test, for all but windows
   CHECK: check-world PROVE_FLAGS=$PROVE_FLAGS
@@ -371,7 +375,7 @@ task:
     - name: Linux - Debian Bullseye - Meson
 
       env:
-        CCACHE_MAXSIZE: "800M" # tests two different builds
+        CCACHE_MAXSIZE: "2400M" # tests two different builds
         SANITIZER_FLAGS: -fsanitize=alignment,undefined
 
       configure_script: |
@@ -425,7 +429,7 @@ task:
 
       ccache_stats_end_script:
         ccache -s
-        CCACHE_MAXSIZE=400M ccache --cleanup
+        CCACHE_MAXSIZE=1200M ccache --cleanup
 
       on_failure:
         <<: *on_failure_meson
@@ -515,7 +519,7 @@ task:
       -DPG_TEST_EXTRA="$PG_TEST_EXTRA" \
       build
 
-  build_script: ninja -C build -j${BUILD_JOBS}
+  build_script: ninja -C build -j${BUILD_JOBS} && ccache --show-log-stats
   upload_caches: ccache
 
   test_world_script: |
@@ -655,8 +659,12 @@ task:
   configure_script: |
     %BASH% -c "meson setup -Ddebug=true -Doptimization=g -Dcassert=true -Db_pch=true -Dnls=disabled -DTAR=%TAR% build"
 
+  # Do not disable compression, since PCH are huge
   build_script: |
-    %BASH% -c "ninja -C build"
+    %BASH% -c "unset CCACHE_NOCOMPRESS CCACHE_HARDLINK CCACHE_FILECLONE && ninja -C build"
+    %BASH% -c "ccache --show-stats -v"
+    %BASH% -c "ccache --show-compression"
+    %BASH% -c "ccache --show-log-stats"
 
   upload_caches: ccache
 
@@ -689,7 +697,7 @@ task:
     # flag combinations.  The cache size is set high now, and manually pruned later,
     # to avoid cache cleaning cycles during the early compilations pruning
     # compilation results which could've been used during later compilations.
-    CCACHE_MAXSIZE: "2G"
+    CCACHE_MAXSIZE: "6G"
     CCACHE_DIR: "/tmp/ccache_dir"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
@@ -842,6 +850,6 @@ task:
 
     ccache_stats_end_script:
       ccache -s
-      CCACHE_MAXSIZE=1G ccache --cleanup
+      CCACHE_MAXSIZE=2G ccache --cleanup
 
     upload_caches: ccache
