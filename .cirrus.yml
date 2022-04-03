@@ -77,8 +77,9 @@ task:
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    [ -e "$CCACHE_DIR.base" ] || mkdir "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -130,8 +131,8 @@ task:
   build_script: su postgres -c "gmake -s -j${BUILD_JOBS} world-bin"
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
   upload_caches: ['ccache', 'ccache_base']
 
   # The use of script avoids make -Otarget complaints about fcntl() on
@@ -195,8 +196,9 @@ task:
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    [ -e "$CCACHE_DIR.base" ] || mkdir "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -220,8 +222,8 @@ task:
     chown root:postgres /tmp/cores
     sysctl kernel.core_pattern='/tmp/cores/%e-%s-%p.core'
   setup_additional_packages_script: |
-    #apt-get update
-    #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get -y install rsync
 
   configure_script: |
     su postgres <<-EOF
@@ -241,8 +243,9 @@ task:
   build_script: su postgres -c "make -s -j${BUILD_JOBS} world-bin"
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+    rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR" # TESTING
   upload_caches: ['ccache', 'ccache_base']
 
   test_world_script: |
@@ -327,8 +330,9 @@ task:
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    [ -e "$CCACHE_DIR.base" ] || mkdir "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -380,8 +384,8 @@ task:
   build_script: gmake -s -j${BUILD_JOBS} world-bin
 
   # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-  ccache_sync_base_script:
-    - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+  ccache_sync_base_script: |
+    [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
   upload_caches: ['ccache', 'ccache_base']
 
   test_world_script: |
@@ -567,8 +571,9 @@ task:
     reupload_on_changes: true
     folder: $CCACHE_DIR.base
   # Populate cache for this branch from the "base cache" from postgresql.org
-  ccache_base_cache_script:
-    - cp -r $CCACHE_DIR.base $CCACHE_DIR
+  ccache_base_cache_script: |
+    [ -e "$CCACHE_DIR.base" ] || mkdir "$CCACHE_DIR.base"
+    cp -r "$CCACHE_DIR.base" "$CCACHE_DIR"
   # Now populate with this branch's own cache
   ccache_cache:
     folder: $CCACHE_DIR
@@ -667,8 +672,8 @@ task:
 
   always:
     # If this is CI for postgresql.org itself, then copy this cache data into the base cache for use by other branches
-    ccache_sync_base_script:
-      - [ "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] && rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
+    ccache_sync_base_script: |
+      [ ! "$CIRRUS_REPO_FULL_NAME" = postgres/postgres ] || rsync -a --del "$CCACHE_DIR.base/" "$CCACHE_DIR"
     upload_caches: ['ccache', 'ccache_base']
 
 
