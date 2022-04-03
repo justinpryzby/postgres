@@ -11,7 +11,11 @@ env:
   # Useful to be able to analyse what in a script takes long
   CIRRUS_LOG_TIMESTAMP: true
 
-  CCACHE_MAXSIZE: "250M"
+  CCACHE_MAXSIZE: "750M"
+  CCACHE_HARDLINK: 1
+  #CCACHE_NOCOMPRESS: 1
+  # The statslog should be stored somewhere *outside* the persistent ccache dir
+  CCACHE_STATSLOG: ${CIRRUS_WORKING_DIR}/ccache-stats.log
 
   # target to test, for all but windows
   CHECK: check-world PROVE_FLAGS=$PROVE_FLAGS
@@ -117,6 +121,7 @@ task:
   build_script: |
     su postgres <<-EOF
       ninja -C build -j${BUILD_JOBS} ${MBUILD_TARGET}
+      ccache --show-stats
     EOF
   upload_caches: ccache
 
@@ -376,7 +381,7 @@ task:
     - name: Linux - Debian Bookworm - Meson
 
       env:
-        CCACHE_MAXSIZE: "800M" # tests two different builds
+        CCACHE_MAXSIZE: "2400M" # tests two different builds
         SANITIZER_FLAGS: -fsanitize=alignment,undefined
 
       configure_script: |
@@ -428,7 +433,7 @@ task:
 
       ccache_stats_end_script:
         ccache -s
-        CCACHE_MAXSIZE=400M ccache --cleanup
+        CCACHE_MAXSIZE=1200M ccache --cleanup
 
       on_failure:
         <<: *on_failure_meson
@@ -530,7 +535,7 @@ task:
       -Duuid=e2fs -Ddtrace=auto \
       build
 
-  build_script: ninja -C build -j${BUILD_JOBS} ${MBUILD_TARGET}
+  build_script: ninja -C build -j${BUILD_JOBS} ${MBUILD_TARGET} && ccache --show-log-stats
   upload_caches: ccache
 
   test_world_script: |
@@ -575,7 +580,7 @@ task:
 
     CC: c:\msys64\ucrt64\bin\ccache.exe cl.exe
     CCACHE_DIR: $CIRRUS_WORKING_DIR/.ccache
-    CCACHE_MAXSIZE: "500M"
+    CCACHE_MAXSIZE: "1G"
     CCACHE_SLOPPINESS: pch_defines,time_macros
     CCACHE_DEPEND: 1
 
@@ -613,10 +618,22 @@ task:
 
   build_script: |
     vcvarsall x64
+
+    REM disable options which would disable compression
+    SET CCACHE_NOCOMPRESS=
+    SET CCACHE_HARDLINK=
+    SET CCACHE_FILECLONE=
+
     ninja -C build %MBUILD_TARGET% |tee build.txt
     REM Since pipes lose the exit status of the preceding command, rerun the compilation
     REM without the pipe, exiting now if it fails, to avoid trying to run checks
     ninja -C build > nul
+
+    c:\msys64\ucrt64\bin\ccache.exe --show-log-stats -v
+    c:\msys64\ucrt64\bin\ccache.exe --show-stats -v
+    c:\msys64\ucrt64\bin\ccache.exe --show-compression
+    SET CCACHE_MAXSIZE=500M
+    c:\msys64\ucrt64\bin\ccache.exe --cleanup
 
   always:
     upload_caches: [ccache]
@@ -682,8 +699,12 @@ task:
   configure_script: |
     %BASH% -c "meson setup -Ddebug=true -Doptimization=g -Dcassert=true -Dinjection_points=true -Db_pch=true -Dnls=disabled -DTAR=%TAR% build"
 
+  # Do not disable compression, since PCH are huge
   build_script: |
-    %BASH% -c "ninja -C build ${MBUILD_TARGET}"
+    %BASH% -c "unset CCACHE_NOCOMPRESS CCACHE_HARDLINK CCACHE_FILECLONE && ninja -C build ${MBUILD_TARGET}"
+    %BASH% -c "ccache --show-stats -v"
+    %BASH% -c "ccache --show-compression"
+    %BASH% -c "ccache --show-log-stats"
 
   upload_caches: ccache
 
@@ -716,7 +737,7 @@ task:
     # flag combinations.  The cache size is set high now, and manually pruned later,
     # to avoid cache cleaning cycles during the early compilations pruning
     # compilation results which could've been used during later compilations.
-    CCACHE_MAXSIZE: "2G"
+    CCACHE_MAXSIZE: "6G"
     CCACHE_DIR: "/tmp/ccache_dir"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
@@ -870,6 +891,6 @@ task:
 
     ccache_stats_end_script:
       ccache -s
-      CCACHE_MAXSIZE=1G ccache --cleanup
+      CCACHE_MAXSIZE=2G ccache --cleanup
 
     upload_caches: ccache
