@@ -390,8 +390,6 @@ WINDOWS_ENVIRONMENT_BASE: &WINDOWS_ENVIRONMENT_BASE
       # Avoids port conflicts between concurrent tap test runs
       PG_TEST_USE_UNIX_SOCKETS: 1
 
-    only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
-
     sysinfo_script: |
       chcp
       systeminfo
@@ -443,7 +441,7 @@ task:
     # currently have a tool for that...
     CIRRUS_ESCAPING_PROCESSES: 1
 
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-msvc.*'
 
   windows_container:
     image: $CONTAINER_REPO/windows_ci_vs_2019:latest
@@ -525,14 +523,33 @@ task:
     CCACHE_DIR: C:/msys64/ccache
     BUILD_DIR: "%CIRRUS_WORKING_DIR%/build"
 
+#CIRRUS_SHELL: C:\msys64\usr\bin\bash.exe
+#CCACHE_MAXSIZE: "1GB"
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-mingw64'
+
   ccache_cache:
     folder: ${CCACHE_DIR}
 
+  # with bash, it says: "[15:06:19.777] INFO: Could not find files for the given pattern(s)."
   mingw_info_script:
     - C:\msys64\usr\bin\bash.exe -lc "where gcc"
     - C:\msys64\usr\bin\bash.exe -lc "gcc --version"
     - C:\msys64\usr\bin\bash.exe -lc "where perl"
     - C:\msys64\usr\bin\bash.exe -lc "perl --version"
+
+  #sysinfo_script: |
+    #id
+    #uname -a
+    #ulimit -a -H && ulimit -a -S
+    #gcc -v
+    #clang -v
+    #export
+
+  setup_additional_packages_script: |
+    REM pacman -Sy ...
+    REM pacman -Q
+    REM pacman -Sl
+    REM pacman --help
 
   configure_script:
     - C:\msys64\usr\bin\bash.exe -lc "mkdir %BUILD_DIR% &&
@@ -549,14 +566,25 @@ task:
         CC='ccache gcc'
         CXX='ccache g++'"
 
+#CFLAGS="-Og -ggdb"
+#CXXFLAGS="-Og -ggdb"
+
+#su postgres -c "gmake -s -j${BUILD_JOBS} world-bin
   build_script:
-    C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s world-bin -j${CPUS}"
+    - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% &&
+      ccache --version &&
+      make -s world-bin -j${CPUS} &&
+        ccache --show-config &&
+        ccache --zero-stats &&
+        ccache --print-stats &&
+        ccache --show-compression"
 
   upload_caches: ccache
 
   tests_script:
-  - set "NoDefaultCurrentDirectoryInExePath=0"
-  - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install"
+    - set "NoDefaultCurrentDirectoryInExePath=0"
+    - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install"
+    #- cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install
 
   on_failure: *on_failure
 
