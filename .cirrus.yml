@@ -23,6 +23,7 @@ env:
   CHECKFLAGS: -Otarget
   PROVE_FLAGS: --timer
   PGCTLTIMEOUT: 120 # avoids spurious failures during parallel tests
+  TEMP_CONFIG: ${CIRRUS_WORKING_DIR}/src/tools/ci/pg_ci_base.conf
   PG_TEST_EXTRA: kerberos ldap ssl
 
   # The commit that this branch is rebased on.  There's no easy way to find this.
@@ -359,12 +360,10 @@ WINDOWS_ENVIRONMENT_BASE: &WINDOWS_ENVIRONMENT_BASE
       CPUS: 4
       # The default working dir is in a directory msbuild complains about
       CIRRUS_WORKING_DIR: "c:/cirrus"
-      TEMP_CONFIG: ${CIRRUS_WORKING_DIR}/src/tools/ci/pg_ci_base.conf
 
       # Avoids port conflicts between concurrent tap test runs
       PG_TEST_USE_UNIX_SOCKETS: 1
-
-    only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+      PG_REGRESS_SOCK_DIR: "c:/cirrus/"
 
     sysinfo_script: |
       chcp
@@ -391,7 +390,6 @@ task:
     # git's tar doesn't deal with drive letters, see
     # https://postgr.es/m/b6782dc3-a7b0-ed56-175f-f8f54cb08d67%40dunslane.net
     TAR: "c:/windows/system32/tar.exe"
-    PG_REGRESS_SOCK_DIR: "c:/cirrus/"
     # -m enables parallelism
     # verbosity:minimal + Summary reduce verbosity, while keeping a summary of
     #   errors/warnings
@@ -415,7 +413,7 @@ task:
     # currently have a tool for that...
     CIRRUS_ESCAPING_PROCESSES: 1
 
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-msvc.*'
 
   windows_container:
     image: $CONTAINER_REPO/windows_ci_vs_2019:latest
@@ -494,15 +492,29 @@ task:
   env:
     CCACHE_DIR: C:/msys64/ccache
     BUILD_DIR: "%CIRRUS_WORKING_DIR%/build"
+    CCACHE_MAXSIZE: "1GB"
+
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*mingw64'
 
   ccache_cache:
     folder: ${CCACHE_DIR}
 
+  # with bash, it says: "[15:06:19.777] INFO: Could not find files for the given pattern(s)."
   mingw_info_script:
     - C:\msys64\usr\bin\bash.exe -lc "where gcc"
     - C:\msys64\usr\bin\bash.exe -lc "gcc --version"
     - C:\msys64\usr\bin\bash.exe -lc "where perl"
     - C:\msys64\usr\bin\bash.exe -lc "perl --version"
+
+  #sysinfo_script: |
+    #id
+    #uname -a
+    #ulimit -a -H && ulimit -a -S
+    #gcc -v
+    #export
+
+  setup_additional_packages_script: |
+    REM C:\msys64\usr\bin\pacman.exe -S --noconfirm ...
 
   configure_script:
     - C:\msys64\usr\bin\bash.exe -lc "mkdir %BUILD_DIR% &&
@@ -517,16 +529,24 @@ task:
         --with-lz4
         --enable-debug
         CC='ccache gcc'
-        CXX='ccache g++'"
+        CXX='ccache g++'
+        CFLAGS='-Og -ggdb'
+        CXXFLAGS='-Og -ggdb'"
 
   build_script:
-    C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s world-bin -j${CPUS}"
+    - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% &&
+        ccache --show-config &&
+        ccache --zero-stats &&
+        make -s world-bin -j${CPUS} &&
+        ccache --print-stats &&
+        ccache --show-stats &&
+        ccache --show-compression"
 
   upload_caches: ccache
 
   tests_script:
-  - set "NoDefaultCurrentDirectoryInExePath=0"
-  - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install"
+    - set "NoDefaultCurrentDirectoryInExePath=0"
+    - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install"
 
   on_failure: *on_failure
 
