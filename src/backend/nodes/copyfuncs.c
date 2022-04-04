@@ -5453,6 +5453,23 @@ _copyDropSubscriptionStmt(const DropSubscriptionStmt *from)
 	return newnode;
 }
 
+static CreateSessionVarStmt *
+_copyCreateSessionVarStmt(const CreateSessionVarStmt *from)
+{
+	CreateSessionVarStmt *newnode = makeNode(CreateSessionVarStmt);
+
+	COPY_NODE_FIELD(variable);
+	COPY_NODE_FIELD(typeName);
+	COPY_NODE_FIELD(collClause);
+	COPY_NODE_FIELD(defexpr);
+	COPY_SCALAR_FIELD(eoxaction);
+	COPY_SCALAR_FIELD(if_not_exists);
+	COPY_SCALAR_FIELD(is_not_null);
+	COPY_SCALAR_FIELD(is_immutable);
+
+	return newnode;
+}
+
 /* ****************************************************************
  *					extensible.h copy functions
  * ****************************************************************
@@ -6403,6 +6420,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_DropSubscriptionStmt:
 			retval = _copyDropSubscriptionStmt(from);
+			break;
+		case  T_CreateSessionVarStmt:
+			retval = _copyCreateSessionVarStmt(from);
 			break;
 		case T_A_Expr:
 			retval = _copyA_Expr(from);

@@ -189,6 +189,7 @@ ClassifyUtilityCommandAsReadOnly(Node *parsetree)
 		case T_CreateRangeStmt:
 		case T_CreateRoleStmt:
 		case T_CreateSchemaStmt:
+		case T_CreateSessionVarStmt:
 		case T_CreateSeqStmt:
 		case T_CreateStatsStmt:
 		case T_CreateStmt:
@@ -1393,6 +1394,10 @@ ProcessUtilitySlow(ParseState *pstate,
 				}
 				break;
 
+			case T_CreateSessionVarStmt:
+				address = DefineSessionVariable(pstate, (CreateSessionVarStmt *) parsetree);
+				break;
+
 				/*
 				 * ************* object creation / destruction **************
 				 */
@@ -2332,6 +2337,9 @@ AlterObjectTypeCommandTag(ObjectType objtype)
 		case OBJECT_STATISTIC_EXT:
 			tag = CMDTAG_ALTER_STATISTICS;
 			break;
+		case OBJECT_VARIABLE:
+			tag = CMDTAG_ALTER_VARIABLE;
+			break;
 		default:
 			tag = CMDTAG_UNKNOWN;
 			break;
@@ -2639,6 +2647,9 @@ CreateCommandTag(Node *parsetree)
 					break;
 				case OBJECT_STATISTIC_EXT:
 					tag = CMDTAG_DROP_STATISTICS;
+					break;
+				case OBJECT_VARIABLE:
+					tag = CMDTAG_DROP_VARIABLE;
 					break;
 				default:
 					tag = CMDTAG_UNKNOWN;
@@ -3214,6 +3225,10 @@ CreateCommandTag(Node *parsetree)
 						break;
 				}
 			}
+			break;
+
+		case T_CreateSessionVarStmt:
+			tag = CMDTAG_CREATE_VARIABLE;
 			break;
 
 		default:
