@@ -144,10 +144,10 @@ test-build:
 	$(MAKE) -C test all
 
 check: test-build all
-	PATH="$(CURDIR)/test:$$PATH" && $(prove_check)
+	$(prove_check)
 
 installcheck: test-build all
-	PATH="$(CURDIR)/test:$$PATH" && $(prove_installcheck)
+	$(prove_installcheck)
 
 installdirs: installdirs-lib
 	$(MKDIR_P) '$(DESTDIR)$(includedir)' '$(DESTDIR)$(includedir_internal)' '$(DESTDIR)$(datadir)'
