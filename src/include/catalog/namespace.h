@@ -96,8 +96,6 @@ extern Oid	TypenameGetTypid(const char *typname);
 extern Oid	TypenameGetTypidExtended(const char *typname, bool temp_ok);
 extern bool TypeIsVisible(Oid typid);
 
-extern bool VariableIsVisible(Oid varid);
-
 extern FuncCandidateList FuncnameGetCandidates(List *names,
 											   int nargs, List *argnames,
 											   bool expand_variadic,
@@ -165,10 +163,6 @@ extern void GetTempNamespaceState(Oid *tempNamespaceId,
 extern void SetTempNamespaceState(Oid tempNamespaceId,
 								  Oid tempToastNamespaceId);
 extern void ResetTempTableNamespace(void);
-
-extern List *NamesFromList(List *names);
-extern Oid	LookupVariable(const char *nspname, const char *varname, bool missing_ok);
-extern Oid	IdentifyVariable(List *names, char **attrname, bool lockit, bool *not_unique);
 
 extern OverrideSearchPath *GetOverrideSearchPath(MemoryContext context);
 extern OverrideSearchPath *CopyOverrideSearchPath(OverrideSearchPath *path);

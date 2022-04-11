@@ -2743,22 +2743,6 @@ _equalDropSubscriptionStmt(const DropSubscriptionStmt *a,
 }
 
 static bool
-_equalCreateSessionVarStmt(const CreateSessionVarStmt *a,
-						  const CreateSessionVarStmt *b)
-{
-	COMPARE_NODE_FIELD(variable);
-	COMPARE_NODE_FIELD(typeName);
-	COMPARE_NODE_FIELD(collClause);
-	COMPARE_NODE_FIELD(defexpr);
-	COMPARE_SCALAR_FIELD(eoxaction);
-	COMPARE_SCALAR_FIELD(if_not_exists);
-	COMPARE_SCALAR_FIELD(is_not_null);
-	COMPARE_SCALAR_FIELD(is_immutable);
-
-	return true;
-}
-
-static bool
 _equalCreatePolicyStmt(const CreatePolicyStmt *a, const CreatePolicyStmt *b)
 {
 	COMPARE_STRING_FIELD(policy_name);
@@ -4221,9 +4205,6 @@ equal(const void *a, const void *b)
 			break;
 		case T_DropSubscriptionStmt:
 			retval = _equalDropSubscriptionStmt(a, b);
-			break;
-		case T_CreateSessionVarStmt:
-			retval = _equalCreateSessionVarStmt(a, b);
 			break;
 		case T_A_Expr:
 			retval = _equalA_Expr(a, b);
