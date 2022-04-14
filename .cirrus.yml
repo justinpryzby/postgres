@@ -337,6 +337,7 @@ task:
       CLANG="ccache ${brewpath}/llvm/bin/ccache" \
       CFLAGS="-Og -ggdb" \
       CXXFLAGS="-Og -ggdb" \
+      CPPFLAGS="-DRELCACHE_FORCE_RELEASE -DCOPY_PARSE_PLAN_TREES -DWRITE_READ_PARSE_PLAN_TREES -DRAW_EXPRESSION_COVERAGE_TEST" \
       \
       LLVM_CONFIG=${brewpath}/llvm/bin/llvm-config \
       PYTHON=python3
