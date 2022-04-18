@@ -517,9 +517,8 @@ task:
     REM C:\msys64\usr\bin\pacman.exe -S --noconfirm ...
 
   configure_script:
-    - C:\msys64\usr\bin\bash.exe -lc "mkdir %BUILD_DIR% &&
-      cd %BUILD_DIR% &&
-      %CIRRUS_WORKING_DIR%/configure
+    - C:\msys64\usr\bin\bash.exe -lc "
+      cd %CIRRUS_WORKING_DIR% && ./configure
         --host=x86_64-w64-mingw32
         --enable-cassert
         --enable-tap-tests
@@ -534,10 +533,10 @@ task:
         CXXFLAGS='-Og -ggdb'"
 
   build_script:
-    - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% &&
+    - C:\msys64\usr\bin\bash.exe -lc "
         ccache --show-config &&
         ccache --zero-stats &&
-        make -s world-bin -j${CPUS} &&
+        cd %CIRRUS_WORKING_DIR% && make -s world-bin -j%CPUS% &&
         ccache --print-stats &&
         ccache --show-stats &&
         ccache --show-compression"
@@ -545,8 +544,9 @@ task:
   upload_caches: ccache
 
   tests_script:
-  #- set "NoDefaultCurrentDirectoryInExePath=0"
-  - C:\msys64\usr\bin\bash.exe -lc "cd %BUILD_DIR% && make -s ${CHECK} ${CHECKFLAGS} -j${CPUS} TMPDIR=%BUILD_DIR%/tmp_install"
+    - set "NoDefaultCurrentDirectoryInExePath=0"
+    - set PATH=C:\msys64\usr\bin;%PATH%
+    - bash.exe -lc 'cd %CIRRUS_WORKING_DIR% && make.exe -s %CHECK% %CHECKFLAGS% -j%CPUS%'
 
   on_failure: *on_failure
 
