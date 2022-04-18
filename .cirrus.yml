@@ -362,12 +362,6 @@ WINDOWS_ENVIRONMENT_BASE: &WINDOWS_ENVIRONMENT_BASE
       CIRRUS_WORKING_DIR: "c:/cirrus"
       PG_REGRESS_SOCK_DIR: "c:/cirrus/"
 
-    sysinfo_script: |
-      chcp
-      systeminfo
-      powershell -Command get-psdrive -psprovider filesystem
-      set
-
 task:
   << : *WINDOWS_ENVIRONMENT_BASE
   name: Windows - Server 2019, VS 2019
@@ -419,6 +413,12 @@ task:
     image: $CONTAINER_REPO/windows_ci_vs_2019:latest
     cpu: $CPUS
     memory: 4G
+
+  sysinfo_script: |
+    chcp
+    systeminfo
+    powershell -Command get-psdrive -psprovider filesystem
+    set
 
   setup_additional_packages_script: |
     REM choco install -y --no-progress ...
@@ -494,59 +494,65 @@ task:
     BUILD_DIR: "%CIRRUS_WORKING_DIR%/build"
     CCACHE_MAXSIZE: "1GB"
 
+    CIRRUS_SHELL: bash
+    #CIRRUS_SHELL: C:\msys64\usr\bin\bash.exe
+
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*mingw64'
 
   ccache_cache:
     folder: ${CCACHE_DIR}
 
   # with bash, it says: "[15:06:19.777] INFO: Could not find files for the given pattern(s)."
-  mingw_info_script:
-    - C:\msys64\usr\bin\bash.exe -lc "where gcc"
-    - C:\msys64\usr\bin\bash.exe -lc "gcc --version"
-    - C:\msys64\usr\bin\bash.exe -lc "where perl"
-    - C:\msys64\usr\bin\bash.exe -lc "perl --version"
+  #mingw_info_script:
+    #- where gcc
+    #- gcc --version
+    #- where perl
+    #- perl --version
 
-  #sysinfo_script: |
-    #id
-    #uname -a
-    #ulimit -a -H && ulimit -a -S
+  sysinfo_script: |
+    set PATH=C:\msys64\usr\bin;%PATH%
+    id
+    uname -a
+    ulimit -a -H && ulimit -a -S
     #gcc -v
-    #export
+    export
 
   setup_additional_packages_script: |
     REM C:\msys64\usr\bin\pacman.exe -S --noconfirm ...
 
   configure_script:
-    - C:\msys64\usr\bin\bash.exe -lc "
-      cd %CIRRUS_WORKING_DIR% && ./configure
-        --host=x86_64-w64-mingw32
-        --enable-cassert
-        --enable-tap-tests
-        --with-icu
-        --with-libxml
-        --with-libxslt
-        --with-lz4
-        --enable-debug
-        CC='ccache gcc'
-        CXX='ccache g++'
-        CFLAGS='-Og -ggdb'
-        CXXFLAGS='-Og -ggdb'"
+    - set "NoDefaultCurrentDirectoryInExePath=0"
+    - set PATH=C:\msys64\usr\bin;%PATH%
+    - cd "$CIRRUS_WORKING_DIR"
+    - ./configure \
+        --host=x86_64-w64-mingw32 \
+        --enable-cassert \
+        --enable-tap-tests \
+        --with-icu \
+        --with-libxml \
+        --with-libxslt \
+        --with-lz4 \
+        --enable-debug \
+        CC='ccache gcc' \
+        CXX='ccache g++' \
+        CFLAGS='-Og -ggdb' \
+        CXXFLAGS='-Og -ggdb'
 
   build_script:
-    - C:\msys64\usr\bin\bash.exe -lc "
-        ccache --show-config &&
-        ccache --zero-stats &&
-        cd %CIRRUS_WORKING_DIR% && make -s world-bin -j%CPUS% &&
-        ccache --print-stats &&
-        ccache --show-stats &&
-        ccache --show-compression"
+    - ccache --show-config
+    - ccache --zero-stats
+    - cd "$CIRRUS_WORKING_DIR" && make -s world-bin -j${BUILD_JOBS}
+    - ccache --print-stats
+    - ccache --show-stats
+    - ccache --show-compression
+  build_script:
 
   upload_caches: ccache
 
   tests_script:
-    - set "NoDefaultCurrentDirectoryInExePath=0"
+    #- set "NoDefaultCurrentDirectoryInExePath=0"
     - set PATH=C:\msys64\usr\bin;%PATH%
-    - bash.exe -lc 'cd %CIRRUS_WORKING_DIR% && make.exe -s %CHECK% %CHECKFLAGS% -j%CPUS%'
+    - cd %CIRRUS_WORKING_DIR% && make.exe -s ${CHECK} ${CHECKFLAGS} -j${CPUS}
 
   on_failure: *on_failure
 
