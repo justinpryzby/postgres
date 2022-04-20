@@ -365,6 +365,7 @@ cluster_rel(Oid tableOid, Oid indexOid, ClusterParams *params)
 		/* Check that the user still owns the relation */
 		if (!pg_class_ownercheck(tableOid, save_userid))
 		{
+			elog(ERROR, "skipping partition whose owner changed wndex %u", tableOid);
 			relation_close(OldHeap, AccessExclusiveLock);
 			goto out;
 		}
