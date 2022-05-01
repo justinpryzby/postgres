@@ -445,6 +445,7 @@ task:
 
   tempinstall_script:
     # Installation on windows currently only completely works from src/tools/msvc
+    - set INSTALL_TESTS=1
     - cd src/tools/msvc && perl install.pl %CIRRUS_WORKING_DIR%/tmp_install
 
   this_tap_script: |
