@@ -268,6 +268,8 @@ sub CopySolutionOutput
 		  if ($insttype eq "client" && !grep { $_ eq $pf }
 			@client_program_files);
 
+		next if ($pf =~ /testclient|uri-regress/);
+
 		my $proj = read_file("$pf.$vcproj")
 		  || croak "Could not open $pf.$vcproj\n";
 
