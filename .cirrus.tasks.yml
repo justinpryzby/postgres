@@ -607,6 +607,7 @@ task:
     # given that it explicitly prevents crash dumps from working...
     # 0x8001 is SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX
     CIRRUS_WINDOWS_ERROR_MODE: 0x8001
+    INSTALL_TESTS: 1
 
   <<: *windows_task_template
 
