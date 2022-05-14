@@ -23,7 +23,7 @@ do
 	# Avoid removed files
 	[ -f "$f" ] || continue
 
-	cp -v "$f" "$outdir"
+	cp -v "$f" "$outdir" >&2
 	fn=${f##*/}
 	# ?branch=... is needed for the static link for the branch
 	# It's not used if accessing artifacts for *this* CI run

@@ -31,7 +31,7 @@ env:
   # And does the right thing for any 1-patch commits.
   # Patch series manually submitted to cirrus would benefit from setting this to the
   # number of patches in the series (or directly to the commit the series was rebased on).
-  BASE_COMMIT: HEAD~1
+  BASE_COMMIT: HEAD~2
 
 
 # What files to preserve in case tests fail
