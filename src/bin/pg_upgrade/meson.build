@@ -32,7 +32,8 @@ tests += {
     'tests': [
       't/001_basic.pl',
       't/002_pg_upgrade.pl',
-    ]
+    ],
+    'test_kwargs': {'priority': 40}, # pg_upgrade tests are slow
   },
 }
 
