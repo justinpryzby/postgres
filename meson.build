@@ -1356,27 +1356,6 @@ if cc.compiles('''
   cdata.set('HAVE__BUILTIN_TYPES_COMPATIBLE_P', 1)
 endif
 
-if cdata.has('HAVE__BUILTIN_CONSTANT_P') and \
-  host_machine.cpu_family() == 'ppc' or host_machine.cpu_family() == 'ppc64'
-
-  # Check if compiler accepts "i"(x) when __builtin_constant_p(x).
-  if cc.compiles('''
-    static inline int
-    addi(int ra, int si)
-    {
-        int res = 0;
-        if (__builtin_constant_p(si))
-            __asm__ __volatile__(
-                " addi %0,%1,%2\n" : "=r"(res) : "b"(ra), "i"(si));
-        return res;
-    }
-    int test_adds(int x) { return addi(3, x) + addi(x, 5); }
-    ''',
-    args: g_c_args)
-    cdata.set('HAVE_I_CONSTRAINT__BUILTIN_CONSTANT_P', 1)
-  endif
-endif
-
 # Check if the C compiler understands __builtin_$op_overflow(),
 # and define HAVE__BUILTIN_OP_OVERFLOW if so.
 #
@@ -1673,6 +1652,59 @@ endif
 
 if not have_optimized_crc
   cdata.set('USE_SLICING_BY_8_CRC32C', 1)
+endif
+
+
+
+###############################################################
+# Other CPU specific stuff
+###############################################################
+
+host_cpu_fam = host_machine.cpu_family()
+if host_cpu_fam == 'x86_64'
+
+  if cc.compiles('''
+      void main(void)
+      {
+          long long x = 1; long long r;
+          __asm__ __volatile__ (" popcntq %1,%0\n" : "=q"(r) : "rm"(x));
+      }''',
+      name: '@0@: popcntq instruction'.format(host_cpu_fam),
+      args: g_c_args)
+    cdata.set('HAVE_X86_64_POPCNTQ', 1)
+  endif
+
+elif host_cpu_fam == 'ppc' or host_cpu_fam == 'ppc64'
+
+  if cc.compiles('''
+      void main(void)
+      {
+          int a = 0; int *p = &a; int r;
+	  __asm__ __volatile__ (" lwarx %0,0,%1,1\n" : "=&r"(r) : "r"(p));
+      }''',
+      name: '@0@: whether assembler supports lwarx hint bit'.format(host_cpu_fam),
+      args: g_c_args)
+    cdata.set('HAVE_PPC_LWARX_MUTEX_HINT', 1)
+  endif
+
+  # Check if compiler accepts "i"(x) when __builtin_constant_p(x).
+  if cdata.has('HAVE__BUILTIN_CONSTANT_P')
+    if cc.compiles('''
+      static inline int
+      addi(int ra, int si)
+      {
+          int res = 0;
+          if (__builtin_constant_p(si))
+              __asm__ __volatile__(
+                  " addi %0,%1,%2\n" : "=r"(res) : "b"(ra), "i"(si));
+          return res;
+      }
+      int test_adds(int x) { return addi(3, x) + addi(x, 5); }
+      ''',
+      args: g_c_args)
+      cdata.set('HAVE_I_CONSTRAINT__BUILTIN_CONSTANT_P', 1)
+    endif
+  endif
 endif
 
 
