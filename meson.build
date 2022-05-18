@@ -1321,38 +1321,84 @@ if cc.has_function_attribute('visibility:default') and \
   cdata.set('HAVE_VISIBILITY_ATTRIBUTE', 1)
 endif
 
+# Check if various builtins exist. Some builtins are tested separately,
+# because we want to test something more complicated than the generic case.
+builtins = [
+  'bswap16',
+  'bswap32',
+  'bswap64',
+  'clz',
+  'ctz',
+  'constant_p',
+  'frame_address',
+  'popcount',
+  'unreachable',
+]
 
-if cc.has_function('__builtin_unreachable', args: g_c_args)
-  cdata.set('HAVE__BUILTIN_UNREACHABLE', 1)
+foreach builtin : builtins
+  fname = '__builtin_@0@'.format(builtin)
+  if cc.has_function(fname, args: g_c_args)
+    cdata.set('HAVE@0@'.format(fname.to_upper()), 1)
+  endif
+endforeach
+
+# Check if the C compiler understands __builtin_types_compatible_p,
+# and define HAVE__BUILTIN_TYPES_COMPATIBLE_P if so.
+#
+# We check usage with __typeof__, though it's unlikely any compiler would
+# have the former and not the latter.
+if cc.compiles('''
+    static int x;
+    static int y[__builtin_types_compatible_p(__typeof__(x), int)];
+    ''',
+    name: '__builtin_types_compatible_p',
+    args: g_c_args)
+  cdata.set('HAVE__BUILTIN_TYPES_COMPATIBLE_P', 1)
 endif
 
-if cc.has_function('__builtin_constant_p', args: g_c_args)
-  cdata.set('HAVE__BUILTIN_CONSTANT_P', 1)
+if cdata.has('HAVE__BUILTIN_CONSTANT_P') and \
+  host_machine.cpu_family() == 'ppc' or host_machine.cpu_family() == 'ppc64'
 
-  if host_machine.cpu_family() == 'ppc' or host_machine.cpu_family() == 'ppc64'
-    # Check if compiler accepts "i"(x) when __builtin_constant_p(x).
-    if cc.compiles('''
-      static inline int
-      addi(int ra, int si)
-      {
-          int res = 0;
-          if (__builtin_constant_p(si))
-              __asm__ __volatile__(
-                  " addi %0,%1,%2\n" : "=r"(res) : "b"(ra), "i"(si));
-          return res;
-      }
-      int test_adds(int x) { return addi(3, x) + addi(x, 5); }
-      ''',
-      args: g_c_args)
-      cdata.set('HAVE_I_CONSTRAINT__BUILTIN_CONSTANT_P', 1)
-    endif
+  # Check if compiler accepts "i"(x) when __builtin_constant_p(x).
+  if cc.compiles('''
+    static inline int
+    addi(int ra, int si)
+    {
+        int res = 0;
+        if (__builtin_constant_p(si))
+            __asm__ __volatile__(
+                " addi %0,%1,%2\n" : "=r"(res) : "b"(ra), "i"(si));
+        return res;
+    }
+    int test_adds(int x) { return addi(3, x) + addi(x, 5); }
+    ''',
+    args: g_c_args)
+    cdata.set('HAVE_I_CONSTRAINT__BUILTIN_CONSTANT_P', 1)
   endif
 endif
 
-if cc.has_function('__builtin_frame_address', args: g_c_args)
-  cdata.set('HAVE__BUILTIN_FRAME_ADDRESS', 1)
-endif
+# Check if the C compiler understands __builtin_$op_overflow(),
+# and define HAVE__BUILTIN_OP_OVERFLOW if so.
+#
+# Check for the most complicated case, 64 bit multiplication, as a
+# proxy for all of the operations.  To detect the case where the compiler
+# knows the function but library support is missing, we must link not just
+# compile, and store the results in global variables so the compiler doesn't
+# optimize away the call.
+if cc.links('''
+    INT64 a = 1;
+    INT64 b = 1;
+    INT64 result;
 
+    int main(void)
+    {
+        return __builtin_mul_overflow(a, b, &result);
+    }''',
+    name: '__builtin_mul_overflow',
+    args: g_c_args + ['-DINT64=@0@'.format(cdata.get('PG_INT64_TYPE'))],
+    )
+  cdata.set('HAVE__BUILTIN_OP_OVERFLOW', 1)
+endif
 
 # XXX: The configure.ac check for __cpuid() is broken, we don't copy that
 # here. To prevent problems due to two detection methods working, stop
