@@ -59,9 +59,9 @@ pg_version = meson.project_version()
 if pg_version.endswith('devel')
   pg_version_arr = [pg_version.split('devel')[0], '0']
 elif pg_version.contains('beta')
-  pg_version_arr = pg_version.split('beta')
+  pg_version_arr = [pg_version.split('beta')[0], '0']
 elif pg_version.contains('rc')
-  pg_version_arr = pg_version.split('rc')
+  pg_version_arr = [pg_version.split('rc')[0], '0']
 else
   pg_version_arr = pg_version.split('.')
 endif
@@ -78,6 +78,7 @@ pg_url = 'https://www.postgresql.org/'
 cdata.set_quoted('PACKAGE_NAME', 'PostgreSQL')
 cdata.set_quoted('PACKAGE_BUGREPORT', 'pgsql-bugs@lists.postgresql.org')
 cdata.set_quoted('PACKAGE_URL', pg_url)
+cdata.set_quoted('PACKAGE_VERSION', pg_version)
 
 pg_version += get_option('extra_version')
 cdata.set_quoted('PG_VERSION', pg_version)
@@ -85,7 +86,6 @@ cdata.set_quoted('PG_VERSION_STR', 'PostgreSQL @0@ on @1@, compiled by @2@-@3@'.
   pg_version, target_machine.cpu_family(), cc.get_id(), cc.version()))
 cdata.set_quoted('PG_MAJORVERSION', pg_version_major.to_string())
 cdata.set('PG_MAJORVERSION_NUM', pg_version_major)
-cdata.set_quoted('PG_MINORVERSION', pg_version_minor.to_string())
 cdata.set('PG_MINORVERSION_NUM', pg_version_minor)
 cdata.set('PG_VERSION_NUM', (pg_version_major*10000)+pg_version_minor)
 cdata.set_quoted('CONFIGURE_ARGS', '')
