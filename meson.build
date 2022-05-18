@@ -1173,6 +1173,85 @@ cdata.set('MAXIMUM_ALIGNOF', maxalign)
 cdata.set('SIZEOF_VOID_P', cc.sizeof('void *', args: g_c_args))
 cdata.set('SIZEOF_SIZE_T', cc.sizeof('size_t', args: g_c_args))
 
+
+# Check if __int128 is a working 128 bit integer type, and if so
+# define PG_INT128_TYPE to that typename.
+#
+# This currently only detects a GCC/clang extension, but support for other
+# environments may be added in the future.
+#
+# For the moment we only test for support for 128bit math; support for
+# 128bit literals and snprintf is not required.
+if cc.links('''
+  /*
+   * We don't actually run this test, just link it to verify that any support
+   * functions needed for __int128 are present.
+   *
+   * These are globals to discourage the compiler from folding all the
+   * arithmetic tests down to compile-time constants.  We do not have
+   * convenient support for 128bit literals at this point...
+   */
+  __int128 a = 48828125;
+  __int128 b = 97656250;
+
+  int main(void)
+  {
+      __int128 c,d;
+      a = (a << 12) + 1; /* 200000000001 */
+      b = (b << 12) + 5; /* 400000000005 */
+      /* try the most relevant arithmetic ops */
+      c = a * b;
+      d = (c + b) / b;
+      /* must use the results, else compiler may optimize arithmetic away */
+      return d != a+1;
+  }''',
+  name: '__int128',
+  args: g_c_args)
+
+  buggy_int128 = false
+
+  # Use of non-default alignment with __int128 tickles bugs in some compilers.
+  # If not cross-compiling, we can test for bugs and disable use of __int128
+  # with buggy compilers.  If cross-compiling, hope for the best.
+  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=83925
+  if not meson.is_cross_build()
+    r =  cc.run('''
+    /* This must match the corresponding code in c.h: */
+    #if defined(__GNUC__) || defined(__SUNPRO_C) || defined(__IBMC__)
+    #define pg_attribute_aligned(a) __attribute__((aligned(a)))
+    #endif
+    typedef __int128 int128a
+    #if defined(pg_attribute_aligned)
+    pg_attribute_aligned(8)
+    #endif
+    ;
+
+    int128a holder;
+    void pass_by_val(void *buffer, int128a par) { holder = par; }
+
+    int main(void)
+    {
+        long int i64 = 97656225L << 12;
+        int128a q;
+        pass_by_val(main, (int128a) i64);
+        q = (int128a) i64;
+        return q != holder;
+    }''',
+    name: '__int128 alignment bug',
+    args: g_c_args)
+    assert(r.compiled())
+    if r.returncode() != 0
+      buggy_int128 = true
+    endif
+  endif
+
+  if not buggy_int128
+    cdata.set('PG_INT128_TYPE', '__int128')
+    cdata.set('ALIGNOF_PG_INT128_TYPE', cc.alignment('__int128', args: g_c_args))
+  endif
+endif
+
+
 # Check if the C compiler knows computed gotos (gcc extension, also
 # available in at least clang).  If so, define HAVE_COMPUTED_GOTO.
 #
