@@ -227,19 +227,14 @@ meson_bin = find_program(meson_binpath, native: true)
 
 cdata.set('USE_ASSERT_CHECKING', get_option('cassert') ? 1 : false)
 
-cdata.set('BLCKSZ', 8192, description: '''
- Size of a disk block --- this also limits the size of a tuple.  You
- can set it bigger if you need bigger tuples (although TOAST should
- reduce the need to have large tuples, since fields can be spread
- across multiple tuples).
-
- BLCKSZ must be a power of 2.  The maximum possible value of BLCKSZ
- is currently 2^15 (32768).  This is determined by the 15-bit widths
- of the lp_off and lp_len fields in ItemIdData (see
- include/storage/itemid.h).
-
- Changing BLCKSZ requires an initdb.
-''')
+cdata.set('BLCKSZ', 8192, description:
+'''Size of a disk block --- this also limits the size of a tuple. You can set
+   it bigger if you need bigger tuples (although TOAST should reduce the need
+   to have large tuples, since fields can be spread across multiple tuples).
+   BLCKSZ must be a power of 2. The maximum possible value of BLCKSZ is
+   currently 2^15 (32768). This is determined by the 15-bit widths of the
+   lp_off and lp_len fields in ItemIdData (see include/storage/itemid.h).
+   Changing BLCKSZ requires an initdb.''')
 
 cdata.set('XLOG_BLCKSZ', get_option('wal-blocksize') * 1024)
 cdata.set('RELSEG_SIZE', get_option('segsize') * 131072)
@@ -1000,7 +995,8 @@ if get_option('ssl') == 'openssl'
             description: 'Define to 1 to build with OpenSSL support. (-Dssl=openssl)')
 
   cdata.set('OPENSSL_API_COMPAT', 0x10001000,
-            description: 'Define to the OpenSSL API version in use. This avoids deprecation warnings from newer OpenSSL versions.')
+            description: '''Define to the OpenSSL API version in use. This avoids deprecation warnings
+   from newer OpenSSL versions.''')
 else
   ssl = dependency('', required : false)
 endif
@@ -1639,7 +1635,7 @@ foreach c : decl_checks
     kwargs: args)
   cdata.set10(varname, found, description:
 '''Define to 1 if you have the declaration of `@0@', and to 0 if you
-  don't.'''.format(func))
+   don't.'''.format(func))
 endforeach
 
 
