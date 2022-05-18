@@ -1612,7 +1612,6 @@ decl_checks = [
   ['strlcat', 'string.h'],
   ['strlcpy', 'string.h'],
   ['strnlen', 'string.h'],
-  ['strsignal', 'string.h'],
   ['strtoll', 'stdlib.h'], ['strtoull', 'stdlib.h'], # strto[u]ll may exist but not be declared
 ]
 
