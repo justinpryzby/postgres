@@ -1270,7 +1270,7 @@ if cc.has_function('__builtin_constant_p', args: g_c_args)
 endif
 
 if cc.has_function('__builtin_frame_address', args: g_c_args)
-  cdata.set('HAVE__FRAME_ADDRESS', 1)
+  cdata.set('HAVE__BUILTIN_FRAME_ADDRESS', 1)
 endif
 
 
