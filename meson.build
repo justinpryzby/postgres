@@ -1723,6 +1723,7 @@ header_checks = [
   ['langinfo.h'],
   ['mbarrier.h'],
   ['poll.h'],
+  ['strings.h'],
   ['sys/epoll.h'],
   ['sys/event.h'],
   ['sys/ipc.h'],
