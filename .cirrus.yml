@@ -834,6 +834,7 @@ windows_template: &windows_template
 task:
   <<: *windows_template
   name: Windows - Server 2019, VS 2019 - Homegrown
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-msvc.*'
 
   configure_script:
     # copy errors out when using forward slashes
@@ -892,6 +893,7 @@ task:
 task:
   <<: *windows_template
   name: Windows - Server 2019, VS 2019 - Meson & ninja
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-meson-ninja.*'
 
   meson_install_script:
     - pip install meson ninja
@@ -925,6 +927,7 @@ task:
 task:
   <<: *windows_template
   name: Windows - Server 2019, VS 2019 - Meson & msbuild
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-meson-msbuild.*'
 
   meson_install_script:
     - pip install meson
