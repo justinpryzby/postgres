@@ -1802,6 +1802,7 @@ int main(void)
   switch (strerror_r(1, buf, sizeof(buf)))
   { case 0: break; default: break; }
 }''',
+    name: 'strerror_r',
     args: g_c_args, include_directories: g_c_inc)
   cdata.set('STRERROR_R_INT', 1)
 else
@@ -1817,6 +1818,45 @@ elif cc.has_type('locale_t', prefix: '#include <xlocale.h>')
   cdata.set('HAVE_LOCALE_T', 1)
   cdata.set('LOCALE_T_IN_XLOCALE', 1)
 endif
+
+# Make sure there's a declaration for sigwait(), then make sure that it
+# conforms to the POSIX standard (there seem to still be some platforms out
+# there with pre-POSIX sigwait()).
+if cc.compiles('''
+#include <signal.h>
+int sigwait(const sigset_t *set, int *sig);
+''',
+  name: 'POSIX compatible sigwait() declaration',
+  args: g_c_args, include_directories: g_c_inc)
+  cdata.set('HAVE_POSIX_DECL_SIGWAIT', 1)
+else
+  cdata.set('HAVE_POSIX_DECL_SIGWAIT', false)
+endif
+
+# Check if the C compiler understands typeof or a variant.  Define
+# HAVE_TYPEOF if so, and define 'typeof' to the actual key word.
+foreach kw : ['typeof', '__typeof__', 'decltype']
+  if cc.compiles('''
+int main(void)
+{
+    int x = 0;
+    @0@(x) y;
+    y = x;
+    return y;
+}
+'''.format(kw),
+    name: 'typeof()',
+    args: g_c_args, include_directories: g_c_inc)
+
+    cdata.set('HAVE_TYPEOF', 1)
+    if kw != 'typeof'
+      cdata.set('typeof', kw)
+    endif
+
+    break
+  endif
+endforeach
+
 
 # MSVC doesn't cope well with defining restrict to __restrict, the
 # spelling it understands, because it conflicts with
