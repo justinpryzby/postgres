@@ -2583,10 +2583,10 @@ alias_target('backend', backend_targets)
 if meson.version().version_compare('>=0.57')
 
   summary({
-    'Data Block Size' : cdata.get('BLCKSZ'),
-    'WAL Block Size' : cdata.get('XLOG_BLCKSZ'),
-    'Segment Size' : cdata.get('RELSEG_SIZE')
-    }, section: 'Data Layout'
+    'data block size' : cdata.get('BLCKSZ'),
+    'WAL block size' : cdata.get('XLOG_BLCKSZ'),
+    'segment size' : cdata.get('RELSEG_SIZE')
+    }, section: 'Data layout'
   )
 
   summary(
@@ -2644,7 +2644,7 @@ if meson.version().version_compare('>=0.57')
       'zlib': zlib,
       'zstd': zstd,
     },
-    section: 'External Libraries'
+    section: 'External libraries'
   )
 
 endif
