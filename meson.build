@@ -1906,7 +1906,6 @@ func_checks = [
   ['pstat'],
   ['pthread_is_threaded_np', {'dependencies': [thread_dep]}],
   ['pwrite'],
-  ['random'],
   ['readlink'],
   ['readv'],
   ['setenv'], # FIXME: windows handling
@@ -1915,7 +1914,6 @@ func_checks = [
   ['setsid'],
   ['shm_open', {'dependencies': [rt_dep]}],
   ['shm_unlink', {'dependencies': [rt_dep]}],
-  ['srandom'],
   ['strchrnul'],
   ['strerror_r', {'dependencies': [thread_dep]}],
   ['strlcat'],
