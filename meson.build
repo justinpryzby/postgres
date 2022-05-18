@@ -1202,7 +1202,7 @@ cdata.set('HAVE_FUNCNAME__FUNC', 1)
 if cc.compiles('''
     int main(int arg, char **argv)
     {
-        ({ _Static_assert(1, "foo"); })
+        ({ _Static_assert(1, "foo"); });
     }
     ''',
     args: g_c_args)
