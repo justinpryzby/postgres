@@ -539,6 +539,8 @@ MERGE <replaceable class="parameter">total_count</replaceable>
   </para>
 
   <para>
+   See <xref linkend="mvcc"/> for more details on the behavior of
+   <command>MERGE</command> under concurrency.
    You may also wish to consider using <command>INSERT ... ON CONFLICT</command>
    as an alternative statement which offers the ability to run an
    <command>UPDATE</command> if a concurrent <command>INSERT</command>

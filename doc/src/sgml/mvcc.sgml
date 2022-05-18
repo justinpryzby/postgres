@@ -425,7 +425,7 @@ COMMIT;
    <para>
     <command>MERGE</command> allows the user to specify various
     combinations of <command>INSERT</command>, <command>UPDATE</command>
-    or <command>DELETE</command> subcommands. A <command>MERGE</command>
+    and <command>DELETE</command> subcommands. A <command>MERGE</command>
     command with both <command>INSERT</command> and <command>UPDATE</command>
     subcommands looks similar to <command>INSERT</command> with an
     <literal>ON CONFLICT DO UPDATE</literal> clause but does not
