@@ -814,6 +814,9 @@ windows_template: &windows_template
     # currently have a tool for that...
     CIRRUS_ESCAPING_PROCESSES: 1
 
+    CCACHE_DIR: $CIRRUS_WORKING_DIR/.ccache
+    CCACHE_LOGFILE: ccache.log
+
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
 
   windows_container:
@@ -828,8 +831,10 @@ windows_template: &windows_template
     set
 
   setup_additional_packages_script: |
-    REM choco install -y --no-progress ...
-
+    choco install -y --no-progress ccache --version 4.6.1
+    cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6.1-windows-x86_64\ccache.exe \BuildTools\VC\Auxiliary\Build
+    cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6.1-windows-x86_64\ccache.exe \ProgramData\chocolatey\bin\cl.exe
+# \ProgramData\chocolatey\bin\ccache.exe
 
 task:
   <<: *windows_template
@@ -903,14 +908,29 @@ task:
     - mkdir subprojects
     - meson wrap install lz4
     - meson wrap install zlib
-    - meson setup --buildtype debug --backend ninja  -Dcassert=true -Db_pch=true -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe build
+    - set CC=ccache.exe cl.exe
+    - meson setup --buildtype plain --backend ninja  -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe -Dc_args="/Z7 /MD /Ob0 /Od /RTC1" build
+# /Od /RTC1
+# works: /Z7 /MDd /Ob0
+# fails: /Ob0
+# works: /MDd
+# works: /Z7 /MDd /Ob0 /Od /RTC1
+
+  ccache_cache:
+    folder: $CCACHE_DIR
 
   build_script:
+    - dir "c:\cirrus\.ccache"
+    - ccache.exe --zero-stats
     - vcvarsall x64
     - ninja -C build
+    - ccache.exe --show-stats
+
+  always:
+    upload_caches: ccache
 
   check_world_script:
-    - vcvarsall x64
+    #- vcvarsall x64
     - meson test --no-rebuild -C build
 
   on_failure:
@@ -937,11 +957,20 @@ task:
     - mkdir subprojects
     - meson wrap install lz4
     - meson wrap install zlib
-    - meson setup --buildtype debug --backend vs -Dcassert=true -Db_pch=true -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe build
+    - meson setup --buildtype plain --backend vs -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe -Dc_args=/Z7 build
+
+  ccache_cache:
+    folder: $CCACHE_DIR
 
   build_script:
+    - dir "c:\cirrus\.ccache"
+    - ccache.exe --zero-stats
     - vcvarsall x64
-    - msbuild /p:UseMultiToolTask=true %MSBFLAGS% build\postgresql.sln
+    - msbuild /p:UseMultiToolTask=true /p:CLToolPath=c:\ProgramData\chocolatey\bin %MSBFLAGS% build\postgresql.sln
+    - ccache.exe --show-stats
+
+  always:
+    upload_caches: ccache
 
   check_world_script:
     - vcvarsall x64
