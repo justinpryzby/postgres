@@ -23,7 +23,7 @@ backend_sources += files(
   'xlogutils.c',
 )
 
-# used by frontend programs to built a frontend xlogreader
+# used by frontend programs to build a frontend xlogreader
 xlogreader_sources = files(
   'xlogreader.c',
 )

@@ -25,8 +25,8 @@ if llvm.found()
 
   backend_targets += llvmjit
 
-  # Note this is intentionally is not installed to bitcodedir, as it's not
-  # for inlining
+  # Note this is intentionally not installed to bitcodedir, as it's not for
+  # inlining
   llvmjit_types = custom_target('llvmjit_types.bc',
     kwargs: llvm_irgen_kw + {
       'input': 'llvmjit_types.c',
