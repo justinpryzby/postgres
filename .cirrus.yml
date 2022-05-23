@@ -821,6 +821,7 @@ windows_template: &windows_template
     #CCACHE_PREFIX_CPP: cl.exe
     CCACHE_COMPILERTYPE: msvc
     CCACHE_COMPILER: cl.exe
+    CCACHE_NOSTATS: 1
 
 
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
@@ -838,7 +839,7 @@ windows_template: &windows_template
 
   setup_additional_packages_script: |
     choco install -y --no-progress ccache
-    cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6-windows-64\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
+    REM cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.6.1-windows-64\ccache.exe \ProgramData\chocolatey\bin\pgccache.exe
 
 task:
   <<: *windows_template
@@ -914,9 +915,9 @@ task:
     - meson wrap install lz4
     - meson wrap install zlib
     - meson wrap install zstd
-    - set CC="pgccache"
-    - meson setup --buildtype plain --backend ninja  -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe -Dc_args="/Z7" build
-# /Ob1
+    #- set CC="pgccache"
+    - set CC=ccache.exe cl.exe
+    - meson setup --buildtype debug --backend ninja  -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe build -Dc_args="/MD /Z7 /O2 /Ob1 /Oy-"
 
   ccache_cache:
     folder: $CCACHE_DIR
@@ -924,6 +925,7 @@ task:
   build_script:
     - ccache.exe --zero-stats
     - vcvarsall x64
+    - set PATH=\ProgramData\chocolatey\bin;%PATH%
     - ninja -C build
     - ccache.exe --show-stats
 
@@ -932,6 +934,8 @@ task:
 
   check_world_script:
     - vcvarsall x64
+    - set PATH=c:\cirrus\build\src\bin\initdb;%PATH%
+    - dir /s \initdb.exe
     - meson test --no-rebuild -C build
 
   on_failure:
@@ -959,7 +963,7 @@ task:
     - meson wrap install lz4
     - meson wrap install zlib
     - meson wrap install zstd
-    - meson setup --buildtype plain --backend vs -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe -Dc_args=/Z7 build
+    - meson setup --buildtype debug --backend vs -Dcassert=true -Db_pch=false -Dssl=openssl -Dlz4=enabled -Dzlib=enabled -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=c:/windows/system32/tar.exe build -Dc_args="/MD /Z7 /O2 /Ob1 /Oy-"
 
   ccache_cache:
     folder: $CCACHE_DIR
