@@ -16,7 +16,7 @@ exprparse = custom_target('exprparse',
   input: 'exprparse.y',
   output: 'exprparse.c',
   depends: exprscan,
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT@'],)
 pgbench_sources += exprparse
 
 executable('pgbench',

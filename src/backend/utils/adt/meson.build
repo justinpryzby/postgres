@@ -110,10 +110,10 @@ backend_sources += files(
 jsonpath_scan = custom_target('jsonpath_scan',
   input: ['jsonpath_scan.l'],
   output: ['jsonpath_scan.c'],
-  command: [flex, '-b', '-CF', '-p', '-p', '-o', '@OUTPUT@', '@INPUT@'])
+  command: [flex_cmd, flex_backup, '-CF', '-p', '-p', '@INPUT@'],)
 
 # jsonpath_scan is compiled as part of jsonpath_gram
 generated_backend_sources += custom_target('jsonpath_parse',
   input: ['jsonpath_gram.y', jsonpath_scan[0]],
   output: ['jsonpath_gram.c'],
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT0@'],)

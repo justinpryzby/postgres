@@ -6,13 +6,13 @@ seg_sources = files(
 segscan = custom_target('segscan',
   input: ['segscan.l'],
   output: ['segscan.c'],
-  command: [flex, '-o', '@OUTPUT@', '@INPUT@'])
+  command: [flex_cmd, '@INPUT@'],)
 
 seg_sources += custom_target('segparse',
   input: 'segparse.y',
   output: 'segparse.c',
   depends: segscan,
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT@'],)
 
 seg = shared_module('seg',
   seg_sources,

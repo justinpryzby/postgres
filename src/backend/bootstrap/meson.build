@@ -4,9 +4,9 @@ backend_sources += files(
 bootscanner = custom_target('bootscanner',
   input: ['bootscanner.l'],
   output: ['bootscanner.c'],
-  command: [flex, '-o', '@OUTPUT@', '@INPUT@'])
+  command: [flex_cmd, '@INPUT@'],)
 
 generated_backend_sources += custom_target('bootparse',
   input: ['bootparse.y', bootscanner[0]],
   output: ['bootparse.c'],
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT0@'],)

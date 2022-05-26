@@ -9,7 +9,7 @@ plpgsql_sources = files(
 plpgsql_sources += custom_target('gram',
   input: ['pl_gram.y'],
   output: ['pl_gram.c', 'pl_gram.h'],
-  command: [bison, bisonflags, '-d', '-o', '@OUTPUT0@', '@INPUT0@'])
+  command: [bison_cmd, '-d', '@INPUT@'])
 
 gen_plerrcodes = files('generate-plerrcodes.pl')
 plpgsql_sources += custom_target('plerrcodes',

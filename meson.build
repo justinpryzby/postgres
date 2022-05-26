@@ -168,17 +168,21 @@ dtrace = find_program(get_option('DTRACE'), required: get_option('dtrace'))
 # Internal programs
 testwrap = find_program('src/tools/testwrap', native: true)
 
-bisonflags = []
+bison_flags = []
 if bison.found()
   bison_version_c = run_command(bison, '--version', check: true)
   # bison version string helpfully is something like
   # >>bison (GNU bison) 3.8.1<<
   bison_version = bison_version_c.stdout().split(' ')[3].split('\n')[0]
   if bison_version.version_compare('>=3.0')
-    bisonflags += ['-Wno-deprecated']
+    bison_flags += ['-Wno-deprecated']
   endif
 endif
+bison_cmd = [bison, bison_flags, '-o', '@OUTPUT0@']
 
+flex_flags = []
+flex_cmd = [flex, '-o', '@OUTPUT0@']
+flex_backup = ['-b', '--backup-file=@OUTPUT@.lex.backup']
 
 wget = find_program('wget', required: false, native: true)
 wget_flags = ['-O', '@OUTPUT0@', '--no-use-server-timestamps']

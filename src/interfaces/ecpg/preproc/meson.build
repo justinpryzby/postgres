@@ -14,7 +14,7 @@ ecpg_sources = files(
 ecpg_sources += custom_target('pgc.c',
   input: ['pgc.l'],
   output: ['pgc.c'],
-  command: [flex, '-o', '@OUTPUT@', '@INPUT@'],
+  command: [flex_cmd, '@INPUT@'],
 )
 
 preproc_y = custom_target('preproc.y',
@@ -35,7 +35,7 @@ preproc_y = custom_target('preproc.y',
 ecpg_sources += custom_target('preproc.c',
   input: [preproc_y],
   output: ['preproc.c', 'preproc.h'],
-  command: [bison, bisonflags, '-d', '-o', '@OUTPUT0@', '@INPUT@'],
+  command: [bison_cmd, '-d', '@INPUT@'],
 )
 
 ecpg_sources += custom_target('c_kwlist_d.h',

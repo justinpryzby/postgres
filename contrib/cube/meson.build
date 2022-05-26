@@ -6,13 +6,13 @@ cube_sources = files(
 cubescan = custom_target('cubescan',
   input: ['cubescan.l'],
   output: ['cubescan.c'],
-  command: [flex, '-o', '@OUTPUT@', '@INPUT@'])
+  command: [flex_cmd, '@INPUT@'],)
 
 cube_sources += custom_target('cubeparse',
   input: 'cubeparse.y',
   output: 'cubeparse.c',
   depends: cubescan,
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT@'],)
 
 cube = shared_module('cube',
   cube_sources,

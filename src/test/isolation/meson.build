@@ -8,7 +8,7 @@ isolation_sources = pg_regress_c + files(
 spec_scanner = custom_target('specscanner',
   input : files('specscanner.l'),
   output : ['specscanner.c'],
-  command : [flex, '-o', '@OUTPUT0@', '@INPUT@']
+  command : [flex_cmd, '@INPUT@'],
 )
 
 isolationtester_sources = files('isolationtester.c')
@@ -16,7 +16,7 @@ isolationtester_sources += custom_target('specparse',
   input: 'specparse.y',
   output: 'specparse.c',
   depends: spec_scanner,
-  command: [bison, bisonflags, '-o', '@OUTPUT@', '@INPUT0@'])
+  command: [bison_cmd, '@INPUT@'],)
 
 pg_isolation_regress = executable('pg_isolation_regress',
   isolation_sources,
