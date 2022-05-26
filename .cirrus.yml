@@ -370,7 +370,8 @@ task:
     # ForceNoAlign prevents msbuild from introducing line-breaks for long lines
     # disable file tracker, we're never going to rebuild, and it slows down the
     #   build
-    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo
+    # -fileLoggerParameters1: write warnings to msbuild.warn.log.
+    MSBFLAGS: -m -verbosity:minimal "-consoleLoggerParameters:Summary;ForceNoAlign" /p:TrackFileAccess=false -nologo -fileLoggerParameters1:warningsonly;logfile=msbuild.warn.log
 
     # If tests hang forever, cirrus eventually times out. In that case log
     # output etc is not uploaded, making the problem hard to debug. Of course
@@ -449,6 +450,11 @@ task:
     rem References ecpg_regression.proj in the current dir
     cd src/tools/msvc
     %T_C% perl vcregress.pl ecpgcheck
+
+  # These should be last, so all the important checks are always run
+  always:
+    compiler_warnings_script:
+      - sh src\tools\ci\windows-compiler-warnings msbuild.warn.log
 
   on_failure:
     <<: *on_failure
