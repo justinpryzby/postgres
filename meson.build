@@ -341,6 +341,7 @@ endif
 ###############################################################
 
 gssapiopt = get_option('gssapi')
+krb_srvtab = ''
 if not gssapiopt.disabled()
   gssapi = dependency('krb5-gssapi', required: gssapiopt)
 
@@ -350,6 +351,9 @@ if not gssapiopt.disabled()
     if cc.has_function('gss_init_sec_context',
       include_directories: g_c_inc, args: g_c_args, dependencies: gssapi)
       cdata.set('ENABLE_GSS', 1)
+
+      krb_srvtab = 'FILE:/@0@/krb5.keytab)'.format(get_option('sysconfdir'))
+      cdata.set_quoted('PG_KRB_SRVTAB', krb_srvtab)
     elif gssapiopt.enabled()
       error('''could not find function 'gss_init_sec_context' required for GSSAPI''')
     else
