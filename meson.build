@@ -124,8 +124,11 @@ endif
 g_c_inc += include_directories(get_option('extra_include_dirs'))
 g_c_lib = get_option('extra_lib_dirs')
 
-add_project_arguments(g_c_args, language: ['c', 'cpp'])
-add_project_link_arguments(g_l_args, language: ['c', 'cpp'])
+# cbflags is for compiler flags used for both C and C++
+cbflags = g_c_args
+cflags = []
+cxxflags = []
+ldflags = g_l_args
 
 postgres_inc = [include_directories('src/include')]
 
@@ -1145,7 +1148,7 @@ int main(int argc, char **argv)
 if not cc.compiles(c99_test, name: 'c99', args: g_c_args)
   if cc.compiles(c99_test, name: 'c99 with -std=c99', args: g_c_args + ['-std=c99'])
     g_c_args += '-std=c99'
-    add_project_arguments('-std=c99', language: ['c', 'cpp'])
+    cbflags += '-std=c99'
   else
     error('C compiler does not support C99')
   endif
@@ -1428,7 +1431,7 @@ common_functional_flags = [
   '-fexcess-precision=standard'
 ]
 
-add_project_arguments(cc.get_supported_arguments(common_functional_flags), language: 'c')
+cflags += cc.get_supported_arguments(common_functional_flags)
 
 vectorize_cflags = cc.get_supported_arguments(['-ftree-vectorize'])
 unroll_loops_cflags = cc.get_supported_arguments(['-funroll-loops'])
@@ -1449,16 +1452,16 @@ common_warning_flags = [
   '-Wformat-security',
 ]
 
-add_project_arguments(cc.get_supported_arguments(common_warning_flags), language: 'c')
+cflags += cc.get_supported_arguments(common_warning_flags)
 
 if llvm.found()
-  add_project_arguments(cpp.get_supported_arguments(common_warning_flags), language: 'cpp')
+  cxxflags += cpp.get_supported_arguments(common_warning_flags)
 endif
 
 # A few places with imported code get a pass on -Wdeclaration-after-statement, remember
 # the result for them
 if cc.has_argument('-Wdeclaration-after-statement')
-  add_project_arguments('-Wdeclaration-after-statement', language: 'c')
+  cflags += '-Wdeclaration-after-statement'
   using_declaration_after_statement_warning = true
 else
   using_declaration_after_statement_warning = false
@@ -1491,22 +1494,21 @@ negative_warning_flags = [
 
 foreach w : negative_warning_flags
   if cc.has_argument('-W'+w)
-    add_project_arguments('-Wno-'+w, language: 'c')
+    cflags += '-Wno-'+w
   endif
 
   if llvm.found() and cpp.has_argument('-W'+w)
-    add_project_arguments('-Wno-'+w, language: 'cpp')
+    cxxflags += '-Wno-'+w
   endif
 endforeach
 
 
 # From Project.pm
 if cc.get_id() == 'msvc'
-  add_project_arguments('/wd4018', '/wd4244', '/wd4273', '/wd4102', '/wd4090', '/wd4267',
-    language: 'c')
-  add_project_arguments('/DWIN32', '/DWINDOWS', '/D__WINDOWS__', '/D__WIN32__',
-    '/DWIN32_STACK_RLIMIT=4194304', '/D_CRT_SECURE_NO_DEPRECATE', '/D_CRT_NONSTDC_NO_DEPRECATE',
-        language: 'c')
+  cflags += ['/wd4018', '/wd4244', '/wd4273', '/wd4102', '/wd4090', '/wd4267']
+  cflags += ['/DWIN32', '/DWINDOWS', '/D__WINDOWS__', '/D__WIN32__',
+             '/DWIN32_STACK_RLIMIT=4194304', '/D_CRT_SECURE_NO_DEPRECATE',
+             '/D_CRT_NONSTDC_NO_DEPRECATE']
 endif
 
 
@@ -2219,18 +2221,17 @@ if host_machine.system() == 'windows'
 endif
 
 if cc.get_id() == 'msvc'
-  add_project_link_arguments(
-    '/fixed:no',
-    '/dynamicbase',
-    '/nxcompat',
-    language : ['c', 'cpp'],
-  )
+  ldflags += ['/fixed:no','/dynamicbase', '/nxcompat']
 endif
 
 if host_machine.system() == 'windows'
   os_deps += cc.find_library('ws2_32', required: true)
 endif
 
+add_project_arguments(cflags, language: ['c'])
+add_project_arguments(cxxflags, language: ['cpp'])
+add_project_arguments(cbflags, language: ['c', 'cpp'])
+add_project_link_arguments(ldflags, language: ['c', 'cpp'])
 
 
 ###############################################################
