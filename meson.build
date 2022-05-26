@@ -298,8 +298,8 @@ endif
 dir_man = get_option('mandir')
 
 # FIXME: These used to be separately configurable - worth adding?
-dir_doc = dir_data / 'doc' / 'postgresql'
-dir_doc_html = dir_doc / 'html'
+dir_doc = get_option('datadir') / 'doc' / 'postgresql'
+dir_doc_html = dir_doc
 
 dir_locale = get_option('localedir')
 
