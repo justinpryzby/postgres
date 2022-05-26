@@ -13,7 +13,7 @@ pg_regress = executable('pg_regress',
   c_args: pg_regress_cflags,
   dependencies: [frontend_code, libpq],
   kwargs: default_bin_args + {
-    'install': false
+    'install_dir': dir_pgxs / 'src/test/regress',
   },
 )
 

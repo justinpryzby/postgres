@@ -283,6 +283,8 @@ if not (dir_lib_pkg.contains('pgsql') or dir_lib_pkg.contains('postgres'))
   dir_lib_pkg = dir_lib_pkg / pkg
 endif
 
+dir_pgxs = dir_lib_pkg / 'pgxs'
+
 dir_include = get_option('includedir')
 
 dir_include_pkg = dir_include
