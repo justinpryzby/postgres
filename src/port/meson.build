@@ -139,13 +139,13 @@ endif
 # for use in shared libraries
 pgport = {}
 pgport_variants = {
-  'srv' : internal_lib_args + {
+  '_srv' : internal_lib_args + {
     'dependencies': [backend_port_code],
    },
-  'static' : default_lib_args + {
+  '' : default_lib_args + {
     'dependencies': [frontend_port_code],
    },
-  'shlib' : default_lib_args + {
+  '_shlib' : default_lib_args + {
     'pic': true,
     'dependencies': [frontend_port_code],
    },
@@ -161,7 +161,7 @@ foreach name, opts : pgport_variants
       continue
     endif
     c_args = opts.get('c_args', []) + pgport_cflags[cflagname]
-    cflag_libs += static_library('pgport_@0@_@1@'.format(cflagname, name),
+    cflag_libs += static_library('pgport@0@_@1@'.format(name, cflagname),
       sources,
       c_pch: pch_c_h,
       kwargs: opts + {
@@ -172,7 +172,7 @@ foreach name, opts : pgport_variants
     )
   endforeach
 
-  lib = static_library('pgport_@0@'.format(name),
+  lib = static_library('pgport@0@'.format(name),
       pgport_sources,
       link_with: cflag_libs,
       c_pch: pch_c_h,
@@ -183,6 +183,6 @@ foreach name, opts : pgport_variants
   pgport += {name: lib}
 endforeach
 
-pgport_srv = pgport['srv']
-pgport_static = pgport['static']
-pgport_shlib = pgport['shlib']
+pgport_srv = pgport['_srv']
+pgport_static = pgport['']
+pgport_shlib = pgport['_shlib']

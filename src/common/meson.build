@@ -102,15 +102,15 @@ common_sources_frontend_static += files(
 # layering violation, but ...
 pgcommon = {}
 pgcommon_variants = {
-  'srv' : internal_lib_args + {
+  '_srv' : internal_lib_args + {
     'sources': common_sources + [lwlocknames_h],
     'dependencies': [backend_common_code],
    },
-  'static' : default_lib_args + {
+  '' : default_lib_args + {
     'sources': common_sources_frontend_static,
     'dependencies': [frontend_common_code],
    },
-  'shlib' : default_lib_args + {
+  '_shlib' : default_lib_args + {
     'pic': true,
     'sources': common_sources_frontend_shlib,
     'dependencies': [frontend_common_code],
@@ -127,7 +127,7 @@ foreach name, opts : pgcommon_variants
       continue
     endif
     c_args = opts.get('c_args', []) + common_cflags[cflagname]
-    cflag_libs += static_library('pgcommon_@0@_@1@'.format(cflagname, name),
+    cflag_libs += static_library('pgcommon@0@_@1@'.format(name, cflagname),
       c_pch: pch_c_h,
       include_directories: include_directories('.'),
       kwargs: opts + {
@@ -139,7 +139,7 @@ foreach name, opts : pgcommon_variants
     )
   endforeach
 
-  lib = static_library('pgcommon_@0@'.format(name),
+  lib = static_library('pgcommon@0@'.format(name),
       link_with: cflag_libs,
       c_pch: pch_c_h,
       include_directories: include_directories('.'),
@@ -150,8 +150,8 @@ foreach name, opts : pgcommon_variants
   pgcommon += {name: lib}
 endforeach
 
-common_srv = pgcommon['srv']
-common_shlib = pgcommon['shlib']
-common_static = pgcommon['static']
+common_srv = pgcommon['_srv']
+common_shlib = pgcommon['_shlib']
+common_static = pgcommon['']
 
 subdir('unicode')
