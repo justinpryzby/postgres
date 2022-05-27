@@ -12,6 +12,14 @@ subdir('pl')
 subdir('interfaces')
 
 
+### Generate a Makefile.global that's complete enough for PGXS to work.
+#
+# This is somewhat ugly, but allows extensions to only use a single
+# buildsystem across all the supported postgres versions. Once all supported
+# PG versions support meson, we can remove all of this.
+#
+# XXX: Should we make this optional?
+
 pgxs_kv = {
   'PACKAGE_URL': pg_url,
   'PACKAGE_VERSION': pg_version,
@@ -62,7 +70,6 @@ pgxs_kv = {
 
   'CC': ' '.join(cc.cmd_array()),
   'CPP': ' '.join(cc.cmd_array() + ['-E']),
-  'LD': find_program(cc.get_linker_id(), native: true).path(),
   'GCC': cc.get_argument_syntax() == 'gcc' ? 'yes' : 'no',
   'with_gnu_ld': (cc.get_linker_id() in ['ld.bfd', 'ld.gold', 'ld.lld'] ? 'yes' : 'no'),
 
@@ -111,6 +118,11 @@ endif
 
 pgxs_cdata = configuration_data(pgxs_kv)
 
+# FIXME: figure out which platforms we still need the linker "directly" -
+# can't be many?
+
+ld_program = find_program(cc.get_linker_id(), native: true, required: false)
+
 pgxs_bins = {
   'BISON': bison,
   'FLEX': flex,
@@ -122,6 +134,7 @@ pgxs_bins = {
   'TAR': tar,
   'ZSTD': program_zstd,
   'DTRACE': dtrace,
+  'LD': ld_program,
   'install_bin': install_sh,
 }
 foreach b, p : pgxs_bins
