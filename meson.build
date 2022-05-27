@@ -189,7 +189,11 @@ bison_cmd = [bison, bison_flags, '-o', '@OUTPUT0@']
 
 flex_flags = []
 flex_cmd = [flex, '-o', '@OUTPUT0@']
-flex_backup = ['-b', '--backup-file=@OUTPUT@.lex.backup']
+
+# FIXME: --backup-file is only available in unreleased flex (used in
+# Debian). Without it -b just puts lex.backup into CWD - with ninja that's the
+# root build directory. So we need to do all of this in a temporary directory...
+flex_backup = ['-b']
 
 wget = find_program('wget', required: false, native: true)
 wget_flags = ['-O', '@OUTPUT0@', '--no-use-server-timestamps']
