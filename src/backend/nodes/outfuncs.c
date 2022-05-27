@@ -321,6 +321,7 @@ _outPlannedStmt(StringInfo str, const PlannedStmt *node)
 	WRITE_BOOL_FIELD(parallelModeNeeded);
 	WRITE_INT_FIELD(jitFlags);
 	WRITE_NODE_FIELD(planTree);
+	WRITE_NODE_FIELD(partPruneInfos);
 	WRITE_NODE_FIELD(rtable);
 	WRITE_NODE_FIELD(resultRelations);
 	WRITE_NODE_FIELD(appendRelations);
@@ -450,7 +451,7 @@ _outAppend(StringInfo str, const Append *node)
 	WRITE_NODE_FIELD(appendplans);
 	WRITE_INT_FIELD(nasyncplans);
 	WRITE_INT_FIELD(first_partial_plan);
-	WRITE_NODE_FIELD(part_prune_info);
+	WRITE_INT_FIELD(part_prune_index);
 }
 
 static void
@@ -467,7 +468,7 @@ _outMergeAppend(StringInfo str, const MergeAppend *node)
 	WRITE_OID_ARRAY(sortOperators, node->numCols);
 	WRITE_OID_ARRAY(collations, node->numCols);
 	WRITE_BOOL_ARRAY(nullsFirst, node->numCols);
-	WRITE_NODE_FIELD(part_prune_info);
+	WRITE_INT_FIELD(part_prune_index);
 }
 
 static void
@@ -2434,6 +2435,7 @@ _outPlannerGlobal(StringInfo str, const PlannerGlobal *node)
 	WRITE_NODE_FIELD(finalrowmarks);
 	WRITE_NODE_FIELD(resultRelations);
 	WRITE_NODE_FIELD(appendRelations);
+	WRITE_NODE_FIELD(partPruneInfos);
 	WRITE_NODE_FIELD(relationOids);
 	WRITE_NODE_FIELD(invalItems);
 	WRITE_NODE_FIELD(paramExecTypes);
@@ -2501,6 +2503,7 @@ _outPlannerInfo(StringInfo str, const PlannerInfo *node)
 	WRITE_BITMAPSET_FIELD(curOuterRels);
 	WRITE_NODE_FIELD(curOuterParams);
 	WRITE_BOOL_FIELD(partColsUpdated);
+	WRITE_NODE_FIELD(partPruneInfos);
 }
 
 static void

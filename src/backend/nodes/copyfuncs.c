@@ -96,6 +96,7 @@ _copyPlannedStmt(const PlannedStmt *from)
 	COPY_SCALAR_FIELD(parallelModeNeeded);
 	COPY_SCALAR_FIELD(jitFlags);
 	COPY_NODE_FIELD(planTree);
+	COPY_NODE_FIELD(partPruneInfos);
 	COPY_NODE_FIELD(rtable);
 	COPY_NODE_FIELD(resultRelations);
 	COPY_NODE_FIELD(appendRelations);
@@ -253,7 +254,7 @@ _copyAppend(const Append *from)
 	COPY_NODE_FIELD(appendplans);
 	COPY_SCALAR_FIELD(nasyncplans);
 	COPY_SCALAR_FIELD(first_partial_plan);
-	COPY_NODE_FIELD(part_prune_info);
+	COPY_SCALAR_FIELD(part_prune_index);
 
 	return newnode;
 }
@@ -281,7 +282,7 @@ _copyMergeAppend(const MergeAppend *from)
 	COPY_POINTER_FIELD(sortOperators, from->numCols * sizeof(Oid));
 	COPY_POINTER_FIELD(collations, from->numCols * sizeof(Oid));
 	COPY_POINTER_FIELD(nullsFirst, from->numCols * sizeof(bool));
-	COPY_NODE_FIELD(part_prune_info);
+	COPY_SCALAR_FIELD(part_prune_index);
 
 	return newnode;
 }

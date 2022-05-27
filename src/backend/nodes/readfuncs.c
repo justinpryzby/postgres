@@ -1817,6 +1817,7 @@ _readPlannedStmt(void)
 	READ_BOOL_FIELD(parallelModeNeeded);
 	READ_INT_FIELD(jitFlags);
 	READ_NODE_FIELD(planTree);
+	READ_NODE_FIELD(partPruneInfos);
 	READ_NODE_FIELD(rtable);
 	READ_NODE_FIELD(resultRelations);
 	READ_NODE_FIELD(appendRelations);
@@ -1949,7 +1950,7 @@ _readAppend(void)
 	READ_NODE_FIELD(appendplans);
 	READ_INT_FIELD(nasyncplans);
 	READ_INT_FIELD(first_partial_plan);
-	READ_NODE_FIELD(part_prune_info);
+	READ_INT_FIELD(part_prune_index);
 
 	READ_DONE();
 }
@@ -1971,7 +1972,7 @@ _readMergeAppend(void)
 	READ_OID_ARRAY(sortOperators, local_node->numCols);
 	READ_OID_ARRAY(collations, local_node->numCols);
 	READ_BOOL_ARRAY(nullsFirst, local_node->numCols);
-	READ_NODE_FIELD(part_prune_info);
+	READ_INT_FIELD(part_prune_index);
 
 	READ_DONE();
 }

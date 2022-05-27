@@ -107,6 +107,9 @@ typedef struct PlannerGlobal
 
 	List	   *appendRelations;	/* "flat" list of AppendRelInfos */
 
+	List	   *partPruneInfos;		/* List of PartitionPruneInfo contained in
+									 * the plan */
+
 	List	   *relationOids;	/* OIDs of relations the plan depends on */
 
 	List	   *invalItems;		/* other dependencies, as PlanInvalItems */
@@ -378,6 +381,9 @@ struct PlannerInfo
 
 	/* Does this query modify any partition key columns? */
 	bool		partColsUpdated;
+
+	/* PartitionPruneInfos added in this query's plan. */
+	List	   *partPruneInfos;
 };
 
 

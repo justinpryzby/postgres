@@ -64,6 +64,9 @@ typedef struct PlannedStmt
 
 	struct Plan *planTree;		/* tree of Plan nodes */
 
+	List	   *partPruneInfos;	/* List of PartitionPruneInfo contained in
+								 * the plan */
+
 	List	   *rtable;			/* list of RangeTblEntry nodes */
 
 	/* rtable indexes of target relations for INSERT/UPDATE/DELETE */
@@ -262,8 +265,8 @@ typedef struct Append
 	 */
 	int			first_partial_plan;
 
-	/* Info for run-time subplan pruning; NULL if we're not doing that */
-	struct PartitionPruneInfo *part_prune_info;
+	/* Index to PlannerInfo.partPruneInfos or -1 if no run-time pruning */
+	int			part_prune_index;
 } Append;
 
 /* ----------------
@@ -282,8 +285,9 @@ typedef struct MergeAppend
 	Oid		   *sortOperators;	/* OIDs of operators to sort them by */
 	Oid		   *collations;		/* OIDs of collations */
 	bool	   *nullsFirst;		/* NULLS FIRST/LAST directions */
-	/* Info for run-time subplan pruning; NULL if we're not doing that */
-	struct PartitionPruneInfo *part_prune_info;
+
+	/* Index to PlannerInfo.partPruneInfos or -1 if no run-time pruning */
+	int			part_prune_index;
 } MergeAppend;
 
 /* ----------------
