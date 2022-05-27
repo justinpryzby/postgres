@@ -68,6 +68,7 @@ endif
 
 pg_version_major = pg_version_arr[0].to_int()
 pg_version_minor = pg_version_arr[1].to_int()
+pg_version_num = (pg_version_major*10000)+pg_version_minor
 
 cc = meson.get_compiler('c')
 
@@ -87,7 +88,7 @@ cdata.set_quoted('PG_VERSION_STR', 'PostgreSQL @0@ on @1@, compiled by @2@-@3@'.
 cdata.set_quoted('PG_MAJORVERSION', pg_version_major.to_string())
 cdata.set('PG_MAJORVERSION_NUM', pg_version_major)
 cdata.set('PG_MINORVERSION_NUM', pg_version_minor)
-cdata.set('PG_VERSION_NUM', (pg_version_major*10000)+pg_version_minor)
+cdata.set('PG_VERSION_NUM', pg_version_num)
 cdata.set_quoted('CONFIGURE_ARGS', '')
 
 
@@ -170,6 +171,9 @@ dtrace = find_program(get_option('DTRACE'), required: get_option('dtrace'))
 
 # Internal programs
 testwrap = find_program('src/tools/testwrap', native: true)
+
+# used by PGXS
+install_sh = find_program('config/install-sh', native: true)
 
 bison_flags = []
 if bison.found()
@@ -2194,15 +2198,19 @@ endif
 
 if host_machine.system() == 'aix'
   dlsuffix = '.so'
+  exesuffix = ''
   export_file_format = 'aix'
 elif host_machine.system() == 'darwin'
   dlsuffix = '.dylib'
+  exesuffix = ''
   export_file_format = 'darwin'
 elif host_machine.system() == 'windows'
   dlsuffix = '.dll'
+  exesuffix = '.exe'
   export_file_format = ''
 else
   dlsuffix = '.so'
+  exesuffix = ''
   export_file_format = 'gnu'
 endif
 
@@ -2404,6 +2412,7 @@ generated_backend_headers = []
 
 subdir('src/include')
 
+subdir('config')
 
 # Then through src/port and src/common, as most other things depend on them
 
