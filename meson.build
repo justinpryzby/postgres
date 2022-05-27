@@ -2044,6 +2044,18 @@ cdata.set('pg_restrict', '__restrict')
 
 cdata.set('MEMSET_LOOP_LIMIT', 1024)
 
+# XXX: We probably can just rely on this existing in supported windows versions?
+if host_machine.system() == 'windows' and \
+  cc.has_type('MINIDUMP_TYPE', prefix: '''
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <string.h>
+#include <dbghelp.h>
+''',
+  args: g_c_args, include_directories: g_c_inc)
+  cdata.set('HAVE_MINIDUMP_TYPE', true)
+endif
+
 
 if cc.links('''
 #include <machine/vmparam.h>
