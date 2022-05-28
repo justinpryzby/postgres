@@ -22,6 +22,7 @@ guc_scan = custom_target('guc_scan',
 
 backend_build_deps += declare_dependency(sources: [guc_scan],
   include_directories: include_directories('.'))
+generated_backend_headers += guc_scan
 
 install_data('postgresql.conf.sample',
   install_dir: dir_data,
