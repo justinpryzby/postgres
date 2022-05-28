@@ -459,13 +459,14 @@ if not llvmopt.disabled()
       '-c', '-o', '@OUTPUT@', '@INPUT@',
       '-flto=thin', '-emit-llvm',
       '-MD', '-MQ', '@OUTPUT@', '-MF', '@DEPFILE@',
-      '-I', '@SOURCE_ROOT@/src/include',
-      '-I', '@BUILD_ROOT@/src/include',
-      '-I', '@BUILD_ROOT@/src/backend/utils/misc',
-      '-I', '@CURRENT_SOURCE_DIR@',
+      '-I@SOURCE_ROOT@/src/include',
+      '-I@BUILD_ROOT@/src/include',
+      '-I@BUILD_ROOT@/src/backend/utils/misc',
+      '-I@CURRENT_SOURCE_DIR@',
       '-O2',
       '-Wno-ignored-attributes',
       '-Wno-empty-body',
+      g_c_args
     ]
 
     if ccache.found()
@@ -485,11 +486,10 @@ if not llvmopt.disabled()
     llvm_irlink_kw = {
       'command':[
         irlink,
-        '@SOURCE_ROOT@',
-        '@BUILD_ROOT@',
-        llvm_lto,
-        '-o', '@OUTPUT0@',
-        '@PRIVATE_DIR@',
+        '--name', 'postgres',
+        '--lto', llvm_lto,
+        '--outdir', '@OUTPUT0@',
+        '--privdir', '@PRIVATE_DIR@',
         '@INPUT@',
       ],
       'install': true,

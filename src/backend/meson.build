@@ -208,20 +208,19 @@ if llvm.found()
     install: false)
 
   llvm_gen = generator(llvm_irgen_command,
-    arguments: llvm_irgen_args + g_c_args,
+    arguments: llvm_irgen_args,
     depends: transitive_depend_target,
     depfile: '@BASENAME@.c.bc.d',
-    output: ['@PLAINNAME@.bc']
+    output: '@PLAINNAME@.bc',
   )
 
   bc_backend_sources = llvm_gen.process(backend_sources,
     preserve_path_from: meson.current_source_dir())
 
-  postgres_llvm = custom_target('postgres.index.bc',
-    kwargs: llvm_irlink_kw + {
-      'input': bc_backend_sources,
-      'output': ['bitcode'],
-      },
+  postgres_llvm = custom_target('bitcode',
+    output: ['bitcode'],
+    input: bc_backend_sources,
+    kwargs: llvm_irlink_kw,
   )
 
   backend_targets += postgres_llvm
