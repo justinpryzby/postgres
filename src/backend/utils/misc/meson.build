@@ -18,7 +18,7 @@ backend_sources += files(
 guc_scan = custom_target('guc_scan',
   input: ['guc-file.l'],
   output: ['guc-file.c.h'],
-  command: [flex, '-o', '@OUTPUT@', '@INPUT@'])
+  command: [flex_cmd, '@INPUT@'])
 
 backend_build_deps += declare_dependency(sources: [guc_scan],
   include_directories: include_directories('.'))
