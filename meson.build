@@ -313,7 +313,7 @@ dir_locale = get_option('localedir')
 
 
 # Derived values
-dir_bitcode = dir_lib / 'bitcode'
+dir_bitcode = dir_lib_pkg / 'bitcode'
 dir_include_internal = dir_include_pkg / 'internal'
 dir_include_server = dir_include_pkg / 'server'
 dir_include_extension = dir_include_server / 'extension'

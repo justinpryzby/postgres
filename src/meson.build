@@ -104,7 +104,7 @@ pgxs_kv = {
 
 if llvm.found()
   pgxs_kv += {
-    'CLANG': clang.full_path(),
+    'CLANG': clang.path(),
     'CXX': ' '.join(cpp.cmd_array()),
     'LLVM_BINPATH': llvm_binpath,
   }
