@@ -11,6 +11,6 @@ ecpg_compat = both_libraries('ecpg_compat',
 pkgconfig.generate(
   ecpg_compat.get_shared_lib(),
   name: 'libecpg_compat',
-  description: 'PostgreSQL ecpg_compat library',
+  description: 'PostgreSQL libecpg_compat library',
   url: pg_url,
 )
