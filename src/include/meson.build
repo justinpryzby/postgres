@@ -37,6 +37,24 @@ config_paths_data.set_quoted('DOCDIR', dir_prefix / dir_doc)
 config_paths_data.set_quoted('HTMLDIR', dir_prefix / dir_doc_html)
 config_paths_data.set_quoted('MANDIR', dir_prefix / dir_man)
 
+
+var_cc = ' '.join(cc.cmd_array())
+var_cpp = ' '.join(g_c_args)
+var_cflags = ' '.join(cbflags + cflags)
+var_cxxflags = ' '.join(cbflags + cxxflags)
+var_cppflags = ' '.join(g_c_args)
+var_cflags_sl = '-fPIC' #FIXME
+var_ldflags = ' '.join(ldflags)
+# FIXME:
+var_ldflags_sl = ''
+var_ldflags_ex = ''
+# FIXME - some extensions might directly use symbols from one of libs. If
+# that symbol isn't used by postgres, and statically linked, it'll cause an
+# undefined symbol at runtime. And obviously it'll cause problems for
+# executables, although those are probably less common.
+var_libs = ''
+
+
 configure_file(
   output: 'pg_config_paths.h',
   configuration: config_paths_data,

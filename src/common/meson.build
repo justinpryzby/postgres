@@ -3,7 +3,6 @@ common_sources = files(
   'base64.c',
   'checksum_helper.c',
   'compression.c',
-  'config_info.c',
   'controldata_utils.c',
   'encnames.c',
   'exec.c',
@@ -69,8 +68,28 @@ if using_declaration_after_statement_warning
   ryu_cflags += ['-Wno-declaration-after-statement']
 endif
 
-common_cflags = {'ryu': ryu_cflags}
-common_sources_cflags = {'ryu': ryu_sources}
+config_info_sources = files('config_info.c',)
+config_info_cflags = [
+  '-DVAL_CC="@0@"'.format(var_cc),
+  '-DVAL_CPPFLAGS="@0@"'.format(var_cppflags),
+  '-DVAL_CFLAGS="@0@"'.format(var_cflags),
+  '-DVAL_CFLAGS_SL="@0@"'.format(var_cflags_sl),
+  '-DVAL_LDFLAGS="@0@"'.format(var_ldflags),
+  '-DVAL_LDFLAGS_EX="@0@"'.format(var_ldflags_ex),
+  '-DVAL_LDFLAGS_SL="@0@"'.format(var_ldflags_sl),
+  '-DVAL_LIBS="@0@"'.format(var_libs),
+]
+
+# Some files need to be built with different cflags. The different sets are
+# defined here.
+common_cflags = {
+  'ryu': ryu_cflags,
+  'config_info': config_info_cflags,
+}
+common_sources_cflags = {
+  'ryu': ryu_sources,
+  'config_info': config_info_sources
+}
 
 
 # A few files are currently only built for frontend, not server

@@ -68,15 +68,15 @@ pgxs_kv = {
   # improve that later.
   'MKDIR_P': ' '.join([install_sh.path(), '-d']),
 
-  'CC': ' '.join(cc.cmd_array()),
-  'CPP': ' '.join(cc.cmd_array() + ['-E']),
+  'CC': var_cc,
+  'CPP': var_cpp,
   'GCC': cc.get_argument_syntax() == 'gcc' ? 'yes' : 'no',
   'with_gnu_ld': (cc.get_linker_id() in ['ld.bfd', 'ld.gold', 'ld.lld'] ? 'yes' : 'no'),
 
-  'CFLAGS': ' '.join(cbflags + cflags),
-  'CPPFLAGS': ' '.join(g_c_args),
-  'CXXFLAGS': ' '.join(cbflags + cxxflags),
-  'CFLAGS_SL': '-fPIC', #FIXME
+  'CFLAGS': var_cflags,
+  'CPPFLAGS': var_cppflags,
+  'CXXFLAGS': var_cxxflags,
+  'CFLAGS_SL': var_cflags_sl,
   'CFLAGS_SL_MOD': cdata.has('HAVE_VISIBILITY_ATTRIBUTE') ? '-fvisibility=hidden' : '',
   'CFLAGS_SSE42': ' '.join(cflags_crc),
   'CFLAGS_UNROLL_LOOPS': ' '.join(unroll_loops_cflags),
@@ -87,19 +87,14 @@ pgxs_kv = {
   'BITCODE_CFLAGS': '',
   'BITCODE_CXXFLAGS': '',
 
-  # FIXME:
-  'LDFLAGS': ' '.join(ldflags),
-  'LDFLAGS_EX': '',
-  'LDFLAGS_SL': '',
+  'LDFLAGS': var_ldflags,
+  'LDFLAGS_EX': var_ldflags_ex,
+  'LDFLAGS_SL': var_ldflags_sl,
 
   'BISONFLAGS': ' '.join(bison_flags),
   'FLEXFLAGS': ' '.join(flex_flags),
 
-  # FIXME - some extensions might directly use symbols from one of libs. If
-  # that symbol isn't used by postgres, and statically linked, it'll cause an
-  # undefined symbol at runtime. And obviously it'll cause problems for
-  # executables, although those are probably less common.
-  'LIBS': '',
+  'LIBS': var_libs,
 }
 
 if llvm.found()
