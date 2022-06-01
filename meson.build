@@ -389,7 +389,13 @@ if not ldapopt.disabled()
     ldap = cc.find_library('wldap32')
     ldap_r = ldap
   else
-    ldap = dependency('ldap', required: false)
+    # macos framework dependency is buggy for ldap (one can argue
+    # whether it's Apple's or meson's fault), leading to an endless
+    # recursion with ldap.h including itself. See
+    # https://github.com/mesonbuild/meson/issues/10002
+    # Luckily we only need pkg-config support, so the workaround isn't
+    # too complicated
+    ldap = dependency('ldap', method: 'pkg-config', required: false)
 
     # Before 2.5 openldap didn't have a pkg-config file..
     if ldap.found()
