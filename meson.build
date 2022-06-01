@@ -1162,7 +1162,7 @@ int main(int argc, char **argv)
 if not cc.compiles(c99_test, name: 'c99', args: g_c_args)
   if cc.compiles(c99_test, name: 'c99 with -std=c99', args: g_c_args + ['-std=c99'])
     g_c_args += '-std=c99'
-    cbflags += '-std=c99'
+    cflags += '-std=c99'
   else
     error('C compiler does not support C99')
   endif
