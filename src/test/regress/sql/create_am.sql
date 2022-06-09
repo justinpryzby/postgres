@@ -184,10 +184,13 @@ CREATE TABLE am_partitioned(x INT, y INT)
 CREATE TABLE am_partitioned_1 PARTITION OF am_partitioned FOR VALUES WITH (MODULUS 3,REMAINDER 0);
 CREATE TABLE am_partitioned_2 PARTITION OF am_partitioned FOR VALUES WITH (MODULUS 3,REMAINDER 1);
 ALTER TABLE am_partitioned_1 SET ACCESS METHOD heap2;
-ALTER TABLE am_partitioned SET ACCESS METHOD heap2;
+ALTER TABLE ONLY am_partitioned SET ACCESS METHOD heap2;
 CREATE TABLE am_partitioned_3 PARTITION OF am_partitioned FOR VALUES WITH (MODULUS 3,REMAINDER 2);
 SELECT relname, amname FROM pg_class c, pg_am am
   WHERE c.relam = am.oid AND c.relname LIKE 'am_partitioned%' ORDER BY 1;
+ALTER TABLE am_partitioned SET ACCESS METHOD heap;
+SELECT relname, amname FROM pg_class c, pg_am am
+WHERE c.relam = am.oid AND c.relname LIKE 'am_partitioned%' ORDER BY 1;
 DROP TABLE am_partitioned;
 
 -- Second, create objects in the new AM by changing the default AM
