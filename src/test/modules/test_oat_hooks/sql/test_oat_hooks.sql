@@ -36,6 +36,7 @@ REVOKE ALL ON PARAMETER "none.such" FROM PUBLIC;
 
 -- Create objects for use in the test
 CREATE USER regress_test_user;
+CREATE EXTENSION test_ext1;
 CREATE TABLE regress_test_table (t text);
 GRANT SELECT ON Table regress_test_table TO public;
 CREATE FUNCTION regress_test_func (t text) RETURNS text AS $$
@@ -92,6 +93,8 @@ RESET SESSION AUTHORIZATION;
 
 SET test_oat_hooks.audit = false;
 DROP ROLE regress_role_joe;  -- fails
+DROP EXTENSION test_ext1;
+DROP TABLE regress_test_table;
 REVOKE ALL PRIVILEGES ON PARAMETER
 	none.such, another.bogus,
 	test_oat_hooks.user_var1, test_oat_hooks.super_var1,
