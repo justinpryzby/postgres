@@ -625,7 +625,7 @@ task:
     cp -r doc new-docs
 
     # Build HTML docs from the base commit.
-    BASE_BRANCH=`git log -1 |sed '/^Base-Branch: /!d; s///; q'`
+    BASE_BRANCH=`git log -1 |sed '/^ *Base-Branch: /!d; s///; q'`
     git checkout "$BASE_BRANCH" -- doc
     #html-stamp
     make -s -C doc clean
