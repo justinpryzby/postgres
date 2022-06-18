@@ -2786,6 +2786,10 @@ include_dir 'conf.d'
         <literal>minimal</literal> makes any base backups taken before
         unavailable for archive recovery and standby server, which may
         lead to data loss.
+        A precondition for using minimal WAL is to disable WAL archiving and
+        streaming replication by setting <varname>archive_mode</varname> to
+        <literal>off</literal>, and <xref linkend="guc-max-wal-senders"/> to
+        <literal>0</literal>.
        </para>
        <para>
         In <literal>logical</literal> level, the same information is logged as
@@ -3551,6 +3555,7 @@ include_dir 'conf.d'
         mode. In <literal>always</literal> mode, all files restored from the archive
         or streamed with streaming replication will be archived (again). See
         <xref linkend="continuous-archiving-in-standby"/> for details.
+        The default value is <literal>off</literal>.
        </para>
        <para>
         This parameter can only be set at server start.
@@ -4177,7 +4182,9 @@ restore_command = 'copy "C:\\server\\archivedir\\%f" "%p"'  # Windows
         reconnect.  This parameter can only be set at server start.  Also,
         <varname>wal_level</varname> must be set to
         <literal>replica</literal> or higher to allow connections from standby
-        servers.
+        servers.  If setting <varname>max_wal_senders</varname> to
+        <literal>0</literal> consider also reducing the amount of WAL produced
+        by changing <varname>wal_level</varname> to <literal>minimal</literal>.
        </para>
 
        <para>
