@@ -3444,10 +3444,20 @@ _equalPartitionRangeDatum(const PartitionRangeDatum *a, const PartitionRangeDatu
 }
 
 static bool
+_equalSinglePartitionSpec(const SinglePartitionSpec *a, const SinglePartitionSpec *b)
+{
+	COMPARE_NODE_FIELD(name);
+	COMPARE_NODE_FIELD(bound);
+
+	return true;
+}
+
+static bool
 _equalPartitionCmd(const PartitionCmd *a, const PartitionCmd *b)
 {
 	COMPARE_NODE_FIELD(name);
 	COMPARE_NODE_FIELD(bound);
+	COMPARE_NODE_FIELD(partlist);
 	COMPARE_SCALAR_FIELD(concurrent);
 
 	return true;
@@ -4362,6 +4372,9 @@ equal(const void *a, const void *b)
 			break;
 		case T_PartitionRangeDatum:
 			retval = _equalPartitionRangeDatum(a, b);
+			break;
+		case T_SinglePartitionSpec:
+			retval = _equalSinglePartitionSpec(a, b);
 			break;
 		case T_PartitionCmd:
 			retval = _equalPartitionCmd(a, b);

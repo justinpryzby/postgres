@@ -5350,6 +5350,17 @@ _copyPartitionRangeDatum(const PartitionRangeDatum *from)
 	return newnode;
 }
 
+static SinglePartitionSpec *
+_copySinglePartitionSpec(const SinglePartitionSpec *from)
+{
+	SinglePartitionSpec *newnode = makeNode(SinglePartitionSpec);
+
+	COPY_NODE_FIELD(name);
+	COPY_NODE_FIELD(bound);
+
+	return newnode;
+}
+
 static PartitionCmd *
 _copyPartitionCmd(const PartitionCmd *from)
 {
@@ -5357,6 +5368,7 @@ _copyPartitionCmd(const PartitionCmd *from)
 
 	COPY_NODE_FIELD(name);
 	COPY_NODE_FIELD(bound);
+	COPY_NODE_FIELD(partlist);
 	COPY_SCALAR_FIELD(concurrent);
 
 	return newnode;
@@ -6559,6 +6571,9 @@ copyObjectImpl(const void *from)
 			break;
 		case T_PartitionRangeDatum:
 			retval = _copyPartitionRangeDatum(from);
+			break;
+		case T_SinglePartitionSpec:
+			retval = _copySinglePartitionSpec(from);
 			break;
 		case T_PartitionCmd:
 			retval = _copyPartitionCmd(from);

@@ -504,6 +504,7 @@ typedef enum NodeTag
 	T_PartitionSpec,
 	T_PartitionBoundSpec,
 	T_PartitionRangeDatum,
+	T_SinglePartitionSpec,
 	T_PartitionCmd,
 	T_VacuumRelation,
 	T_PublicationObjSpec,
