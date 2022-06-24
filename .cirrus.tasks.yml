@@ -128,9 +128,9 @@ task:
   env:
     # FreeBSD on GCP is slow when running with larger number of CPUS /
     # jobs. Using one more job than cpus seems to work best.
-    CPUS: 2
-    BUILD_JOBS: 3
-    TEST_JOBS: 3
+    CPUS: 4
+    BUILD_JOBS: 4
+    TEST_JOBS: 6
     IMAGE_FAMILY: pg-ci-freebsd-13
     DISK_SIZE: 50
 
@@ -151,8 +151,6 @@ task:
 
   ccache_cache:
     folder: $CCACHE_DIR
-  # Work around performance issues due to 32KB block size
-  repartition_script: src/tools/ci/gcp_freebsd_repartition.sh
   create_user_script: |
     pw useradd postgres
     chown -R postgres:postgres .
@@ -166,8 +164,7 @@ task:
     #pkg install -y ...
 
   # NB: Intentionally build without -Dllvm. The freebsd image size is already
-  # large enough to make VM startup slow, and even without llvm freebsd
-  # already takes longer than other platforms except for windows.
+  # large enough to make VM startup slow.
   configure_script: |
     su postgres <<-EOF
       meson setup \
