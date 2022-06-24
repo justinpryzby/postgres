@@ -49,11 +49,9 @@ task:
   name: FreeBSD - 13
 
   env:
-    # FreeBSD on GCP is slow when running with larger number of CPUS /
-    # jobs. Using one more job than cpus seems to work best.
-    CPUS: 2
-    BUILD_JOBS: 3
-    TEST_JOBS: 3
+    CPUS: 4
+    BUILD_JOBS: 4
+    TEST_JOBS: 6
 
     CCACHE_DIR: /tmp/ccache_dir
 
@@ -64,7 +62,7 @@ task:
     image: family/pg-ci-freebsd-13-0
     platform: freebsd
     cpu: $CPUS
-    memory: 2G
+    memory: 3G
     disk: 50
 
   sysinfo_script: |
