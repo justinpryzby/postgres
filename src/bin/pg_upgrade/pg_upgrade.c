@@ -184,19 +184,6 @@ main(int argc, char **argv)
 								 old_cluster.pgdata, new_cluster.pgdata);
 
 	/*
-	 * Assuming OIDs are only used in system tables, there is no need to
-	 * restore the OID counter because we have not transferred any OIDs from
-	 * the old system, but we do it anyway just in case.  We do it late here
-	 * because there is no need to have the schema load use new oids.
-	 */
-	prep_status("Setting next OID for new cluster");
-	exec_prog(UTILITY_LOG_FILE, NULL, true, true,
-			  "\"%s/pg_resetwal\" -o %u \"%s\"",
-			  new_cluster.bindir, old_cluster.controldata.chkpnt_nxtoid,
-			  new_cluster.pgdata);
-	check_ok();
-
-	/*
 	 * Migrate the logical slots to the new cluster.  Note that we need to do
 	 * this after resetting WAL because otherwise the required WAL would be
 	 * removed and slots would become unusable.  There is a possibility that
