@@ -570,8 +570,7 @@ GetNewObjectId(void)
 	 *
 	 * During initdb, we start the OID generator at FirstGenbkiObjectId, so we
 	 * only wrap if before that point when in bootstrap or standalone mode.
-	 * The first time through this routine after normal postmaster start, the
-	 * counter will be forced up to FirstNormalObjectId.  This mechanism
+	 * This mechanism
 	 * leaves the OIDs between FirstGenbkiObjectId and FirstNormalObjectId
 	 * available for automatic assignment during initdb, while ensuring they
 	 * will never conflict with user-assigned OIDs.
