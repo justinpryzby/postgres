@@ -466,8 +466,7 @@ parse_compress_options(const char *option, char **algorithm, char **detail)
 		char	   *alg;
 
 		alg = palloc((sep - option) + 1);
-		memcpy(alg, option, sep - option);
-		alg[sep - option] = '\0';
+		strlcpy(alg, option, sep - option + 1);
 
 		*algorithm = alg;
 		*detail = pstrdup(sep + 1);
