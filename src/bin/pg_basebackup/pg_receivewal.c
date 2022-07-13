@@ -107,7 +107,6 @@ usage(void)
 	printf(_("%s home page: <%s>\n"), PACKAGE_NAME, PACKAGE_URL);
 }
 
-
 /*
  * Check if the filename looks like a WAL file, letting caller know if this
  * WAL segment is partial and/or compressed.
