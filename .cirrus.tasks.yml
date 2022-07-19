@@ -730,6 +730,7 @@ task:
   name: CompilerWarnings
 
   # To limit unnecessary work, only run this after success of the SanityCheck.
+  # XXX And avoid running all 8 allowed linux CPUs at once.
   # This is particularly important for this task as we intentionally
   # use always: to continue after failures. Task that did not run count as a
   # success, so we need to recheck SanityChecks's condition here ...
@@ -740,8 +741,9 @@ task:
 
   env:
     CPUS: 4
-    BUILD_JOBS: 4
+    BUILD_JOBS: ${CPUS}
     IMAGE_FAMILY: pg-ci-bookworm
+    TEST_JOBS: 4
 
     # Use larger ccache cache, as this task compiles with multiple compilers /
     # flag combinations.  The cache size is set high now, and manually pruned later,
@@ -757,6 +759,11 @@ task:
     LLVM_CONFIG: llvm-config-16
 
   <<: *linux_task_template
+  ccache_cache:
+    *ccache
+
+  ccache_stats_start_script:
+    ccache -s
 
   sysinfo_script: |
     id
@@ -767,15 +774,16 @@ task:
     clang -v
     export
 
-  ccache_cache:
-    *ccache
-
   #setup_additional_packages_script: |
     #apt-get update
     #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
 
-  ccache_stats_start_script:
-    ccache -s
+  create_user_script: |
+    useradd -m postgres -d /tmp/cirrus-ci-build
+    # Can't change container's kernel.core_pattern. Postgres user can't write
+    # to / normally. Change that.
+    chown root:postgres /
+    chmod g+rwx /
 
   ###
   # Test that code can be built with gcc/clang without warnings
@@ -849,6 +857,12 @@ task:
       CCACHE_MAXSIZE=1G ccache --cleanup
       ccache --show-log-stats
 
+    ccache_stats_end_script:
+      ccache -s
+      ccache --show-log-stats
+      CCACHE_MAXSIZE=2G ccache --cleanup
+    upload_caches: ccache
+
   ###
   # Verify docs can be built, and upload changed docs as artifacts
   ###
@@ -891,6 +905,17 @@ task:
     html_docs_artifacts:
       paths: ['html_docs/*.html', 'html_docs/*.png', 'html_docs/*.css']
 
+    gcc_check_script: |
+      mkdir -p tmp
+      chown -R postgres:postgres .
+      su postgres -c "meson test $MTEST_ARGS -C build.gcc --num-processes $TEST_JOBS"
+      rm -r build.gcc
+
+    clang_check_script: |
+      chown -R postgres:postgres .
+      PG_TEST_EXTRA='ssl' # Disable ldap and kerberos
+      su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS"
+      rm -r build.clang
 
     ###
     # Verify headerscheck / cpluspluscheck succeed
@@ -910,9 +935,6 @@ task:
       cd build-ninja
       meson compile src/cpluspluscheck
 
-    ccache_stats_end_script:
-      ccache -s
-      ccache --show-log-stats
-      CCACHE_MAXSIZE=2G ccache --cleanup
-
-    upload_caches: ccache
+    on_failure:
+      <<: *on_failure_meson
+    cores_script: src/tools/ci/cores_backtrace.sh linux /tmp/cores
