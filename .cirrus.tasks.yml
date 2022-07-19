@@ -711,8 +711,8 @@ task:
   # different compilers to build with different combinations of dtrace on/off
   # and cassert on/off.
 
-  # gcc, cassert off, dtrace on
   always:
+    # gcc, cassert off, dtrace on
     gcc_warning_script: |
       time ./configure \
         --cache gcc.cache \
@@ -722,8 +722,7 @@ task:
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} world-bin
 
-  # gcc, cassert on, dtrace off
-  always:
+    # gcc, cassert on, dtrace off
     gcc_a_warning_script: |
       time ./configure \
         --cache gcc.cache \
@@ -733,8 +732,7 @@ task:
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} world-bin
 
-  # clang, cassert off, dtrace off
-  always:
+    # clang, cassert off, dtrace off
     clang_warning_script: |
       time ./configure \
         --cache clang.cache \
@@ -743,8 +741,7 @@ task:
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} world-bin
 
-  # clang, cassert on, dtrace on
-  always:
+    # clang, cassert on, dtrace on
     clang_a_warning_script: |
       time ./configure \
         --cache clang.cache \
@@ -755,8 +752,7 @@ task:
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} world-bin
 
-  # cross-compile to windows
-  always:
+    # cross-compile to windows
     mingw_cross_warning_script: |
       time ./configure \
         --host=x86_64-w64-mingw32 \
@@ -771,7 +767,6 @@ task:
   # Verify docs can be built, and upload changed docs as artifacts
   ###
   # XXX: Only do this if there have been changes in doc/ since last build
-  always:
     docs_build_script: |
       mkdir build-autoconf
       cd build-autoconf
@@ -813,16 +808,15 @@ task:
       paths: ['html_docs/*.html', 'html_docs/*.png', 'html_docs/*.css']
 
 
-  ###
-  # Verify headerscheck / cpluspluscheck succeed
-  #
-  # - Don't use ccache, the files are uncacheable, polluting ccache's
-  #   cache
-  # - Use -fmax-errors, as particularly cpluspluscheck can be very verbose
-  # - XXX have to disable ICU to avoid errors:
-  #   https://postgr.es/m/20220323002024.f2g6tivduzrktgfa%40alap3.anarazel.de
-  ###
-  always:
+    ###
+    # Verify headerscheck / cpluspluscheck succeed
+    #
+    # - Don't use ccache, the files are uncacheable, polluting ccache's
+    #   cache
+    # - Use -fmax-errors, as particularly cpluspluscheck can be very verbose
+    # - XXX have to disable ICU to avoid errors:
+    #   https://postgr.es/m/20220323002024.f2g6tivduzrktgfa%40alap3.anarazel.de
+    ###
     headers_headerscheck_script: |
       time ./configure \
         ${LINUX_CONFIGURE_FEATURES} \
@@ -834,5 +828,4 @@ task:
     headers_cpluspluscheck_script: |
       time make -s cpluspluscheck EXTRAFLAGS='-fmax-errors=10'
 
-  always:
     upload_caches: ccache
