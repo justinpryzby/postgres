@@ -43,7 +43,30 @@ cirrus_community_vm_template: &cirrus_community_vm_template
 default_linux_task_template: &linux_task_template
   env:
     PLATFORM: linux
+
   <<: *cirrus_community_vm_template
+  compute_engine_instance:
+    platform: linux
+    image_project: debian-cloud
+    image: family/debian-12 # bookworm
+
+  apt_cache:
+    folder: /var/cache/apt
+    fingerprint_key: ccache/warnings/apt
+    reupload_on_changes: true
+
+  setup_additional_packages_script: |
+    rm -f /etc/apt/apt.conf.d/docker-clean
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install build-essential ccache flex bison meson ninja-build git \
+      xsltproc docbook-xsl docbook-xml \
+      openssl libssl-dev libxml2-utils libreadline-dev uuid-dev zlib1g-dev \
+      clang mingw-w64 libz-mingw-w64-dev pkg-config libxslt1-dev liblz4-dev libzstd-dev libldap2-dev libsystemd-dev systemtap-sdt-dev \
+      llvm-dev libicu-dev icu-devtools libpython3-dev libperl-dev tcl-dev libkrb5-dev libpam0g-dev libselinux1-dev \
+      gcc-multilib
+    apt-get autoclean
+
+  upload_caches: apt
 
 
 default_freebsd_task_template: &freebsd_task_template
