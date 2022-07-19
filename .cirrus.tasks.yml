@@ -91,6 +91,7 @@ task:
     CCACHE_DIR: ${CIRRUS_WORKING_DIR}/ccache_dir
     # no options enabled, should be small
     CCACHE_MAXSIZE: "150M"
+    # TODO CCACHE_STATSLOG: $CCACHE_DIR.stats.log
 
   # While containers would start up a bit quicker, building is a bit
   # slower. This way we don't have to maintain a container image.
@@ -305,6 +306,9 @@ task:
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
     LINUX_MESON_FEATURES: *LINUX_MESON_FEATURES
 
+    LANG: C
+    CCACHE_STATSLOG: $CCACHE_DIR.stats.log
+
   <<: *linux_task_template
   depends_on: SanityCheck
 
@@ -336,7 +340,7 @@ task:
       127.0.0.3 pg-loadbalancetest
     EOF
 
-  setup_additional_packages_script: |
+  #setup_additional_packages_script: |
     #apt-get update
     #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
 
@@ -394,6 +398,8 @@ task:
             build
         EOF
 
+      build_script: su postgres -c 'ninja -C build -j${BUILD_JOBS} ${MBUILD_TARGET}'
+
       # Also build & test in a 32bit build - it's gotten rare to test that
       # locally.
       configure_32_script: |
@@ -409,7 +415,6 @@ task:
             build-32
         EOF
 
-      build_script: su postgres -c 'ninja -C build -j${BUILD_JOBS} ${MBUILD_TARGET}'
       build_32_script: su postgres -c 'ninja -C build-32 -j${BUILD_JOBS} ${MBUILD_TARGET}'
 
       upload_caches: ccache
@@ -721,14 +726,14 @@ task:
 task:
   name: CompilerWarnings
 
-  # To limit unnecessary work only run this once the SanityCheck
-  # succeeds. This is particularly important for this task as we intentionally
+  # To limit unnecessary work, only run this after success of the SanityCheck.
+  # This is particularly important for this task as we intentionally
   # use always: to continue after failures. Task that did not run count as a
   # success, so we need to recheck SanityChecks's condition here ...
   depends_on: SanityCheck
   # task that did not run, count as a success, so we need to recheck Linux'
   # condition here ...
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*warnings.*'
 
   env:
     CPUS: 4
@@ -762,9 +767,12 @@ task:
   ccache_cache:
     *ccache
 
-  setup_additional_packages_script: |
+  #setup_additional_packages_script: |
     #apt-get update
     #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
+
+  ccache_stats_start_script:
+    ccache -s
 
   ###
   # Test that code can be built with gcc/clang without warnings
@@ -775,7 +783,7 @@ task:
   # and cassert on/off.
 
   always:
-      # gcc, cassert off, dtrace on
+    # gcc, cassert off, dtrace on
     gcc_warning_script: |
       mkdir build.gcc && cd build.gcc
       CC="ccache gcc" CXX="ccache g++" \
@@ -787,6 +795,8 @@ task:
           ${LINUX_MESON_FEATURES} \
           ..
       time ninja -j${BUILD_JOBS}
+      CCACHE_MAXSIZE=1G ccache --cleanup
+      ccache --show-log-stats
 
     # gcc, cassert on, dtrace off
     gcc_a_warning_script: |
@@ -795,6 +805,8 @@ task:
         -Dcassert=true \
         -Ddtrace=disabled
       time ninja -j${BUILD_JOBS}
+      CCACHE_MAXSIZE=1G ccache --cleanup
+      ccache --show-log-stats
 
     # clang, cassert off, dtrace off
     clang_warning_script: |
@@ -808,6 +820,8 @@ task:
           ${LINUX_MESON_FEATURES} \
           ..
       time ninja -j${BUILD_JOBS}
+      CCACHE_MAXSIZE=1G ccache --cleanup
+      ccache --show-log-stats
 
     # clang, cassert on, dtrace on
     clang_a_warning_script: |
@@ -816,6 +830,8 @@ task:
         -Dcassert=true \
         -Ddtrace=enabled
       time ninja -j${BUILD_JOBS}
+      CCACHE_MAXSIZE=1G ccache --cleanup
+      ccache --show-log-stats
 
     # cross-compile to windows
     mingw_cross_warning_script: |
@@ -827,6 +843,8 @@ task:
         -Dcassert=true \
         ..
       time ninja -j${BUILD_JOBS}
+      CCACHE_MAXSIZE=1G ccache --cleanup
+      ccache --show-log-stats
 
   ###
   # Verify docs can be built, and upload changed docs as artifacts
@@ -891,6 +909,7 @@ task:
 
     ccache_stats_end_script:
       ccache -s
+      ccache --show-log-stats
       CCACHE_MAXSIZE=2G ccache --cleanup
 
     upload_caches: ccache
