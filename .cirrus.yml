@@ -63,9 +63,9 @@ default_linux_task_template: &linux_task_template
     DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install build-essential ccache flex bison meson ninja-build git passwd libipc-run-perl \
       xsltproc docbook-xsl docbook-xml \
       openssl libssl-dev libxml2-utils libreadline-dev uuid-dev zlib1g-dev \
-      clang mingw-w64 libz-mingw-w64-dev pkg-config libxslt1-dev liblz4-dev libzstd-dev libldap2-dev libsystemd-dev systemtap-sdt-dev \
-      llvm-dev libicu-dev icu-devtools libpython3-dev libperl-dev tcl-dev libkrb5-dev libpam0g-dev libselinux1-dev \
-      gcc-multilib
+      clang mingw-w64 libz-mingw-w64-dev #pkg-config libxslt1-dev liblz4-dev libzstd-dev libldap2-dev libsystemd-dev systemtap-sdt-dev \
+      #llvm-dev libicu-dev icu-devtools libpython3-dev libperl-dev tcl-dev libkrb5-dev libpam0g-dev libselinux1-dev \
+      #gcc-multilib
     apt-get autoclean
 
   upload_caches: apt

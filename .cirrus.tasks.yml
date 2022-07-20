@@ -762,8 +762,7 @@ task:
           --buildtype=debug \
           -Dwerror=true \
           -Dcassert=false \
-          -Ddtrace=enabled \
-          ${LINUX_MESON_FEATURES} \
+          -Ddtrace=disabled \
           ..
       time ninja -j${BUILD_JOBS}
       CCACHE_MAXSIZE=1G ccache --cleanup
@@ -788,7 +787,6 @@ task:
           -Dwerror=true \
           -Dcassert=false \
           -Ddtrace=disabled \
-          ${LINUX_MESON_FEATURES} \
           ..
       time ninja -j${BUILD_JOBS}
       CCACHE_MAXSIZE=1G ccache --cleanup
@@ -799,7 +797,7 @@ task:
       cd build.clang
       meson configure \
         -Dcassert=true \
-        -Ddtrace=enabled
+        -Ddtrace=disabled \
       time ninja -j${BUILD_JOBS}
       CCACHE_MAXSIZE=1G ccache --cleanup
       ccache --show-log-stats
@@ -869,12 +867,13 @@ task:
     gcc_check_script: |
       mkdir -p tmp
       chown -R postgres:postgres .
-      su postgres -c "meson test $MTEST_ARGS -C build.gcc --num-processes $TEST_JOBS"
+      su postgres -c "meson test $MTEST_ARGS -C build.gcc --num-processes $TEST_JOBS tmp_install regress/regress"
       rm -r build.gcc
 
     clang_check_script: |
       chown -R postgres:postgres .
       PG_TEST_EXTRA='ssl' # Disable ldap and kerberos
+      su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS tmp_install regress/regress"
       su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS"
       rm -r build.clang
 
