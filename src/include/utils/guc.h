@@ -120,6 +120,7 @@ typedef enum
 	PGC_S_INTERACTIVE,			/* dividing line for error reporting */
 	PGC_S_TEST,					/* test per-database or per-user setting */
 	PGC_S_SESSION,				/* SET command */
+	// PGC_S_TEST_FILE,			/* test global cluster settings (ALTER SYSTEM) */
 } GucSource;
 
 /*
