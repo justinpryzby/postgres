@@ -91,7 +91,25 @@ pgrename(const char *from, const char *to)
 		if (++loops > 100)		/* time out after 10 sec */
 			return -1;
 		pg_usleep(100000);		/* us */
+
+		if (loops == 30)
+#ifndef FRONTEND
+			elog(WARNING, "could not rename file \"%s\" to \"%s\", continuing to try",
+					from, to);
+#else
+			fprintf(stderr, _("could not rename file \"%s\" to \"%s\", continuing to try\n"),
+					from, to);
+#endif
+		loops++;
 	}
+
+	if (loops > 30)
+#ifndef FRONTEND
+		elog(WARNING, "completed rename of file \"%s\" to \"%s\"", from, to);
+#else
+		fprintf(stderr, _("completed rename of file \"%s\" to \"%s\"\n"), from, to);
+#endif
+
 	return 0;
 }
 

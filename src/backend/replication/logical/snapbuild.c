@@ -1795,12 +1795,9 @@ SnapBuildSerialize(SnapBuild *builder, XLogRecPtr lsn)
 				(errcode_for_file_access(),
 				 errmsg("could not fsync file \"%s\": %m", tmppath)));
 	}
-	pgstat_report_wait_end();
 
-	if (CloseTransientFile(fd) != 0)
-		ereport(ERROR,
-				(errcode_for_file_access(),
-				 errmsg("could not close file \"%s\": %m", tmppath)));
+	// should be later ?
+	pgstat_report_wait_end();
 
 	fsync_fname("pg_logical/snapshots", true);
 
@@ -1817,8 +1814,24 @@ SnapBuildSerialize(SnapBuild *builder, XLogRecPtr lsn)
 	}
 
 	/* make sure we persist */
-	fsync_fname(path, false);
+	if (pg_fsync(fd) != 0)
+	{
+		int			save_errno = errno;
+
+		CloseTransientFile(fd);
+		errno = save_errno;
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not fsync file \"%s\": %m", tmppath)));
+	}
+
 	fsync_fname("pg_logical/snapshots", true);
+
+	if (CloseTransientFile(fd) != 0)
+		ereport(ERROR,
+				(errcode_for_file_access(),
+				 errmsg("could not close file \"%s\": %m", tmppath)));
+
 
 	/*
 	 * Now there's no way we can lose the dumped state anymore, remember this
