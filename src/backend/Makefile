@@ -118,15 +118,15 @@ utils/activity/wait_event_types.h: utils/activity/generate-wait_event_types.pl u
 
 # run this unconditionally to avoid needing to know its dependencies here:
 submake-catalog-headers:
-	$(MAKE) -C ../include/catalog generated-headers
+	@$(MAKE) -s -C ../include/catalog generated-headers
 
 # run this unconditionally to avoid needing to know its dependencies here:
 submake-nodes-headers:
-	$(MAKE) -C nodes generated-header-symlinks
+	@$(MAKE) -s -C nodes generated-header-symlinks
 
 # run this unconditionally to avoid needing to know its dependencies here:
 submake-utils-headers:
-	$(MAKE) -C utils generated-header-symlinks
+	@$(MAKE) -s -C utils generated-header-symlinks
 
 .PHONY: submake-catalog-headers submake-nodes-headers submake-utils-headers
 
