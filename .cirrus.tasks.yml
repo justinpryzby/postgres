@@ -59,6 +59,10 @@ on_failure_meson: &on_failure_meson
     path: "build*/meson-logs/*.txt"
     type: text/plain
 
+ccache: &ccache
+  folder: $CCACHE_DIR
+  fingerprint_script: echo ccache/$CIRRUS_TASK_NAME
+  reupload_on_changes: true
 
 # To avoid unnecessarily spinning up a lot of VMs / containers for entirely
 # broken commits, have a minimal task that all others depend on.
@@ -85,7 +89,7 @@ task:
   <<: *linux_task_template
 
   ccache_cache:
-    folder: $CCACHE_DIR
+    *ccache
 
   create_user_script: |
     useradd -m postgres
@@ -162,7 +166,8 @@ task:
     export
 
   ccache_cache:
-    folder: $CCACHE_DIR
+    *ccache
+
   create_user_script: |
     pw useradd postgres
     chown -R postgres:postgres .
@@ -299,7 +304,7 @@ task:
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
 
   ccache_cache:
-    folder: ${CCACHE_DIR}
+    *ccache
 
   sysinfo_script: |
     id
@@ -507,7 +512,8 @@ task:
   upload_caches: macports
 
   ccache_cache:
-    folder: $CCACHE_DIR
+    *ccache
+
   configure_script: |
     export PKG_CONFIG_PATH="/opt/local/lib/pkgconfig/"
     meson setup \
@@ -586,7 +592,7 @@ task:
     REM choco install -y --no-progress ...
 
   ccache_cache:
-    folder: $CCACHE_DIR
+    *ccache
 
   setup_hosts_file_script: |
     echo 127.0.0.1 pg-loadbalancetest >> c:\Windows\System32\Drivers\etc\hosts
@@ -656,7 +662,7 @@ task:
   <<: *windows_task_template
 
   ccache_cache:
-    folder: ${CCACHE_DIR}
+    *ccache
 
   setup_additional_packages_script: |
     REM C:\msys64\usr\bin\pacman.exe -S --noconfirm ...
@@ -724,7 +730,7 @@ task:
     export
 
   ccache_cache:
-    folder: $CCACHE_DIR
+    *ccache
 
   setup_additional_packages_script: |
     #apt-get update
