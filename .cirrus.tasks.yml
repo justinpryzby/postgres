@@ -356,7 +356,7 @@ task:
       # that.
       configure_script: |
         su postgres <<-EOF
-          ./configure \
+          mkdir build; cd build; ../configure \
             --enable-cassert --enable-injection-points --enable-debug \
             --enable-tap-tests --enable-nls \
             --with-segsize-blocks=6 \
@@ -365,12 +365,13 @@ task:
             \
             CLANG="ccache clang-16"
         EOF
-      build_script: su postgres -c "make -s -j${BUILD_JOBS} world-bin"
+      build_script: su postgres -c "cd build && make -s -j${BUILD_JOBS} world-bin"
       upload_caches: ccache
 
       test_world_script: |
         su postgres <<-EOF
           ulimit -c unlimited # default is 0
+          cd build
           make -s ${CHECK} ${CHECKFLAGS} -j${TEST_JOBS}
         EOF
 
