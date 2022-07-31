@@ -390,18 +390,19 @@ $oldnode->stop;
 # Cause a failure at the start of pg_upgrade, this should create the logging
 # directory pg_upgrade_output.d but leave it around.  Keep --check for an
 # early exit.
-command_fails(
-	[
+
+my @upgrade_command = (
 		'pg_upgrade', '--no-sync',
 		'-d', $oldnode->data_dir,
 		'-D', $newnode->data_dir,
-		'-b', $oldbindir . '/does/not/exist/',
 		'-B', $newbindir,
 		'-s', $newnode->host,
 		'-p', $oldnode->port,
 		'-P', $newnode->port,
-		$mode, '--check',
-	],
+		$mode,
+);
+
+command_fails([@upgrade_command, '-b', "$oldbindir/does/not/exist/", '--check'],
 	'run of pg_upgrade --check for new instance with incorrect binary path');
 ok(-d $newnode->data_dir . "/pg_upgrade_output.d",
 	"pg_upgrade_output.d/ not removed after pg_upgrade failure");
@@ -440,27 +441,13 @@ $oldnode->safe_psql('postgres', 'DROP DATABASE regression_invalid');
 $oldnode->stop;
 
 # --check command works here, cleans up pg_upgrade_output.d.
-command_ok(
-	[
-		'pg_upgrade', '--no-sync', '-d', $oldnode->data_dir,
-		'-D', $newnode->data_dir, '-b', $oldbindir,
-		'-B', $newbindir, '-s', $newnode->host,
-		'-p', $oldnode->port, '-P', $newnode->port,
-		$mode, '--check',
-	],
+command_ok([@upgrade_command, '-b', $oldbindir, '--check'],
 	'run of pg_upgrade --check for new instance');
 ok(!-d $newnode->data_dir . "/pg_upgrade_output.d",
 	"pg_upgrade_output.d/ removed after pg_upgrade --check success");
 
 # Actual run, pg_upgrade_output.d is removed at the end.
-command_ok(
-	[
-		'pg_upgrade', '--no-sync', '-d', $oldnode->data_dir,
-		'-D', $newnode->data_dir, '-b', $oldbindir,
-		'-B', $newbindir, '-s', $newnode->host,
-		'-p', $oldnode->port, '-P', $newnode->port,
-		$mode,
-	],
+command_ok([@upgrade_command, '-b', $oldbindir],
 	'run of pg_upgrade for new instance');
 ok( !-d $newnode->data_dir . "/pg_upgrade_output.d",
 	"pg_upgrade_output.d/ removed after pg_upgrade success");
