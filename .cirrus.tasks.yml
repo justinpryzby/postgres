@@ -133,6 +133,7 @@ task:
     TEST_JOBS: 6
     IMAGE_FAMILY: pg-ci-freebsd-13
     DISK_SIZE: 50
+    PG_TEST_PG_UPGRADE_MODE: --link
 
     CCACHE_DIR: /tmp/ccache_dir
     CPPFLAGS: -DRELCACHE_FORCE_RELEASE -DCOPY_PARSE_PLAN_TREES -DWRITE_READ_PARSE_PLAN_TREES -DRAW_EXPRESSION_COVERAGE_TEST -DENFORCE_REGRESSION_TEST_NAME_RESTRICTIONS
@@ -426,6 +427,8 @@ task:
     CXX: ccache c++
     CFLAGS: -Og -ggdb
     CXXFLAGS: -Og -ggdb
+
+    PG_TEST_PG_UPGRADE_MODE: --clone
 
   <<: *macos_task_template
 
