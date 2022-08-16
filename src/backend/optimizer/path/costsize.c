@@ -2545,10 +2545,10 @@ cost_append(AppendPath *apath, PlannerInfo *root)
 			/* Compute rows and costs as sums of subplan rows and costs. */
 			foreach(l, apath->subpaths)
 			{
-				Path	   *subpath = (Path *) lfirst(l);
+				Path	   *sub = (Path *) lfirst(l);
 
-				apath->path.rows += subpath->rows;
-				apath->path.total_cost += subpath->total_cost;
+				apath->path.rows += sub->rows;
+				apath->path.total_cost += sub->total_cost;
 			}
 		}
 		else
