@@ -1818,19 +1818,19 @@ heap_drop_with_catalog(Oid relid)
 	 */
 	if (rel->rd_rel->relkind == RELKIND_FOREIGN_TABLE)
 	{
-		Relation	rel;
-		HeapTuple	tuple;
+		Relation	pg_foreign_table;
+		HeapTuple	foreigntuple;
 
-		rel = table_open(ForeignTableRelationId, RowExclusiveLock);
+		pg_foreign_table = table_open(ForeignTableRelationId, RowExclusiveLock);
 
-		tuple = SearchSysCache1(FOREIGNTABLEREL, ObjectIdGetDatum(relid));
-		if (!HeapTupleIsValid(tuple))
+		foreigntuple = SearchSysCache1(FOREIGNTABLEREL, ObjectIdGetDatum(relid));
+		if (!HeapTupleIsValid(foreigntuple))
 			elog(ERROR, "cache lookup failed for foreign table %u", relid);
 
-		CatalogTupleDelete(rel, &tuple->t_self);
+		CatalogTupleDelete(pg_foreign_table, &foreigntuple->t_self);
 
-		ReleaseSysCache(tuple);
-		table_close(rel, RowExclusiveLock);
+		ReleaseSysCache(foreigntuple);
+		table_close(pg_foreign_table, RowExclusiveLock);
 	}
 
 	/*
