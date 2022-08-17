@@ -1726,9 +1726,9 @@ renametrig_partition(Relation tgrel, Oid partitionId, Oid parentTriggerOid,
 
 			for (int i = 0; i < partdesc->nparts; i++)
 			{
-				Oid			partitionId = partdesc->oids[i];
+				Oid			partid = partdesc->oids[i];
 
-				renametrig_partition(tgrel, partitionId, tgform->oid, newname,
+				renametrig_partition(tgrel, partid, tgform->oid, newname,
 									 NameStr(tgform->tgname));
 			}
 		}
