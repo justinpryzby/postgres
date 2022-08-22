@@ -3187,7 +3187,6 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 	int			numGroupingSets = 1;
 	int			numPhases;
 	int			numHashes;
-	int			i = 0;
 	int			j = 0;
 	bool		use_hashing = (node->aggstrategy == AGG_HASHED ||
 							   node->aggstrategy == AGG_MIXED);
@@ -3278,7 +3277,7 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 	ExecAssignExprContext(estate, &aggstate->ss.ps);
 	aggstate->tmpcontext = aggstate->ss.ps.ps_ExprContext;
 
-	for (i = 0; i < numGroupingSets; ++i)
+	for (int i = 0; i < numGroupingSets; ++i)
 	{
 		ExecAssignExprContext(estate, &aggstate->ss.ps);
 		aggstate->aggcontexts[i] = aggstate->ss.ps.ps_ExprContext;
@@ -3418,10 +3417,10 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 			AggStatePerPhase phasedata = &aggstate->phases[0];
 			AggStatePerHash perhash;
 			Bitmapset  *cols = NULL;
+			int			setno = phasedata->numsets++;
 
 			Assert(phase == 0);
-			i = phasedata->numsets++;
-			perhash = &aggstate->perhash[i];
+			perhash = &aggstate->perhash[setno];
 
 			/* phase 0 always points to the "real" Agg in the hash case */
 			phasedata->aggnode = node;
@@ -3430,12 +3429,12 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 			/* but the actual Agg node representing this hash is saved here */
 			perhash->aggnode = aggnode;
 
-			phasedata->gset_lengths[i] = perhash->numCols = aggnode->numCols;
+			phasedata->gset_lengths[setno] = perhash->numCols = aggnode->numCols;
 
 			for (j = 0; j < aggnode->numCols; ++j)
 				cols = bms_add_member(cols, aggnode->grpColIdx[j]);
 
-			phasedata->grouped_cols[i] = cols;
+			phasedata->grouped_cols[setno] = cols;
 
 			all_grouped_cols = bms_add_members(all_grouped_cols, cols);
 			continue;
@@ -3449,6 +3448,7 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 
 			if (num_sets)
 			{
+				int i;
 				phasedata->gset_lengths = palloc(num_sets * sizeof(int));
 				phasedata->grouped_cols = palloc(num_sets * sizeof(Bitmapset *));
 
@@ -3534,9 +3534,11 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 	/*
 	 * Convert all_grouped_cols to a descending-order list.
 	 */
-	i = -1;
-	while ((i = bms_next_member(all_grouped_cols, i)) >= 0)
-		aggstate->all_grouped_cols = lcons_int(i, aggstate->all_grouped_cols);
+	{
+		int i = -1;
+		while ((i = bms_next_member(all_grouped_cols, i)) >= 0)
+			aggstate->all_grouped_cols = lcons_int(i, aggstate->all_grouped_cols);
+	}
 
 	/*
 	 * Set up aggregate-result storage in the output expr context, and also
@@ -3560,7 +3562,7 @@ ExecInitAgg(Agg *node, EState *estate, int eflags)
 
 	if (node->aggstrategy != AGG_HASHED)
 	{
-		for (i = 0; i < numGroupingSets; i++)
+		for (int i = 0; i < numGroupingSets; i++)
 		{
 			pergroups[i] = (AggStatePerGroup) palloc0(sizeof(AggStatePerGroupData)
 													  * numaggs);
