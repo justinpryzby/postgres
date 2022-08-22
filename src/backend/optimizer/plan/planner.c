@@ -1994,8 +1994,6 @@ preprocess_grouping_sets(PlannerInfo *root)
 
 	if (parse->groupClause)
 	{
-		ListCell   *lc;
-
 		foreach(lc, parse->groupClause)
 		{
 			SortGroupClause *gc = lfirst_node(SortGroupClause, lc);
@@ -3458,16 +3456,16 @@ get_number_of_groups(PlannerInfo *root,
 			foreach(lc, gd->rollups)
 			{
 				RollupData *rollup = lfirst_node(RollupData, lc);
-				ListCell   *lc;
+				ListCell   *lc3;
 
 				groupExprs = get_sortgrouplist_exprs(rollup->groupClause,
 													 target_list);
 
 				rollup->numGroups = 0.0;
 
-				forboth(lc, rollup->gsets, lc2, rollup->gsets_data)
+				forboth(lc3, rollup->gsets, lc2, rollup->gsets_data)
 				{
-					List	   *gset = (List *) lfirst(lc);
+					List	   *gset = (List *) lfirst(lc3);
 					GroupingSetData *gs = lfirst_node(GroupingSetData, lc2);
 					double		numGroups = estimate_num_groups(root,
 																groupExprs,
@@ -3484,8 +3482,6 @@ get_number_of_groups(PlannerInfo *root,
 
 			if (gd->hash_sets_idx)
 			{
-				ListCell   *lc;
-
 				gd->dNumHashGroups = 0;
 
 				groupExprs = get_sortgrouplist_exprs(parse->groupClause,
@@ -5034,11 +5030,11 @@ create_ordered_paths(PlannerInfo *root,
 		 */
 		if (enable_incremental_sort && list_length(root->sort_pathkeys) > 1)
 		{
-			ListCell   *lc;
+			ListCell   *lc2;
 
-			foreach(lc, input_rel->partial_pathlist)
+			foreach(lc2, input_rel->partial_pathlist)
 			{
-				Path	   *input_path = (Path *) lfirst(lc);
+				Path	   *input_path = (Path *) lfirst(lc2);
 				Path	   *sorted_path;
 				bool		is_sorted;
 				int			presorted_keys;
@@ -7607,7 +7603,7 @@ apply_scanjoin_target_to_paths(PlannerInfo *root,
 			AppendRelInfo **appinfos;
 			int			nappinfos;
 			List	   *child_scanjoin_targets = NIL;
-			ListCell   *lc;
+			ListCell   *lc2;
 
 			Assert(child_rel != NULL);
 
@@ -7618,9 +7614,9 @@ apply_scanjoin_target_to_paths(PlannerInfo *root,
 			/* Translate scan/join targets for this child. */
 			appinfos = find_appinfos_by_relids(root, child_rel->relids,
 											   &nappinfos);
-			foreach(lc, scanjoin_targets)
+			foreach(lc2, scanjoin_targets)
 			{
-				PathTarget *target = lfirst_node(PathTarget, lc);
+				PathTarget *target = lfirst_node(PathTarget, lc2);
 
 				target = copy_pathtarget(target);
 				target->exprs = (List *)
