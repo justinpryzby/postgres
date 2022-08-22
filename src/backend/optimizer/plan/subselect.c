@@ -2402,7 +2402,7 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 		case T_FunctionScan:
 			{
 				FunctionScan *fscan = (FunctionScan *) plan;
-				ListCell   *lc;
+				ListCell   *lc; //
 
 				/*
 				 * Call finalize_primnode independently on each function
@@ -2510,7 +2510,7 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 		case T_CustomScan:
 			{
 				CustomScan *cscan = (CustomScan *) plan;
-				ListCell   *lc;
+				ListCell   *lc; //
 
 				finalize_primnode((Node *) cscan->custom_exprs,
 								  &context);
@@ -2554,8 +2554,6 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 
 		case T_Append:
 			{
-				ListCell   *l;
-
 				foreach(l, ((Append *) plan)->appendplans)
 				{
 					context.paramids =
@@ -2571,8 +2569,6 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 
 		case T_MergeAppend:
 			{
-				ListCell   *l;
-
 				foreach(l, ((MergeAppend *) plan)->mergeplans)
 				{
 					context.paramids =
@@ -2588,8 +2584,6 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 
 		case T_BitmapAnd:
 			{
-				ListCell   *l;
-
 				foreach(l, ((BitmapAnd *) plan)->bitmapplans)
 				{
 					context.paramids =
@@ -2605,8 +2599,6 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 
 		case T_BitmapOr:
 			{
-				ListCell   *l;
-
 				foreach(l, ((BitmapOr *) plan)->bitmapplans)
 				{
 					context.paramids =
@@ -2622,8 +2614,6 @@ finalize_plan(PlannerInfo *root, Plan *plan,
 
 		case T_NestLoop:
 			{
-				ListCell   *l;
-
 				finalize_primnode((Node *) ((Join *) plan)->joinqual,
 								  &context);
 				/* collect set of params that will be passed to right child */
