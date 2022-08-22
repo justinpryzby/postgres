@@ -1087,6 +1087,23 @@ standard_ProcessUtility(PlannedStmt *pstmt,
 	CommandCounterIncrement();
 }
 
+static ObjectAddress
+TryExecRefreshMatView(RefreshMatViewStmt *stmt, const char *queryString,
+					ParamListInfo params, QueryCompletion *qc)
+{
+	ObjectAddress address;
+	PG_TRY();
+	{
+		address = ExecRefreshMatView(stmt, queryString, params, qc);
+	}
+	PG_FINALLY();
+	{
+		EventTriggerUndoInhibitCommandCollection();
+	}
+	PG_END_TRY();
+	return address;
+}
+
 /*
  * The "Slow" variant of ProcessUtility should only receive statements
  * supported by the event triggers facility.  Therefore, we always
@@ -1678,16 +1695,10 @@ ProcessUtilitySlow(ParseState *pstate,
 				 * command itself is queued, which is enough.
 				 */
 				EventTriggerInhibitCommandCollection();
-				PG_TRY();
-				{
-					address = ExecRefreshMatView((RefreshMatViewStmt *) parsetree,
-												 queryString, params, qc);
-				}
-				PG_FINALLY();
-				{
-					EventTriggerUndoInhibitCommandCollection();
-				}
-				PG_END_TRY();
+
+				address = TryExecRefreshMatView((RefreshMatViewStmt *) parsetree,
+											 queryString, params, qc);
+
 				break;
 
 			case T_CreateTrigStmt:
