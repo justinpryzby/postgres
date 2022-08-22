@@ -305,10 +305,10 @@ TidQualFromRestrictInfoList(PlannerInfo *root, List *rlist, RelOptInfo *rel)
 				}
 				else
 				{
-					RestrictInfo *rinfo = castNode(RestrictInfo, orarg);
+					RestrictInfo *list = castNode(RestrictInfo, orarg);
 
-					Assert(!restriction_is_or_clause(rinfo));
-					sublist = TidQualFromRestrictInfo(root, rinfo, rel);
+					Assert(!restriction_is_or_clause(list));
+					sublist = TidQualFromRestrictInfo(root, list, rel);
 				}
 
 				/*
