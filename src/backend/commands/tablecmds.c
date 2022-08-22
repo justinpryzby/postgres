@@ -10223,7 +10223,7 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 		Oid			constrOid;
 		ObjectAddress address,
 					referenced;
-		ListCell   *cell;
+		ListCell   *lc;
 		Oid			insertTriggerOid,
 					updateTriggerOid;
 
@@ -10276,9 +10276,9 @@ CloneFkReferencing(List **wqueue, Relation parentRel, Relation partRel)
 		 * don't need to recurse to partitions for this constraint.
 		 */
 		attached = false;
-		foreach(cell, partFKs)
+		foreach(lc, partFKs)
 		{
-			ForeignKeyCacheInfo *fk = lfirst_node(ForeignKeyCacheInfo, cell);
+			ForeignKeyCacheInfo *fk = lfirst_node(ForeignKeyCacheInfo, lc);
 
 			if (tryAttachPartitionForeignKey(fk,
 											 RelationGetRelid(partRel),
