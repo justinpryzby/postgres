@@ -1650,16 +1650,16 @@ interpret_ident_response(const char *ident_response,
 						return false;
 					else
 					{
-						int			i;	/* Index into *ident_user */
+						int			j;	/* Index into *ident_user */
 
 						cursor++;	/* Go over colon */
 						while (pg_isblank(*cursor))
 							cursor++;	/* skip blanks */
 						/* Rest of line is user name.  Copy it over. */
-						i = 0;
+						j = 0;
 						while (*cursor != '\r' && i < IDENT_USERNAME_MAX)
-							ident_user[i++] = *cursor++;
-						ident_user[i] = '\0';
+							ident_user[j++] = *cursor++;
+						ident_user[j] = '\0';
 						return true;
 					}
 				}
