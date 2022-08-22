@@ -658,9 +658,9 @@ generate_union_paths(SetOperationStmt *op, PlannerInfo *root,
 		/* Find the highest number of workers requested for any subpath. */
 		foreach(lc, partial_pathlist)
 		{
-			Path	   *path = lfirst(lc);
+			Path	   *partial_path = lfirst(lc);
 
-			parallel_workers = Max(parallel_workers, path->parallel_workers);
+			parallel_workers = Max(parallel_workers, partial_path->parallel_workers);
 		}
 		Assert(parallel_workers > 0);
 
