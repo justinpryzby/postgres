@@ -193,16 +193,16 @@ varstr_levenshtein(const char *source, int slen,
 	 */
 	if (m != slen || n != tlen)
 	{
-		int			i;
+		int			k;
 		const char *cp = source;
 
 		s_char_len = (int *) palloc((m + 1) * sizeof(int));
-		for (i = 0; i < m; ++i)
+		for (k = 0; k < m; ++k)
 		{
-			s_char_len[i] = pg_mblen(cp);
-			cp += s_char_len[i];
+			s_char_len[k] = pg_mblen(cp);
+			cp += s_char_len[k];
 		}
-		s_char_len[i] = 0;
+		s_char_len[k] = 0;
 	}
 
 	/* One more cell for initialization column and row. */
