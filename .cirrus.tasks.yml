@@ -573,6 +573,7 @@ task:
   name: Windows - Server 2019, VS 2019 - Meson & ninja
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
   depends_on: SanityCheck
+  skip: "changesIncludeOnly('doc/*')"
   << : *WINDOWS_ENVIRONMENT_BASE
 
   env:
