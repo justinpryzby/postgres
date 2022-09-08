@@ -469,7 +469,7 @@ SELECT stats_reset AS slru_commit_ts_reset_ts FROM pg_stat_slru WHERE name = 'co
 
 -- Test that multiple SLRUs are reset when no specific SLRU provided to reset function
 SELECT pg_stat_reset_slru();
-SELECT stats_reset > :'slru_commit_ts_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'commit_timestamp';
+SELECT stats_reset >= :'slru_commit_ts_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'commit_timestamp';
 SELECT stats_reset > :'slru_notify_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'notify';
 
 -- Test that reset_shared with archiver specified as the stats type works
@@ -495,12 +495,13 @@ SELECT stats_reset > :'recovery_prefetch_reset_ts'::timestamptz FROM pg_stat_rec
 -- Test that reset_shared with slru specified as the stats type works
 SELECT max(stats_reset) AS slru_reset_ts FROM pg_stat_slru \gset
 SELECT pg_stat_reset_shared('slru');
-SELECT max(stats_reset) > :'slru_reset_ts'::timestamptz FROM pg_stat_slru;
+SELECT max(stats_reset) >= :'slru_reset_ts'::timestamptz FROM pg_stat_slru;
 
 -- Test that reset_shared with wal specified as the stats type works
 SELECT stats_reset AS wal_reset_ts FROM pg_stat_wal \gset
 SELECT pg_stat_reset_shared('wal');
 SELECT stats_reset > :'wal_reset_ts'::timestamptz FROM pg_stat_wal;
+SELECT stats_reset AS wal_reset_ts FROM pg_stat_wal \gset
 
 -- Test error case for reset_shared with unknown stats type
 SELECT pg_stat_reset_shared('unknown');
@@ -511,7 +512,7 @@ SELECT pg_stat_reset_shared('unknown');
 SELECT pg_stat_reset();
 SELECT stats_reset AS db_reset_ts FROM pg_stat_database WHERE datname = (SELECT current_database()) \gset
 SELECT pg_stat_reset();
-SELECT stats_reset > :'db_reset_ts'::timestamptz FROM pg_stat_database WHERE datname = (SELECT current_database());
+SELECT stats_reset >= :'db_reset_ts'::timestamptz FROM pg_stat_database WHERE datname = (SELECT current_database());
 
 
 ----

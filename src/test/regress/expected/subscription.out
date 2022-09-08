@@ -67,7 +67,7 @@ SELECT pg_stat_reset_subscription_stats(oid) FROM pg_subscription WHERE subname 
  
 (1 row)
 
-SELECT :'prev_stats_reset' < stats_reset FROM pg_stat_subscription_stats WHERE subname = 'regress_testsub';
+SELECT :'prev_stats_reset' <= stats_reset FROM pg_stat_subscription_stats WHERE subname = 'regress_testsub';
  ?column? 
 ----------
  t
