@@ -455,7 +455,7 @@ SELECT stats_reset AS slru_commit_ts_reset_ts FROM pg_stat_slru WHERE name = 'Co
 
 -- Test that multiple SLRUs are reset when no specific SLRU provided to reset function
 SELECT pg_stat_reset_slru();
-SELECT stats_reset > :'slru_commit_ts_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'CommitTs';
+SELECT stats_reset >= :'slru_commit_ts_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'CommitTs';
 SELECT stats_reset > :'slru_notify_reset_ts'::timestamptz FROM pg_stat_slru WHERE name = 'Notify';
 
 -- Test that reset_shared with archiver specified as the stats type works
@@ -506,7 +506,7 @@ SELECT pg_stat_reset_shared('unknown');
 SELECT pg_stat_reset();
 SELECT stats_reset AS db_reset_ts FROM pg_stat_database WHERE datname = (SELECT current_database()) \gset
 SELECT pg_stat_reset();
-SELECT stats_reset > :'db_reset_ts'::timestamptz FROM pg_stat_database WHERE datname = (SELECT current_database());
+SELECT stats_reset >= :'db_reset_ts'::timestamptz FROM pg_stat_database WHERE datname = (SELECT current_database());
 
 
 ----

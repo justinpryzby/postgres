@@ -561,7 +561,7 @@ WINDOWS_ENVIRONMENT_BASE: &WINDOWS_ENVIRONMENT_BASE
 
 task:
   name: Windows - Server 2019, VS 2019 - Meson & ninja
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-msvc.*'
   depends_on: SanityCheck
   skip: "changesIncludeOnly('doc/*')"
   << : *WINDOWS_ENVIRONMENT_BASE
@@ -682,6 +682,166 @@ task:
     crashlog_artifacts:
       path: "crashlog-*.txt"
       type: text/plain
+
+
+# Compile for windows from linux (to exercise that, and since compiling under msys is slow)
+# The depending task will later run checks under windows
+task:
+  name: WindowsCrossCompile
+
+  # task that did not run, count as a success, so we need to recheck freebsd's
+  # condition here; cirus warns if the "only_if" condition doesn't match the task being depended on
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-cross.*'
+  depends_on: SanityCheck
+
+  env:
+    CPUS: 4
+    BUILD_JOBS: 4
+    CCACHE_DIR: "/tmp/ccache_dir"
+    LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
+    #XXX
+
+  container:
+    #XXX
+    image: $CONTAINER_REPO/linux_debian_bullseye_ci:latest
+    cpu: $CPUS
+
+  sysinfo_script: |
+    id
+    uname -a
+    cat /proc/cmdline
+    ulimit -a -H && ulimit -a -S
+    x86_64-w64-mingw32-gcc -v
+    export
+
+  ccache_cache:
+    folder: $CCACHE_DIR
+    fingerprint_key: ccache/windows-cross
+    reupload_on_changes: true
+
+  setup_additional_packages_script: |
+    #apt-get update
+    #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
+
+  # TODO setup_script: echo "COPT=-Werror" > src/Makefile.custom
+  # TODO: check for compiler warnings ?
+
+  # cross-compile to windows
+  mingw_cross_compile_script: |
+    mkdir build && cd build
+    meson setup \
+      --cross-file=../src/tools/ci/linux-mingw-w64-64bit.txt \
+      -Dwerror=true \
+      -Dcassert=true \
+      ..
+    time ninja -j${BUILD_JOBS}
+    ccache --show-stats
+
+  # XXX: doesn't doesn't actually need to be "populated" ..
+  crosscompile_cache:
+    folder: build/tmp_install
+    fingerprint_key: windows/crosscompile/install
+    reupload_on_changes: true
+    populate_script: /bin/true
+
+  mingw_cross_install_script:
+    #- meson test -C build tmp_install
+    #- mkdir -p build/tmp_install
+    #- rm -fr build/tmp_install
+    #- --destdir since 0.57
+    - find build/tmp_install -ls || true
+    - DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson install --no-rebuild -C build
+    - DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson test install_test_files -C build
+    #- cd build; DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson introspect --targets
+    #- DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson compile src/interfaces/ecpg/test/pg_regress_ecpg.exe -C build
+    - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/test/regress/*.dll
+    - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/tools/pg_bsd_indent/pg_bsd_indent.exe
+    - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/interfaces/ecpg/test/pg_regress_ecpg.exe
+    - find build/tmp_install
+
+  always:
+    upload_caches: [crosscompile, ccache]
+
+  on_failure:
+    <<: *on_failure_meson
+
+
+# Run checks under windows with cross-compiled result from above
+task:
+  name: WindowsCrossRun
+
+  # cirus warns if the "only_if" condition doesn't match the task being depended on
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows-run-cross.*'
+  depends_on: [WindowsCrossCompile, SanityCheck]
+
+  env:
+    CPUS: 4
+    BUILD_JOBS: 4
+    TEST_JOBS: 8
+    CIRRUS_WORKING_DIR: "c:/cirrus"
+    NO_TEMP_INSTALL: 1
+    TAR: "c:/windows/system32/tar.exe"
+    PG_TEST_USE_UNIX_SOCKETS: 1
+    PG_REGRESS_SOCK_DIR: "c:/cirrus/"
+    PROVE_FLAGS: -j10 --timer
+    CIRRUS_ESCAPING_PROCESSES: 1
+
+  #windows_container:
+    #dockerfile: src/tools/ci/windows-dockerfile
+  compute_engine_instance:
+    cpu: $CPUS
+    memory: 4G
+    image_project: $IMAGE_PROJECT
+    image: family/pg-ci-windows-ci-vs-2019
+    platform: windows
+
+  sysinfo_script: |
+    chcp
+    systeminfo
+    powershell -Command get-psdrive -psprovider filesystem
+    set
+
+  setup_additional_packages_script: |
+    REM choco install -y --no-progress ...
+
+  configure_script: |
+    vcvarsall x64
+    SET PATH=c:\Program Files\Meson;%PATH%
+    meson setup build -Dplperl=disabled -Dplpython=disabled -Dlibxml=disabled --buildtype plain -DTAR=%TAR%
+
+  crosscompile_run_cache:
+    folder: build/tmp_install
+    fingerprint_key: windows/crosscompile/install
+    reupload_on_changes: false
+
+  rearrange_script:
+    - find build/tmp_install -ls
+      #- cp -rv build/tmp_install/usr/local/pgsql/share/postgres.bki build/tmp_install/usr/local/pgsql/share/system_constraints.sql build/src/include/catalog
+      #- cp -rv build/tmp_install/usr/local/pgsql/include/server/* build/src/include/
+      #- cp -rv build/tmp_install/usr/local/pgsql/lib/libpgport.a build/src/port/
+    # copy DLLs: regress,refint,autoinc:
+    - cp -rvt build/src/test/regress build/tmp_install/usr/local/pgsql/bin/*.dll
+    # Copy stuff expected by the install script:
+    - cp -rvt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/*.dll
+    # indent and ecpg think that they're special..
+    - cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/pg_regress_ecpg.exe
+    - cp -rvt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/pg_bsd_indent.exe
+    # Copy stuff expected by install-test-modules:
+    - sh -c 'for a in build/src/test/modules/*; do if test -d $a; then cp -rv build/tmp_install/usr/local/pgsql/lib/*.dll "$a"; fi; done'
+    - sh src/tools/ci/windows-reinstall
+    - find build/src -ls
+
+  check_world_script: |
+    SET PATH=c:\Program Files\Meson;%PATH%
+    REM meson test %MTEST_ARGS% --num-processes %TEST_JOBS% tmp_install regress/regress pg_bsd_indent/001_pg_bsd_indent ecpg/ecpg
+    meson test %MTEST_ARGS% --num-processes %TEST_JOBS%
+
+  on_failure:
+    <<: *on_failure_meson
+    crashlog_artifacts:
+      path: "crashlog-*.txt"
+      type: text/plain
+
 
 task:
   name: Windows - Cygwin

@@ -1,10 +1,5 @@
 # Copyright (c) 2022-2023, PostgreSQL Global Development Group
 
-# can't run ecpg to build test dependencies, at least not without an emulator
-if meson.is_cross_build()
-  subdir_done()
-endif
-
 pg_regress_ecpg_sources = pg_regress_c + files(
   'pg_regress_ecpg.c',
 )
@@ -24,6 +19,11 @@ pg_regress_ecpg = executable('pg_regress_ecpg',
   },
 )
 testprep_targets += pg_regress_ecpg
+
+# can't run ecpg to build test dependencies, at least not without an emulator
+if meson.is_cross_build()
+  subdir_done()
+endif
 
 # create .c files and executables from .pgc files
 ecpg_test_exec_kw = {
