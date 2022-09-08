@@ -1,0 +1,51 @@
+#! /bin/sh
+set -e
+#set -x
+
+cd build
+
+intro=`meson introspect --installed`
+echo "$intro" |sed 's/, /\n/g; s/[{}"]//g' |
+while read from to
+do
+	from=${from%:}
+	to=tmp_install/$to
+
+	[ -e "$to" ] && {
+		cp -fr $to $from
+		continue
+	}
+
+	[ "$to" = "${to%.pdb}" ] ||
+		continue
+
+	[ "$to" = "${to%.lib}" ] || {
+		stem=${to%.lib}
+		if [ -e "$stem.dll" ]
+		then
+			echo "copying .dll rather than .lib: $to"
+			to=$stem.dll
+		else
+			path=${to%\\*}
+			#base=`basename "$to" .lib`
+			base=${to##*\\}
+			base=${base%.lib}
+			dota=$path/lib$base.a
+			#echo "HERE3: $to / $path / $base: $dota"
+			if [ -e "$dota" ]
+			then
+				echo "copying .a rather than .lib: $to"
+				to=$dota
+			fi
+		fi
+	}
+
+	[ -e "$to" ] || {
+		echo "not exist: $to"
+		continue
+	}
+
+	cp -fr $to $from
+done
+
+exit 0
