@@ -852,7 +852,7 @@ task:
       make maintainer-clean # XXX not needed once compiler-warnings is switched meson
       mkdir build-ninja
       cd build-ninja
-      time meson setup
+      time meson setup -D buildtype=plain
       time ninja docs
       cp -r doc ../new-docs
 
@@ -879,17 +879,12 @@ task:
     #   https://postgr.es/m/20220323002024.f2g6tivduzrktgfa%40alap3.anarazel.de
     ###
     headers_headerscheck_script: |
-      time ./configure \
-        ${LINUX_CONFIGURE_FEATURES} \
-        --without-icu \
-        --quiet \
-        CC="ccache gcc" CXX"=ccache g++" CLANG="ccache clang-16"
-      make -s -j${BUILD_JOBS} clean
-      #make -s -j${BUILD_JOBS} world-bin
-      time make -s headerscheck EXTRAFLAGS='-fmax-errors=10'
+      mkdir build-ninja; cd build-ninja
+      meson compile src/headerscheck
 
     headers_cpluspluscheck_script: |
-      time make -s cpluspluscheck EXTRAFLAGS='-fmax-errors=10'
+      cd build-ninja
+      meson compile src/cpluspluscheck
 
     ccache_stats_end_script:
       ccache -s
