@@ -769,7 +769,7 @@ task:
   always:
       # gcc, cassert off, dtrace on
     gcc_warning_script: |
-      mkdir build && cd build
+      mkdir build.gcc && cd build.gcc
       CC="ccache gcc" CXX="ccache g++" \
         meson setup \
           --buildtype=debug \
@@ -782,7 +782,7 @@ task:
 
     # gcc, cassert on, dtrace off
     gcc_a_warning_script: |
-      cd build
+      cd build.gcc
       meson configure \
         -Dcassert=true \
         -Ddtrace=disabled
@@ -790,8 +790,7 @@ task:
 
     # clang, cassert off, dtrace off
     clang_warning_script: |
-      rm -rf build
-      mkdir build && cd build
+      mkdir build.clang && cd build.clang
       CC="ccache clang-16" CXX="ccache clang++-16" \
         meson setup \
           --buildtype=debug \
@@ -804,7 +803,7 @@ task:
 
     # clang, cassert on, dtrace on
     clang_a_warning_script: |
-      cd build
+      cd build.clang
       meson configure \
         -Dcassert=true \
         -Ddtrace=enabled
