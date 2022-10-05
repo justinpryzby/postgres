@@ -737,6 +737,10 @@ task:
   # task that did not run, count as a success, so we need to recheck Linux'
   # condition here ...
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*warnings.*'
+  image: debian:sid
+  platform: linux
+  architecture: arm64
+  greedy: true
 
   env:
     CPUS: 4
