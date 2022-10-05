@@ -742,6 +742,10 @@ task:
   # task that did not run, count as a success, so we need to recheck Linux'
   # condition here ...
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*warnings.*'
+  image: debian:sid
+  platform: linux
+  architecture: arm64
+  greedy: true
 
   env:
     CPUS: 4
@@ -825,7 +829,7 @@ task:
     # clang, cassert off, dtrace off
     clang_warning_script: |
       mkdir build.clang && cd build.clang
-      CC="ccache clang-16" CXX="ccache clang++-16" \
+      CC="ccache clang-19" CXX="ccache clang++-19" \
         meson setup \
           --buildtype=debug \
           -Dwerror=true \
@@ -875,7 +879,7 @@ task:
       time ../configure \
         --cache gcc.cache \
         --without-icu \
-        CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang-16"
+        CC="ccache gcc" CXX="ccache g++" CLANG="ccache clang-19"
       make -s -j${BUILD_JOBS} clean
       time make -s -j${BUILD_JOBS} -C doc
       cp -r doc ../new-docs
