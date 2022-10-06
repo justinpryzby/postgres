@@ -1,0 +1,55 @@
+# Copied and pasted from: https://github.com/anarazel/pg-vm-images/blob/main/docker/windows_ci_base
+
+# We used to use cirrus' visual studio container as base, but it's too
+# outdated and bloated. This also makes it easier to run in other environments
+#FROM docker.io/cirrusci/windowsservercore:2019-2021.12.07
+FROM cirrusci/windowsservercore:visualstudio2022-2022.06.23 AS build0
+
+# "-ErrorAction", "Stop",
+#[Environment]::SetEnvironmentVariable('CPAN_OPTS',  '-T', 'Machine') ;
+#FROM build0
+# -xr!c: this breaks update of test::harness(prove)
+
+SHELL ["powershell", "-NoLogo", "-NoProfile", "-Command"]
+RUN \
+    cmd /c SET ; \
+    [Environment]::SetEnvironmentVariable('PATH',  'c:\strawberry\perl\bin;C:\icu;C:\lz4;C:\zlib;C:\zstd\zstd-v1.5.2-win64;C:\Program Files\Git\usr\bin;c:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build;' + [Environment]::GetEnvironmentVariable('PATH', 'Machine'), 'Machine') ; \
+    \
+    choco install -y --no-progress winflexbison ; \
+    Rename-Item -Path c:\ProgramData\chocolatey\bin\win_flex.exe flex.exe ; \
+    Rename-Item -Path c:\ProgramData\chocolatey\bin\win_bison.exe bison.exe ; \
+    \
+    curl.exe -sSL -o out.zip https://strawberryperl.com/download/5.32.1.1/strawberry-perl-5.32.1.1-64bit-portable.zip ; \
+    #curl.exe -sSL -o out.zip https://strawberryperl.com/download/5.26.3.1/strawberry-perl-5.26.3.1-64bit-portable.zip ; \
+    7z.exe x out.zip -oc:\strawberry; \
+    #c:\strawberry\perl\bin\perl -MCPAN -e 'local $ENV{PATH} = ''$ENV{PATH};c:/strawberry/perl/bin''; notest install Test::Harness' ; \
+    \
+    curl.exe -sSL -o c:\Win64OpenSSL.exe https://slproweb.com/download/Win64OpenSSL-1_1_1s.exe ; \
+    #Start-Process -Wait -FilePath out.exe -ArgumentList '/DIR=c:\openssl\1.1\ /VERYSILENT /SP- /SUPPRESSMSGBOXES' ; \
+    \
+    curl.exe -sSL -o c:\python-setup.exe https://www.python.org/ftp/python/3.10.6/python-3.10.6-amd64.exe ; \
+    #Start-Process -Wait -FilePath c:\python-setup.exe -ArgumentList '/quiet SimpleInstall=1 PrependPath=1 CompileAll=1 TargetDir=c:\python InstallAllUsers=1 Shortcuts=0 Include_docs=0 Include_tcltk=0 Include_tests=0 Include_debug=0 Include_symbols=0' ; \
+    \
+    curl.exe -sSL -o out.zip "https://github.com/unicode-org/icu/releases/download/release-71-1/icu4c-71_1-Win64-MSVC2019.zip"; \
+    7z.exe x out.zip -o'c:\icu' ; \
+    #curl.exe -sSL -o out.zip "https://github.com/facebook/zstd/releases/download/v1.5.2/zstd-v1.5.2-win64.zip"; \
+    #7z.exe x out.zip -o'c:\zstd' ; \
+    #Copy-Item c:\zstd\zstd-v1.5.2-win64\include\zstd.h c:\zstd ; \
+    #mkdir c:\zstd\zstd-v1.5.2-win64\lib ; \
+    #Move-Item c:\zstd\zstd-v1.5.2-win64\static\libzstd_static.lib c:\zstd\zstd-v1.5.2-win64\lib\libzstd.lib ; \
+    \
+    #curl.exe -sSL -o out.zip "https://github.com/lz4/lz4/releases/download/v1.9.3/lz4_win64_v1_9_3.zip"; \
+    #7z.exe x out.zip -o'c:\lz4' ; \
+    #Move-Item -Path c:\lz4\static\liblz4_static.lib c:\lz4\lib\liblz4.lib ; \
+    \
+    curl.exe -sSL -o out.zip "http://gnuwin32.sourceforge.net/downlinks/zlib-lib-zip.php"; \
+    7z.exe x out.zip -o'c:\zlib' ; \
+    \
+    Remove-Item "out.zip" ; \
+    #Remove-Item "out.exe" ; \
+    Remove-Item C:/ProgramData/chocolatey/logs/*.* -Force -Recurse ; \
+    Remove-Item C:/Users/ContainerAdministrator/AppData/Local/Temp/*.* -Force -Recurse ; \
+
+    #Remove-Item -Force -Recurse "%TEMP%/*." ; \
+    #Remove-Item -Force -Recurse "%ProgramData%/Package Cache" ; \
+
