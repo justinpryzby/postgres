@@ -801,12 +801,16 @@ task:
     powershell -Command get-psdrive -psprovider filesystem
     set
 
-  setup_additional_packages_script: |
-    REM choco install -y --no-progress ...
+  setup_additional_packages_script:
+    #choco install -y --no-progress meson
+    #- curl.exe -sSL -o c:\python-setup.exe https://www.python.org/ftp/python/3.10.6/python-3.10.6-amd64.exe
+    #- ps: Start-Process -Wait -FilePath c:\python-setup.exe -ArgumentList '/quiet', 'SimpleInstall=1', 'PrependPath=1', 'CompileAll=1', 'TargetDir=c:\python', 'InstallAllUsers=1', 'Shortcuts=0', 'Include_docs=0', 'Include_tcltk=0', 'Include_tests=0'
+# Include_debug=0 Include_symbols=0'
+    - c:\python\python -m pip install meson ninja
 
   configure_script: |
     vcvarsall x64
-    SET PATH=c:\Program Files\Meson;%PATH%
+    SET PATH=c:\python\Scripts;%PATH%
     meson setup build -Dplperl=disabled -Dplpython=disabled -Dlibxml=disabled --buildtype plain -DTAR=%TAR%
 
   crosscompile_run_cache:
@@ -828,11 +832,12 @@ task:
     - cp -rvt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/pg_bsd_indent.exe
     # Copy stuff expected by install-test-modules:
     - sh -c 'for a in build/src/test/modules/*; do if test -d $a; then cp -rv build/tmp_install/usr/local/pgsql/lib/*.dll "$a"; fi; done'
+    - SET PATH=c:\python\Scripts;%PATH%
     - sh src/tools/ci/windows-reinstall
     - find build/src -ls
 
   check_world_script: |
-    SET PATH=c:\Program Files\Meson;%PATH%
+    SET PATH=c:\python\Scripts;%PATH%
     REM meson test %MTEST_ARGS% --num-processes %TEST_JOBS% tmp_install regress/regress pg_bsd_indent/001_pg_bsd_indent ecpg/ecpg
     meson test %MTEST_ARGS% --num-processes %TEST_JOBS%
 
