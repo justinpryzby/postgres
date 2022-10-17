@@ -877,6 +877,8 @@ task:
     clang_check_script: |
       chown -R postgres:postgres .
       PG_TEST_EXTRA='ssl' # Disable ldap and kerberos
+      #DESTDIR=$CIRRUS_WORKING_DIR/build.clang/tmp_install meson install --no-rebuild -C build.clang
+      #su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS recovery/019_replslot_limit pgbench/001_pgbench_with_server pgbench/002_pgbench_no_server"
       su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS tmp_install regress/regress"
       su postgres -c "meson test $MTEST_ARGS -C build.clang --num-processes $TEST_JOBS"
       rm -r build.clang
