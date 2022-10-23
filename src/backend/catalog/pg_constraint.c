@@ -167,12 +167,8 @@ CreateConstraintEntry(const char *constraintName,
 	else
 		conexclopArray = NULL;
 
-	/* initialize nulls and values */
-	for (i = 0; i < Natts_pg_constraint; i++)
-	{
-		nulls[i] = false;
-		values[i] = (Datum) NULL;
-	}
+	memset(nulls, false, sizeof(nulls));
+	memset(values, 0, sizeof(values));
 
 	conOid = GetNewOidWithIndex(conDesc, ConstraintOidIndexId,
 								Anum_pg_constraint_oid);
