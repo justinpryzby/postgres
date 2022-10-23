@@ -1349,7 +1349,6 @@ RenameRole(const char *oldname, const char *newname)
 	Datum		repl_val[Natts_pg_authid];
 	bool		repl_null[Natts_pg_authid];
 	bool		repl_repl[Natts_pg_authid];
-	int			i;
 	Oid			roleid;
 	ObjectAddress address;
 	Form_pg_authid authform;
@@ -1441,9 +1440,7 @@ RenameRole(const char *oldname, const char *newname)
 	}
 
 	/* OK, construct the modified tuple */
-	for (i = 0; i < Natts_pg_authid; i++)
-		repl_repl[i] = false;
-
+	memset(repl_repl, false, sizeof(repl_repl));
 	repl_repl[Anum_pg_authid_rolname - 1] = true;
 	repl_val[Anum_pg_authid_rolname - 1] = DirectFunctionCall1(namein,
 															   CStringGetDatum(newname));

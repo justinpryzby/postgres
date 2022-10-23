@@ -2334,11 +2334,8 @@ serialize_expr_stats(AnlExprData *exprdata, int nexprs)
 		/*
 		 * Construct a new pg_statistic tuple
 		 */
-		for (i = 0; i < Natts_pg_statistic; ++i)
-		{
-			nulls[i] = false;
-		}
 
+		memset(nulls, false, sizeof(nulls));
 		values[Anum_pg_statistic_starelid - 1] = ObjectIdGetDatum(InvalidOid);
 		values[Anum_pg_statistic_staattnum - 1] = Int16GetDatum(InvalidAttrNumber);
 		values[Anum_pg_statistic_stainherit - 1] = BoolGetDatum(false);
