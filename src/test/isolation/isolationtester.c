@@ -432,8 +432,7 @@ run_all_permutations(TestSpec *testspec)
 	 * already picked from this pile.
 	 */
 	piles = pg_malloc(sizeof(int) * testspec->nsessions);
-	for (i = 0; i < testspec->nsessions; i++)
-		piles[i] = 0;
+	memset(piles, 0, sizeof(*piles) * testspec->nsessions);
 
 	run_all_permutations_recurse(testspec, piles, 0, stepptrs);
 

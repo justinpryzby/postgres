@@ -829,9 +829,7 @@ pg_stat_get_recovery_prefetch(PG_FUNCTION_ARGS)
 	bool		nulls[PG_STAT_GET_RECOVERY_PREFETCH_COLS];
 
 	InitMaterializedSRF(fcinfo, 0);
-
-	for (int i = 0; i < PG_STAT_GET_RECOVERY_PREFETCH_COLS; ++i)
-		nulls[i] = false;
+	memset(nulls, false, sizeof(nulls));
 
 	values[0] = TimestampTzGetDatum(pg_atomic_read_u64(&SharedStats->reset_time));
 	values[1] = Int64GetDatum(pg_atomic_read_u64(&SharedStats->prefetch));

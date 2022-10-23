@@ -653,8 +653,7 @@ PortalSetResultFormat(Portal portal, int nFormats, int16 *formats)
 	else
 	{
 		/* use default format for all columns */
-		for (i = 0; i < natts; i++)
-			portal->formats[i] = 0;
+		memset(portal->formats, 0, natts * sizeof(*portal->formats));
 	}
 }
 

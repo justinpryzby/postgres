@@ -1204,8 +1204,8 @@ array_out(PG_FUNCTION_ARGS)
 	if (needdims)
 		APPENDSTR(dims_str);
 	APPENDCHAR('{');
-	for (i = 0; i < ndim; i++)
-		indx[i] = 0;
+	memset(indx, 0, sizeof(indx));
+
 	j = 0;
 	k = 0;
 	do
@@ -5045,8 +5045,7 @@ array_slice_size(char *arraydataptr, bits8 *arraynullsptr,
 				dist[MAXDIM],
 				indx[MAXDIM];
 	char	   *ptr;
-	int			i,
-				j,
+	int			j,
 				inc;
 	int			count = 0;
 
@@ -5062,8 +5061,8 @@ array_slice_size(char *arraydataptr, bits8 *arraynullsptr,
 					 typlen, typbyval, typalign);
 	mda_get_prod(ndim, dim, prod);
 	mda_get_offset_values(ndim, dist, prod, span);
-	for (i = 0; i < ndim; i++)
-		indx[i] = 0;
+	memset(indx, 0, sizeof(indx));
+
 	j = ndim - 1;
 	do
 	{
@@ -5115,8 +5114,7 @@ array_extract_slice(ArrayType *newarray,
 				span[MAXDIM],
 				dist[MAXDIM],
 				indx[MAXDIM];
-	int			i,
-				j,
+	int			j,
 				inc;
 
 	src_offset = ArrayGetOffset(ndim, dim, lb, st);
@@ -5125,8 +5123,8 @@ array_extract_slice(ArrayType *newarray,
 	mda_get_prod(ndim, dim, prod);
 	mda_get_range(ndim, span, st, endp);
 	mda_get_offset_values(ndim, dist, prod, span);
-	for (i = 0; i < ndim; i++)
-		indx[i] = 0;
+	memset(indx, 0, sizeof(indx));
+
 	dest_offset = 0;
 	j = ndim - 1;
 	do
@@ -5194,8 +5192,7 @@ array_insert_slice(ArrayType *destArray,
 				span[MAXDIM],
 				dist[MAXDIM],
 				indx[MAXDIM];
-	int			i,
-				j,
+	int			j,
 				inc;
 
 	dest_offset = ArrayGetOffset(ndim, dim, lb, st);
@@ -5211,8 +5208,8 @@ array_insert_slice(ArrayType *destArray,
 	mda_get_prod(ndim, dim, prod);
 	mda_get_range(ndim, span, st, endp);
 	mda_get_offset_values(ndim, dist, prod, span);
-	for (i = 0; i < ndim; i++)
-		indx[i] = 0;
+	memset(indx, 0, sizeof(indx));
+
 	src_offset = 0;
 	j = ndim - 1;
 	do
