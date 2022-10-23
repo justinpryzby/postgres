@@ -682,8 +682,7 @@ void
 mdopen(SMgrRelation reln)
 {
 	/* mark it not open */
-	for (int forknum = 0; forknum <= MAX_FORKNUM; forknum++)
-		reln->md_num_open_segs[forknum] = 0;
+	memset(reln->md_num_open_segs, 0, (1 + MAX_FORKNUM) * sizeof(*reln->md_num_open_segs));
 }
 
 /*
