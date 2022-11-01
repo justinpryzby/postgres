@@ -250,6 +250,10 @@ parseCommandLine(int argc, char *argv[])
 	check_required_directory(&user_opts.socketdir, "PGSOCKETDIR", true,
 							 "-s", _("sockets will be created"), false);
 
+	if (strcmp(make_absolute_path(old_cluster.pgdata),
+			   make_absolute_path(new_cluster.pgdata)) == 0)
+		pg_fatal("cannot upgrade a cluster on top of itself");
+
 #ifdef WIN32
 
 	/*
