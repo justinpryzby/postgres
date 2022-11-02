@@ -376,7 +376,7 @@ task:
     - name: Linux - Debian Bookworm - Meson
 
       env:
-        CCACHE_MAXSIZE: "400M" # tests two different builds
+        CCACHE_MAXSIZE: "800M" # tests two different builds
         SANITIZER_FLAGS: -fsanitize=alignment,undefined
 
       configure_script: |
@@ -425,6 +425,10 @@ task:
           ulimit -c unlimited
           PYTHONCOERCECLOCALE=0 LANG=C PG_FAILED_TESTDIR=`pwd`/failed.build-32 meson test $MTEST_ARGS -C build-32 --num-processes ${TEST_JOBS}
         EOF
+
+      ccache_stats_end_script:
+        ccache -s
+        CCACHE_MAXSIZE=400M ccache --cleanup
 
       on_failure:
         <<: *on_failure_meson
@@ -709,8 +713,10 @@ task:
     IMAGE_FAMILY: pg-ci-bookworm
 
     # Use larger ccache cache, as this task compiles with multiple compilers /
-    # flag combinations
-    CCACHE_MAXSIZE: "1G"
+    # flag combinations.  The cache size is set high now, and manually pruned later,
+    # to avoid cache cleaning cycles during the early compilations pruning
+    # compilation results which could've been used during later compilations.
+    CCACHE_MAXSIZE: "2G"
     CCACHE_DIR: "/tmp/ccache_dir"
 
     LINUX_CONFIGURE_FEATURES: *LINUX_CONFIGURE_FEATURES
@@ -861,5 +867,9 @@ task:
       time make -s headerscheck EXTRAFLAGS='-fmax-errors=10'
     headers_cpluspluscheck_script: |
       time make -s cpluspluscheck EXTRAFLAGS='-fmax-errors=10'
+
+    ccache_stats_end_script:
+      ccache -s
+      CCACHE_MAXSIZE=1G ccache --cleanup
 
     upload_caches: ccache
