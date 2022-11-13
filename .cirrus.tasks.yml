@@ -143,6 +143,8 @@ task:
 
 task:
   name: FreeBSD - 13 - Meson
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*freebsd.*'
+  depends_on: SanityCheck
 
   env:
     # FreeBSD on GCP is slow when running with larger number of CPUS /
@@ -161,9 +163,6 @@ task:
     PG_FAILED_TESTDIR: ${CIRRUS_WORKING_DIR}/failed.build
 
   <<: *freebsd_task_template
-
-  depends_on: SanityCheck
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*freebsd.*'
 
   sysinfo_script: |
     id
@@ -261,7 +260,7 @@ LINUX_MESON_FEATURES: &LINUX_MESON_FEATURES >-
   -Dllvm=enabled
   -Duuid=e2fs
 
-
+# Linux, both 32bit and 64bit
 task:
   env:
     CPUS: 4
@@ -301,9 +300,7 @@ task:
     LINUX_MESON_FEATURES: *LINUX_MESON_FEATURES
 
   <<: *linux_task_template
-
   depends_on: SanityCheck
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
 
   ccache_cache:
     *ccache
@@ -339,6 +336,7 @@ task:
 
   matrix:
     - name: Linux - Debian Bullseye - Autoconf
+      only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux-autoconf.*'
 
       env:
         SANITIZER_FLAGS: -fsanitize=address
@@ -373,6 +371,7 @@ task:
         <<: *on_failure_ac
 
     - name: Linux - Debian Bullseye - Meson
+      only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux-meson.*'
 
       env:
         CCACHE_MAXSIZE: "2400M" # tests two different builds
@@ -440,6 +439,8 @@ task:
 
 task:
   name: macOS - Ventura - Meson
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*(macos|darwin|osx).*'
+  depends_on: SanityCheck
 
   env:
     CPUS: 4 # always get that much for cirrusci macOS instances
@@ -462,9 +463,6 @@ task:
     PG_TEST_PG_UPGRADE_MODE: --clone
 
   <<: *macos_task_template
-
-  depends_on: SanityCheck
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*(macos|darwin|osx).*'
 
   sysinfo_script: |
     id
@@ -556,6 +554,8 @@ WINDOWS_ENVIRONMENT_BASE: &WINDOWS_ENVIRONMENT_BASE
 
 task:
   name: Windows - Server 2019, VS 2019 - Meson & ninja
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+  depends_on: SanityCheck
   << : *WINDOWS_ENVIRONMENT_BASE
 
   env:
@@ -572,9 +572,6 @@ task:
     IMAGE_FAMILY: pg-ci-windows-ci-vs-2019
 
   <<: *windows_task_template
-
-  depends_on: SanityCheck
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
 
   setup_additional_packages_script: |
     REM choco install -y --no-progress ...
@@ -686,7 +683,9 @@ task:
   # use always: to continue after failures. Task that did not run count as a
   # success, so we need to recheck SanityChecks's condition here ...
   depends_on: SanityCheck
-  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*html'
+  # task that did not run, count as a success, so we need to recheck Linux'
+  # condition here ...
+  only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux.*'
 
   env:
     CPUS: 4
