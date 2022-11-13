@@ -13,6 +13,7 @@ env:
 
   CCACHE_MAXSIZE: "750M"
   CCACHE_HARDLINK: 1
+  #CCACHE_COMPRESSLEVEL: 3
   #CCACHE_NOCOMPRESS: 1
   # The statslog should be stored somewhere *outside* the persistent ccache dir
   CCACHE_STATSLOG: ${CIRRUS_WORKING_DIR}/ccache-stats.log
