@@ -835,7 +835,7 @@ pgoutput_row_filter_exec_expr(ExprState *state, ExprContext *econtext)
 	ret = ExecEvalExprSwitchContext(state, econtext, &isnull);
 
 	elog(DEBUG3, "row filter evaluates to %s (isnull: %s)",
-		 isnull ? "false" : DatumGetBool(ret) ? "true" : "false",
+		 !isnull && DatumGetBool(ret) ? "true" : "false",
 		 isnull ? "true" : "false");
 
 	if (isnull)
