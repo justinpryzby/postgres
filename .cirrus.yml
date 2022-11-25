@@ -27,16 +27,6 @@ env:
   CONTAINER_REPO: us-docker.pkg.dev/${GCP_PROJECT}/ci
   DISK_SIZE: 25
 
-
-  # The commit that this branch is rebased on.  There's no easy way to find this.
-  # This does the right thing for cfbot, which always squishes all patches into a single commit.
-  # And does the right thing for any 1-patch commits.
-  # Patch series manually submitted to cirrus would benefit from setting this to the
-  # number of patches in the series (or directly to the commit the series was rebased on).
-  #BASE_COMMIT: HEAD~1
-  # For demo purposes:
-  BASE_COMMIT: HEAD~11
-
 # Define how to run various types of tasks.
 
 # VMs provided by cirrus-ci. Each user has a limited number of "free" credits
