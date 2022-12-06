@@ -1043,14 +1043,14 @@ void
 ModifyWaitEvent(WaitEventSet *set, int pos, uint32 events, Latch *latch)
 {
 	WaitEvent  *event;
-#if defined(WAIT_USE_KQUEUE)
+#if defined(WAIT_USE_KQUEUE) || defined(WAIT_USE_EPOLL)
 	int			old_events;
 #endif
 
 	Assert(pos < set->nevents);
 
 	event = &set->events[pos];
-#if defined(WAIT_USE_KQUEUE)
+#if defined(WAIT_USE_KQUEUE) || defined(WAIT_USE_EPOLL)
 	old_events = event->events;
 #endif
 
@@ -1100,7 +1100,12 @@ ModifyWaitEvent(WaitEventSet *set, int pos, uint32 events, Latch *latch)
 	}
 
 #if defined(WAIT_USE_EPOLL)
-	WaitEventAdjustEpoll(set, event, EPOLL_CTL_MOD);
+	if (events == 0 && old_events != 0)
+		WaitEventAdjustEpoll(set, event, EPOLL_CTL_DEL);
+	else if (events != 0 && old_events == 0)
+		WaitEventAdjustEpoll(set, event, EPOLL_CTL_ADD);
+	else
+		WaitEventAdjustEpoll(set, event, EPOLL_CTL_MOD);
 #elif defined(WAIT_USE_KQUEUE)
 	WaitEventAdjustKqueue(set, event, old_events);
 #elif defined(WAIT_USE_POLL)
@@ -1138,9 +1143,6 @@ WaitEventAdjustEpoll(WaitEventSet *set, WaitEvent *event, int action)
 	else
 	{
 		Assert(event->fd != PGINVALID_SOCKET);
-		Assert(event->events & (WL_SOCKET_READABLE |
-								WL_SOCKET_WRITEABLE |
-								WL_SOCKET_CLOSED));
 
 		if (event->events & WL_SOCKET_READABLE)
 			epoll_ev.events |= EPOLLIN;
@@ -1183,6 +1185,14 @@ WaitEventAdjustPoll(WaitEventSet *set, WaitEvent *event)
 	else if (event->events == WL_POSTMASTER_DEATH)
 	{
 		pollfd->events = POLLIN;
+	}
+	else if (event->events == 0)
+	{
+		/*
+		 * If we're suppressing all socket events, remove the file descriptor
+		 * so poll() ignores this entry.
+		 */
+		pollfd->fd = -1;
 	}
 	else
 	{
@@ -1268,11 +1278,6 @@ WaitEventAdjustKqueue(WaitEventSet *set, WaitEvent *event, int old_events)
 		return;
 
 	Assert(event->events != WL_LATCH_SET || set->latch != NULL);
-	Assert(event->events == WL_LATCH_SET ||
-		   event->events == WL_POSTMASTER_DEATH ||
-		   (event->events & (WL_SOCKET_READABLE |
-							 WL_SOCKET_WRITEABLE |
-							 WL_SOCKET_CLOSED)));
 
 	if (event->events == WL_POSTMASTER_DEATH)
 	{
@@ -1375,7 +1380,14 @@ WaitEventAdjustWin32(WaitEventSet *set, WaitEvent *event)
 	}
 	else
 	{
-		int			flags = FD_CLOSE;	/* always check for errors/EOF */
+		int			flags = 0;
+
+		/*
+		 * Check for errors/EOF unless we're completely suppressing all events
+		 * for this socket.
+		 */
+		if (event->events != 0)
+			flags = FD_CLOSE;
 
 		if (event->events & WL_SOCKET_READABLE)
 			flags |= FD_READ;
