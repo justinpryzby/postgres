@@ -75,7 +75,9 @@ ORDER BY t1.oid;
  4600 | pg_brin_bloom_summary
  4601 | pg_brin_minmax_multi_summary
  5017 | pg_mcv_list
-(6 rows)
+ 8243 | pg_encrypted_det
+ 8244 | pg_encrypted_rnd
+(8 rows)
 
 -- Make sure typarray points to a "true" array type of our own base
 SELECT t1.oid, t1.typname as basetype, t2.typname as arraytype,
@@ -676,6 +678,8 @@ CREATE TABLE tab_core_types AS SELECT
   'txt'::text,
   true::bool,
   E'\\xDEADBEEF'::bytea,
+  'encrypted$3aacd063d2d3a1a04119df76874e0b9785ea466177f18fe9c0a1a313eaf09c98'::pg_encrypted_det,
+  'encrypted$3dade6cec75b107d379f397876c70640e1a1f39bd20884339bc64203abe73d6d'::pg_encrypted_rnd,
   B'10001'::bit,
   B'10001'::varbit AS varbit,
   '12.34'::money,

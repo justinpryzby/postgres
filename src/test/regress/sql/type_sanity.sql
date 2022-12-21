@@ -503,6 +503,8 @@ CREATE TABLE tab_core_types AS SELECT
   'txt'::text,
   true::bool,
   E'\\xDEADBEEF'::bytea,
+  'encrypted$3aacd063d2d3a1a04119df76874e0b9785ea466177f18fe9c0a1a313eaf09c98'::pg_encrypted_det,
+  'encrypted$3dade6cec75b107d379f397876c70640e1a1f39bd20884339bc64203abe73d6d'::pg_encrypted_rnd,
   B'10001'::bit,
   B'10001'::varbit AS varbit,
   '12.34'::money,

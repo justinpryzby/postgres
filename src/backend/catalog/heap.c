@@ -42,6 +42,7 @@
 #include "catalog/partition.h"
 #include "catalog/pg_am.h"
 #include "catalog/pg_attrdef.h"
+#include "catalog/pg_colenckey.h"
 #include "catalog/pg_collation.h"
 #include "catalog/pg_constraint.h"
 #include "catalog/pg_foreign_table.h"
@@ -749,6 +750,9 @@ InsertPgAttributeTuples(Relation pg_attribute_rel,
 		slot[slotCount]->tts_values[Anum_pg_attribute_attgenerated - 1] = CharGetDatum(attrs->attgenerated);
 		slot[slotCount]->tts_values[Anum_pg_attribute_attisdropped - 1] = BoolGetDatum(attrs->attisdropped);
 		slot[slotCount]->tts_values[Anum_pg_attribute_attislocal - 1] = BoolGetDatum(attrs->attislocal);
+		slot[slotCount]->tts_values[Anum_pg_attribute_attcek - 1] = ObjectIdGetDatum(attrs->attcek);
+		slot[slotCount]->tts_values[Anum_pg_attribute_attrealtypid - 1] = ObjectIdGetDatum(attrs->attrealtypid);
+		slot[slotCount]->tts_values[Anum_pg_attribute_attencalg - 1] = Int32GetDatum(attrs->attencalg);
 		slot[slotCount]->tts_values[Anum_pg_attribute_attinhcount - 1] = Int32GetDatum(attrs->attinhcount);
 		slot[slotCount]->tts_values[Anum_pg_attribute_attcollation - 1] = ObjectIdGetDatum(attrs->attcollation);
 		if (attoptions && attoptions[natts] != (Datum) 0)
@@ -838,6 +842,20 @@ AddNewAttributeTuples(Oid new_rel_oid,
 		{
 			ObjectAddressSet(referenced, CollationRelationId,
 							 tupdesc->attrs[i].attcollation);
+			recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+		}
+
+		if (OidIsValid(tupdesc->attrs[i].attcek))
+		{
+			ObjectAddressSet(referenced, ColumnEncKeyRelationId,
+							 tupdesc->attrs[i].attcek);
+			recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
+		}
+
+		if (OidIsValid(tupdesc->attrs[i].attrealtypid))
+		{
+			ObjectAddressSet(referenced, TypeRelationId,
+							 tupdesc->attrs[i].attrealtypid);
 			recordDependencyOn(&myself, &referenced, DEPENDENCY_NORMAL);
 		}
 	}
