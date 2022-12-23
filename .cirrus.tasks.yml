@@ -776,6 +776,7 @@ task:
       mkdir build && cd build
       CC="ccache gcc" CXX="ccache g++" \
         meson setup \
+          --buildtype=debug \
           -Dwerror=true \
           -Dcassert=false \
           -Ddtrace=enabled \
@@ -797,6 +798,7 @@ task:
       mkdir build && cd build
       CC="ccache clang-16" CXX="ccache clang++-16" \
         meson setup \
+          --buildtype=debug \
           -Dwerror=true \
           -Dcassert=false \
           -Ddtrace=disabled \
@@ -816,6 +818,7 @@ task:
     mingw_cross_warning_script: |
       mkdir build-w64 && cd build-w64
       meson setup \
+        --buildtype=debug \
         --cross-file=../src/tools/ci/linux-mingw-w64-64bit.txt \
         -Dwerror=true \
         -Dcassert=true \
