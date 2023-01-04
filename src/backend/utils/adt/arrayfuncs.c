@@ -2711,13 +2711,11 @@ array_set_element_expanded(Datum arraydatum,
 	if (addedbefore > 0)
 	{
 		memmove(dvalues + addedbefore, dvalues, eah->nelems * sizeof(Datum));
-		for (i = 0; i < addedbefore; i++)
-			dvalues[i] = (Datum) 0;
+		memset(dvalues, 0, sizeof(*dvalues) * addedbefore);
 		if (dnulls)
 		{
 			memmove(dnulls + addedbefore, dnulls, eah->nelems * sizeof(bool));
-			for (i = 0; i < addedbefore; i++)
-				dnulls[i] = true;
+			memset(dnulls, true, sizeof(*dnulls) * addedbefore);
 		}
 		eah->nelems += addedbefore;
 	}
@@ -2725,13 +2723,9 @@ array_set_element_expanded(Datum arraydatum,
 	/* fill addedafter items with nulls */
 	if (addedafter > 0)
 	{
-		for (i = 0; i < addedafter; i++)
-			dvalues[eah->nelems + i] = (Datum) 0;
+		memset(dvalues + eah->nelems, 0, sizeof(*dvalues) * addedafter);
 		if (dnulls)
-		{
-			for (i = 0; i < addedafter; i++)
-				dnulls[eah->nelems + i] = true;
-		}
+			memset(dnulls + eah->nelems, true, sizeof(*dnulls) * addedafter);
 		eah->nelems += addedafter;
 	}
 

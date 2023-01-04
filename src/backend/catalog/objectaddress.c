@@ -2410,9 +2410,7 @@ pg_get_object_address(PG_FUNCTION_ARGS)
 	values[0] = ObjectIdGetDatum(addr.classId);
 	values[1] = ObjectIdGetDatum(addr.objectId);
 	values[2] = Int32GetDatum(addr.objectSubId);
-	nulls[0] = false;
-	nulls[1] = false;
-	nulls[2] = false;
+	memset(nulls, 0, sizeof(nulls));
 
 	htup = heap_form_tuple(tupdesc, values, nulls);
 
