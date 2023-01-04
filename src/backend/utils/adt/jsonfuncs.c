@@ -3571,11 +3571,8 @@ populate_record(TupleDesc tupdesc,
 	}
 	else
 	{
-		for (i = 0; i < ncolumns; ++i)
-		{
-			values[i] = (Datum) 0;
-			nulls[i] = true;
-		}
+		memset(values, 0, ncolumns * sizeof(*values));
+		memset(nulls, true, ncolumns * sizeof(*nulls));
 	}
 
 	for (i = 0; i < ncolumns; ++i)

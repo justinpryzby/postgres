@@ -3951,19 +3951,23 @@ pg_stat_get_wal_senders(PG_FUNCTION_ARGS)
 
 			if (XLogRecPtrIsInvalid(sent_ptr))
 				nulls[2] = true;
-			values[2] = LSNGetDatum(sent_ptr);
+			else
+				values[2] = LSNGetDatum(sent_ptr);
 
 			if (XLogRecPtrIsInvalid(write))
 				nulls[3] = true;
-			values[3] = LSNGetDatum(write);
+			else
+				values[3] = LSNGetDatum(write);
 
 			if (XLogRecPtrIsInvalid(flush))
 				nulls[4] = true;
-			values[4] = LSNGetDatum(flush);
+			else
+				values[4] = LSNGetDatum(flush);
 
 			if (XLogRecPtrIsInvalid(apply))
 				nulls[5] = true;
-			values[5] = LSNGetDatum(apply);
+			else
+				values[5] = LSNGetDatum(apply);
 
 			/*
 			 * Treat a standby such as a pg_basebackup background process
