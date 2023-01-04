@@ -1637,11 +1637,8 @@ update_attstats(Oid relid, bool inh, int natts, VacAttrStats **vacattrstats)
 		/*
 		 * Construct a new pg_statistic tuple
 		 */
-		for (i = 0; i < Natts_pg_statistic; ++i)
-		{
-			nulls[i] = false;
-			replaces[i] = true;
-		}
+		memset(nulls, false, sizeof(nulls));
+		memset(replaces, true, sizeof(replaces));
 
 		values[Anum_pg_statistic_starelid - 1] = ObjectIdGetDatum(relid);
 		values[Anum_pg_statistic_staattnum - 1] = Int16GetDatum(stats->tupattnum);
