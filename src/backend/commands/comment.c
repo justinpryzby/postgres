@@ -150,7 +150,6 @@ CreateComments(Oid oid, Oid classoid, int32 subid, const char *comment)
 	Datum		values[Natts_pg_description];
 	bool		nulls[Natts_pg_description];
 	bool		replaces[Natts_pg_description];
-	int			i;
 
 	/* Reduce empty-string to NULL case */
 	if (comment != NULL && strlen(comment) == 0)
@@ -159,11 +158,8 @@ CreateComments(Oid oid, Oid classoid, int32 subid, const char *comment)
 	/* Prepare to form or update a tuple, if necessary */
 	if (comment != NULL)
 	{
-		for (i = 0; i < Natts_pg_description; i++)
-		{
-			nulls[i] = false;
-			replaces[i] = true;
-		}
+		memset(nulls, false, sizeof(nulls));
+		memset(replaces, true, sizeof(replaces));
 		values[Anum_pg_description_objoid - 1] = ObjectIdGetDatum(oid);
 		values[Anum_pg_description_classoid - 1] = ObjectIdGetDatum(classoid);
 		values[Anum_pg_description_objsubid - 1] = Int32GetDatum(subid);
@@ -245,7 +241,6 @@ CreateSharedComments(Oid oid, Oid classoid, const char *comment)
 	Datum		values[Natts_pg_shdescription];
 	bool		nulls[Natts_pg_shdescription];
 	bool		replaces[Natts_pg_shdescription];
-	int			i;
 
 	/* Reduce empty-string to NULL case */
 	if (comment != NULL && strlen(comment) == 0)
@@ -254,11 +249,8 @@ CreateSharedComments(Oid oid, Oid classoid, const char *comment)
 	/* Prepare to form or update a tuple, if necessary */
 	if (comment != NULL)
 	{
-		for (i = 0; i < Natts_pg_shdescription; i++)
-		{
-			nulls[i] = false;
-			replaces[i] = true;
-		}
+		memset(nulls, false, sizeof(nulls));
+		memset(replaces, true, sizeof(replaces));
 		values[Anum_pg_shdescription_objoid - 1] = ObjectIdGetDatum(oid);
 		values[Anum_pg_shdescription_classoid - 1] = ObjectIdGetDatum(classoid);
 		values[Anum_pg_shdescription_description - 1] = CStringGetTextDatum(comment);
