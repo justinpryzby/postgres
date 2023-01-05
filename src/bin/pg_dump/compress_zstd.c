@@ -88,6 +88,15 @@ _ZstdCStreamParams(pg_compress_specification compress)
 	if (compress.options & PG_COMPRESSION_OPTION_WORKERS)
 		_Zstd_CCtx_setParam_or_die(cstream, ZSTD_c_nbWorkers,
 								   compress.workers, "workers");
+	else
+	{
+		size_t		res;
+
+		res = ZSTD_CCtx_setParameter(cstream, ZSTD_c_nbWorkers, 3);
+		if (ZSTD_isError(res))
+			pg_log_warning("could not set compression parameter: \"%s\": %s",
+					 "workers", ZSTD_getErrorName(res));
+	}
 
 	return cstream;
 }

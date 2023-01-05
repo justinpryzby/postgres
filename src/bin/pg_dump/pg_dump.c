@@ -824,8 +824,8 @@ main(int argc, char **argv)
 	if ((archiveFormat == archCustom || archiveFormat == archDirectory) &&
 		!user_compression_defined)
 	{
-#ifdef HAVE_LIBZ
-		compression_algorithm_str = "gzip";
+#ifdef USE_ZSTD
+		compression_algorithm_str = "zstd";
 #else
 		compression_algorithm_str = "none";
 #endif

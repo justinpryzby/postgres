@@ -407,10 +407,10 @@ my %pgdump_runs = (
 				'pg_restore', '--list',
 				"$tempdir/defaults_custom_format.dump",
 			],
-			expected => $supports_gzip
-			? qr/Compression: gzip/
+			expected => $supports_zstd
+			? qr/Compression: zstd/
 			: qr/Compression: none/,
-			name => 'data content is gzip-compressed by default if available',
+			name => 'data content is zstd-compressed by default if available',
 		},
 	},
 
@@ -435,14 +435,14 @@ my %pgdump_runs = (
 		command_like => {
 			command =>
 			  [ 'pg_restore', '--list', "$tempdir/defaults_dir_format", ],
-			expected => $supports_gzip ? qr/Compression: gzip/
+			expected => $supports_zstd ? qr/Compression: zstd/
 			: qr/Compression: none/,
 			name => 'data content is gzip-compressed by default',
 		},
 		glob_patterns => [
 			"$tempdir/defaults_dir_format/toc.dat",
 			"$tempdir/defaults_dir_format/blobs_*.toc",
-			$supports_gzip ? "$tempdir/defaults_dir_format/*.dat.gz"
+			$supports_zstd ? "$tempdir/defaults_dir_format/*.dat.zst"
 			: "$tempdir/defaults_dir_format/*.dat",
 		],
 	},

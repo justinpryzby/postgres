@@ -263,6 +263,7 @@ LINUX_CONFIGURE_FEATURES: &LINUX_CONFIGURE_FEATURES >-
 
 LINUX_MESON_FEATURES: &LINUX_MESON_FEATURES >-
   -Dssl=none
+  -Dzstd=enabled
 
 # Linux, both 32bit and 64bit
 task:
@@ -397,6 +398,10 @@ task:
         SANITIZER_FLAGS: -fsanitize=alignment,undefined
 
       configure_script: |
+        mkdir subprojects
+        meson wrap install --allow-insecure zstd
+        meson configure -D zstd:multithread=enabled --force-fallback-for=zstd
+
         su postgres <<-EOF
           meson setup \
             --buildtype=debug \
@@ -627,7 +632,9 @@ task:
   # Use /Z7 to write separate debug files, to allow ccache to work
   configure_script: |
     vcvarsall x64
-    meson setup build --backend ninja --buildtype debug -Dc_link_args=/DEBUG:FASTLINK -Dcassert=true -Dinjection_points=true -Db_pch=true -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=%TAR% -Dc_args="/Z7"
+    mkdir subprojects
+    meson wrap install --allow-insecure zstd
+    meson setup build --backend ninja --buildtype debug -Dc_link_args=/DEBUG:FASTLINK -Dcassert=true -Dinjection_points=true -Db_pch=true -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=%TAR% -Dc_args="/Z7" -D zstd=enabled -D zstd:multi_thread=enabled --force-fallback-for=zstd
 
   build_script: |
     vcvarsall x64
