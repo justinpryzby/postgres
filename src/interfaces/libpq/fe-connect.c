@@ -4042,17 +4042,6 @@ keep_going:						/* We will come back to here until there is
 						 conn->target_server_type == SERVER_TYPE_STANDBY ||
 						 conn->target_server_type == SERVER_TYPE_PREFER_STANDBY)
 				{
-					/*
-					 * If the server didn't report "in_hot_standby" at
-					 * startup, we must determine its state by sending the
-					 * query "SELECT pg_catalog.pg_is_in_recovery()".  Servers
-					 * before 9.0 don't have that function, but by the same
-					 * token they don't have any standby mode, so we may just
-					 * assume the result.
-					 */
-					if (conn->sversion < 90000)
-						conn->in_hot_standby = PG_BOOL_NO;
-
 					if (conn->in_hot_standby == PG_BOOL_UNKNOWN)
 					{
 						/*

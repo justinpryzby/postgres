@@ -298,7 +298,7 @@ appendStringLiteralConn(PQExpBuffer buf, const char *str, PGconn *conn)
 	 * XXX This is a kluge to silence escape_string_warning in our utility
 	 * programs.  It should go away someday.
 	 */
-	if (strchr(str, '\\') != NULL && PQserverVersion(conn) >= 80100)
+	if (strchr(str, '\\') != NULL)
 	{
 		/* ensure we are not adjacent to an identifier */
 		if (buf->len > 0 && buf->data[buf->len - 1] != ' ')
