@@ -284,11 +284,7 @@ pg_stat_get_progress_info(PG_FUNCTION_ARGS)
 				values[i + 3] = Int64GetDatum(beentry->st_progress_param[i]);
 		}
 		else
-		{
-			nulls[2] = true;
-			for (i = 0; i < PGSTAT_NUM_PROGRESS_PARAM; i++)
-				nulls[i + 3] = true;
-		}
+			memset(nulls + 2, true, sizeof(*nulls) * (PGSTAT_NUM_PROGRESS_PARAM - 2));
 
 		tuplestore_putvalues(rsinfo->setResult, rsinfo->setDesc, values, nulls);
 	}
