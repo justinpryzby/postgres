@@ -259,7 +259,7 @@ $cmdret = $primary->psql(
 is($cmdret, 3, "psql fails correctly");
 like($stderr, qr/backup label too long/, "pg_backup_start fails gracefully");
 $primary->safe_psql('postgres',
-	"SELECT pg_backup_start('onebackup'); SELECT pg_backup_stop();");
+	"SELECT pg_backup_start('onebackup'); SELECT pg_backup_stop();", stderr_ok=>1);
 $primary->safe_psql('postgres', "SELECT pg_backup_start('twobackup')");
 
 done_testing();

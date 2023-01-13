@@ -55,7 +55,7 @@ $node_primary->wait_for_replay_catchup($node_standby);
 
 test_standby_func_tab_stats_status('postgres',
 	$dboid, $tableoid, $funcoid, 't');
-$node_primary->safe_psql('postgres', "DROP SCHEMA drop_schema_test1 CASCADE");
+$node_primary->safe_psql('postgres', "DROP SCHEMA drop_schema_test1 CASCADE", stderr_ok=>1);
 
 $sect = "post schema drop";
 
