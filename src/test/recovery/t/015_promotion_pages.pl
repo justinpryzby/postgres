@@ -42,7 +42,7 @@ $alpha->safe_psql('postgres', 'checkpoint');
 
 # The following vacuum will set visibility map bits and create
 # problematic WAL records.
-$alpha->safe_psql('postgres', 'vacuum verbose test1');
+$alpha->safe_psql('postgres', 'vacuum verbose test1', stderr_ok=>1);
 # Wait for last record to have been replayed on the standby.
 $alpha->wait_for_catchup($bravo);
 
@@ -70,7 +70,7 @@ $bravo->promote;
 # again to create new page references.  The first post-recovery checkpoint
 # has not happened yet.
 $bravo->safe_psql('postgres', 'truncate test1');
-$bravo->safe_psql('postgres', 'vacuum verbose test1');
+$bravo->safe_psql('postgres', 'vacuum verbose test1', stderr_ok=>1);
 $bravo->safe_psql('postgres',
 	'insert into test1 select generate_series(1,1000)');
 

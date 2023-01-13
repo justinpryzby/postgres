@@ -1773,6 +1773,14 @@ sub safe_psql
 		print "#### Begin standard error\n";
 		print $stderr;
 		print "\n#### End standard error\n";
+		$params{notice_ok} = 1 unless defined $params{on_error_die};
+		if ($params{notice_ok})
+		{
+			my $others = grep { /(!:NOTICE)/ } \$stderr ;
+			die "others $others" if $others;
+		} else {
+			die if not $params{stderr_ok};
+		}
 	}
 
 	return $stdout;
