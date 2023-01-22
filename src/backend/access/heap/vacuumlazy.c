@@ -2113,12 +2113,23 @@ lazy_vacuum_heap_rel(LVRelState *vacrel)
 	LVSavedErrInfo saved_err_info;
 	TidStoreIter *iter;
 	TidStoreIterResult *iter_result;
+#if 0
+	const int	progress_inds[] = {
+		PROGRESS_VACUUM_PHASE,
+		PROGRESS_VACUUM_NUM_DEAD_TUPLES,
+	};
+	const int64 progress_vals[] = {
+		PROGRESS_VACUUM_PHASE_VACUUM_HEAP,
+		0,
+	};
+#endif
 
 	Assert(vacrel->do_index_vacuuming);
 	Assert(vacrel->do_index_cleanup);
 	Assert(vacrel->num_index_scans > 0);
 
 	/* Report that we are now vacuuming the heap */
+	//pgstat_progress_update_multi_param(2, progress_inds, progress_vals);
 	pgstat_progress_update_param(PROGRESS_VACUUM_PHASE,
 								 PROGRESS_VACUUM_PHASE_VACUUM_HEAP);
 
@@ -2931,6 +2942,14 @@ dead_items_reset(LVRelState *vacrel)
 
 	/* Reset the counter */
 	vacrel->dead_items_info->num_items = 0;
+
+	{
+		const int	progress_inds[] = {PROGRESS_VACUUM_DEAD_TUPLE_BYTES};
+		const int64 progress_vals[] = {0};
+
+		pgstat_progress_update_multi_param(1, progress_inds, progress_vals);
+	}
+	vacrel->dead_items = dead_items;
 }
 
 /*
