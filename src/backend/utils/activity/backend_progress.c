@@ -119,6 +119,78 @@ pgstat_progress_asserts(void)
 	}
 }
 
+/*
+ * Check that newval >= oldval, and that when total is not being set twice.
+ */
+static void
+pgstat_progress_assert_forward_progress(int command, int index,
+										int64 oldval, int64 newval)
+{
+	switch (command)
+	{
+		case PROGRESS_COMMAND_ANALYZE:
+			/*
+			 * phase goes backwards for inheritance tables, which are sampled
+			 * twice
+			 */
+			if (index != PROGRESS_ANALYZE_CURRENT_CHILD_TABLE_RELID &&
+				index != PROGRESS_ANALYZE_PHASE)
+				Assert(newval >= oldval);
+			if (index == PROGRESS_ANALYZE_BLOCKS_TOTAL ||
+				index == PROGRESS_ANALYZE_EXT_STATS_TOTAL ||
+				index == PROGRESS_ANALYZE_CHILD_TABLES_TOTAL)
+				Assert(oldval == 0);
+			break;
+
+		case PROGRESS_COMMAND_CLUSTER:
+			if (index != PROGRESS_CLUSTER_INDEX_RELID)
+				Assert(newval >= oldval);
+			if (index == PROGRESS_CLUSTER_TOTAL_HEAP_BLKS)
+				Assert(oldval == 0);
+			break;
+
+		case PROGRESS_COMMAND_CREATE_INDEX:
+			if (index != PROGRESS_CREATEIDX_INDEX_OID &&
+				index != PROGRESS_CREATEIDX_SUBPHASE &&
+				index != PROGRESS_WAITFOR_CURRENT_PID &&
+				index != PROGRESS_CREATEIDX_ACCESS_METHOD_OID)
+				Assert(newval >= oldval);
+
+			if (index == PROGRESS_CREATEIDX_TUPLES_TOTAL ||
+				index == PROGRESS_CREATEIDX_PARTITIONS_TOTAL)
+				Assert(oldval == 0);
+			break;
+
+		case PROGRESS_COMMAND_BASEBACKUP:
+			if (index == PROGRESS_BASEBACKUP_BACKUP_TOTAL &&
+				oldval == 0 && newval == -1)
+				return;			/* Do nothing: this is the initial "null"
+								 * state before the size is estimated */
+			Assert(newval >= oldval);
+
+			if (index == PROGRESS_BASEBACKUP_BACKUP_TOTAL ||
+				index == PROGRESS_BASEBACKUP_TBLSPC_TOTAL)
+				Assert(oldval == 0);
+			break;
+
+		case PROGRESS_COMMAND_COPY:
+			Assert(newval >= oldval);
+			if (index == PROGRESS_COPY_BYTES_TOTAL)
+				Assert(oldval == 0);
+			break;
+		case PROGRESS_COMMAND_VACUUM:
+			Assert(newval >= oldval);
+			if (index == PROGRESS_VACUUM_TOTAL_HEAP_BLKS)
+				Assert(oldval == 0);
+			if (index == PROGRESS_VACUUM_MAX_DEAD_TUPLE_BYTES)
+				Assert(oldval == 0);
+			break;
+
+		case PROGRESS_COMMAND_INVALID:
+			break;
+	}
+}
+
 /*-----------
  * pgstat_progress_update_param() -
  *
@@ -134,6 +206,15 @@ pgstat_progress_update_param(int index, int64 val)
 
 	if (!beentry || !pgstat_track_activities)
 		return;
+
+	if (index != PROGRESS_SCAN_BLOCKS_DONE)
+	{
+		/* Check that progress does not go backwards */
+		int64		oldval = beentry->st_progress_param[index];
+
+		pgstat_progress_assert_forward_progress(beentry->st_progress_command,
+												index, oldval, val);
+	}
 
 	PGSTAT_BEGIN_WRITE_ACTIVITY(beentry);
 	beentry->st_progress_param[index] = val;
