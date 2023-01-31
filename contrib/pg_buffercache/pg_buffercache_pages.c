@@ -192,8 +192,8 @@ pg_buffercache_pages(PG_FUNCTION_ARGS)
 		Datum		values[NUM_BUFFERCACHE_PAGES_ELEM];
 		bool		nulls[NUM_BUFFERCACHE_PAGES_ELEM];
 
+		memset(nulls, 0, sizeof(nulls));
 		values[0] = Int32GetDatum(fctx->record[i].bufferid);
-		nulls[0] = false;
 
 		/*
 		 * Set all fields except the bufferid to null if the buffer is unused
@@ -215,22 +215,14 @@ pg_buffercache_pages(PG_FUNCTION_ARGS)
 		else
 		{
 			values[1] = ObjectIdGetDatum(fctx->record[i].relfilenumber);
-			nulls[1] = false;
 			values[2] = ObjectIdGetDatum(fctx->record[i].reltablespace);
-			nulls[2] = false;
 			values[3] = ObjectIdGetDatum(fctx->record[i].reldatabase);
-			nulls[3] = false;
 			values[4] = ObjectIdGetDatum(fctx->record[i].forknum);
-			nulls[4] = false;
 			values[5] = Int64GetDatum((int64) fctx->record[i].blocknum);
-			nulls[5] = false;
 			values[6] = BoolGetDatum(fctx->record[i].isdirty);
-			nulls[6] = false;
 			values[7] = Int16GetDatum(fctx->record[i].usagecount);
-			nulls[7] = false;
 			/* unused for v1.0 callers, but the array is always long enough */
 			values[8] = Int32GetDatum(fctx->record[i].pinning_backends);
-			nulls[8] = false;
 		}
 
 		/* Build and return the tuple. */
