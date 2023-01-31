@@ -4373,7 +4373,7 @@ pg_identify_object_as_address(PG_FUNCTION_ARGS)
 
 	/* object type, which can never be NULL */
 	values[0] = CStringGetTextDatum(getObjectTypeDescription(&address, true));
-	nulls[0] = false;
+	memset(nulls, 0, sizeof(nulls));
 
 	/* object identity */
 	identity = getObjectIdentityParts(&address, &names, &args, true);
@@ -4391,14 +4391,12 @@ pg_identify_object_as_address(PG_FUNCTION_ARGS)
 			values[1] = PointerGetDatum(strlist_to_textarray(names));
 		else
 			values[1] = PointerGetDatum(construct_empty_array(TEXTOID));
-		nulls[1] = false;
 
 		/* object_args */
 		if (args)
 			values[2] = PointerGetDatum(strlist_to_textarray(args));
 		else
 			values[2] = PointerGetDatum(construct_empty_array(TEXTOID));
-		nulls[2] = false;
 	}
 
 	htup = heap_form_tuple(tupdesc, values, nulls);

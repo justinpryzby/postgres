@@ -439,14 +439,10 @@ pg_last_committed_xact(PG_FUNCTION_ARGS)
 	}
 	else
 	{
+		memset(nulls, false, sizeof(nulls));
 		values[0] = TransactionIdGetDatum(xid);
-		nulls[0] = false;
-
 		values[1] = TimestampTzGetDatum(ts);
-		nulls[1] = false;
-
 		values[2] = ObjectIdGetDatum((Oid) nodeid);
-		nulls[2] = false;
 	}
 
 	htup = heap_form_tuple(tupdesc, values, nulls);
@@ -484,10 +480,8 @@ pg_xact_commit_timestamp_origin(PG_FUNCTION_ARGS)
 	else
 	{
 		values[0] = TimestampTzGetDatum(ts);
-		nulls[0] = false;
-
 		values[1] = ObjectIdGetDatum((Oid) nodeid);
-		nulls[1] = false;
+		memset(nulls, false, sizeof(nulls));
 	}
 
 	htup = heap_form_tuple(tupdesc, values, nulls);
