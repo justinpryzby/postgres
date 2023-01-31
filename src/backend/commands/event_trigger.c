@@ -287,10 +287,10 @@ insert_event_trigger_tuple(const char *trigname, const char *eventname, Oid evtO
 	tgrel = table_open(EventTriggerRelationId, RowExclusiveLock);
 
 	/* Build the new pg_trigger tuple. */
+	memset(nulls, false, sizeof(nulls));
 	trigoid = GetNewOidWithIndex(tgrel, EventTriggerOidIndexId,
 								 Anum_pg_event_trigger_oid);
 	values[Anum_pg_event_trigger_oid - 1] = ObjectIdGetDatum(trigoid);
-	memset(nulls, false, sizeof(nulls));
 	namestrcpy(&evtnamedata, trigname);
 	values[Anum_pg_event_trigger_evtname - 1] = NameGetDatum(&evtnamedata);
 	namestrcpy(&evteventdata, eventname);
