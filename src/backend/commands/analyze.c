@@ -1170,6 +1170,12 @@ acquire_sample_rows(Relation onerel, int elevel,
 	BlockNumber blksdone = 0;
 	ReadStream *stream;
 
+	int64		progress_vals[2] = {0};
+	int const	progress_inds[2] = {
+		PROGRESS_ANALYZE_BLOCKS_DONE,
+		PROGRESS_ANALYZE_BLOCKS_TOTAL
+	};
+
 	Assert(targrows > 0);
 
 	totalblocks = RelationGetNumberOfBlocks(onerel);
@@ -1182,8 +1188,8 @@ acquire_sample_rows(Relation onerel, int elevel,
 	nblocks = BlockSampler_Init(&bs, totalblocks, targrows, randseed);
 
 	/* Report sampling block numbers */
-	pgstat_progress_update_param(PROGRESS_ANALYZE_BLOCKS_TOTAL,
-								 nblocks);
+	progress_vals[1] = nblocks;
+	pgstat_progress_update_multi_param(2, progress_inds, progress_vals);
 
 	/* Prepare for sampling rows */
 	reservoir_init_selection_state(&rstate, targrows);
