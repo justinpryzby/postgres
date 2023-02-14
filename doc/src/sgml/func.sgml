@@ -29651,12 +29651,12 @@ CREATE EVENT TRIGGER test_table_rewrite_oid
        </row>
        <row>
         <entry><literal>frequency</literal></entry>
-        <entry><type>double precision</type></entry>
+        <entry><type>real</type></entry>
         <entry>frequency of this <acronym>MCV</acronym> item</entry>
        </row>
        <row>
         <entry><literal>base_frequency</literal></entry>
-        <entry><type>double precision</type></entry>
+        <entry><type>real</type></entry>
         <entry>base frequency of this <acronym>MCV</acronym> item</entry>
        </row>
       </tbody>

@@ -46,16 +46,16 @@
  *
  * - indexes to values	  (ndim * sizeof(uint16))
  * - null flags			  (ndim * sizeof(bool))
- * - frequency			  (sizeof(double))
- * - base_frequency		  (sizeof(double))
+ * - frequency			  (sizeof(float))
+ * - base_frequency		  (sizeof(float))
  *
  * There is no alignment padding within an MCV item.
  * So in total each MCV item requires this many bytes:
  *
- *	 ndim * (sizeof(uint16) + sizeof(bool)) + 2 * sizeof(double)
+ *	 ndim * (sizeof(uint16) + sizeof(bool)) + 2 * sizeof(float)
  */
 #define ITEM_SIZE(ndims)	\
-	((ndims) * (sizeof(uint16) + sizeof(bool)) + 2 * sizeof(double))
+	((ndims) * (sizeof(uint16) + sizeof(bool)) + 2 * sizeof(float))
 
 /*
  * Used to compute size of serialized MCV list representation.
@@ -329,7 +329,7 @@ statext_mcv_build(StatsBuildData *data, double totalrows, int stattarget)
 												sizeof(SortItem),
 												multi_sort_compare, tmp);
 
-				item->base_frequency *= ((double) freq->count) / numrows;
+				item->base_frequency *= ((float) freq->count) / numrows;
 			}
 		}
 
@@ -942,11 +942,11 @@ statext_mcv_serialize(MCVList *mcvlist, VacAttrStats **stats)
 		memcpy(ptr, mcvitem->isnull, sizeof(bool) * ndims);
 		ptr += sizeof(bool) * ndims;
 
-		memcpy(ptr, &mcvitem->frequency, sizeof(double));
-		ptr += sizeof(double);
+		memcpy(ptr, &mcvitem->frequency, sizeof(float));
+		ptr += sizeof(float);
 
-		memcpy(ptr, &mcvitem->base_frequency, sizeof(double));
-		ptr += sizeof(double);
+		memcpy(ptr, &mcvitem->base_frequency, sizeof(float));
+		ptr += sizeof(float);
 
 		/* store the indexes last */
 		for (dim = 0; dim < ndims; dim++)
@@ -1290,11 +1290,11 @@ statext_mcv_deserialize(bytea *data)
 		memcpy(item->isnull, ptr, sizeof(bool) * ndims);
 		ptr += sizeof(bool) * ndims;
 
-		memcpy(&item->frequency, ptr, sizeof(double));
-		ptr += sizeof(double);
+		memcpy(&item->frequency, ptr, sizeof(float));
+		ptr += sizeof(float);
 
-		memcpy(&item->base_frequency, ptr, sizeof(double));
-		ptr += sizeof(double);
+		memcpy(&item->base_frequency, ptr, sizeof(float));
+		ptr += sizeof(float);
 
 		/* finally translate the indexes (for non-NULL only) */
 		for (dim = 0; dim < ndims; dim++)
@@ -1332,8 +1332,8 @@ statext_mcv_deserialize(bytea *data)
  * - item ID (0...nitems)
  * - values (string array)
  * - nulls only (boolean array)
- * - frequency (double precision)
- * - base_frequency (double precision)
+ * - frequency (float precision)
+ * - base_frequency (float precision)
  *
  * The input is the OID of the statistics, and there are no rows returned if
  * the statistics contains no histogram.
@@ -1446,8 +1446,8 @@ pg_stats_ext_mcvlist_items(PG_FUNCTION_ARGS)
 		values[0] = Int32GetDatum(funcctx->call_cntr);
 		values[1] = makeArrayResult(astate_values, CurrentMemoryContext);
 		values[2] = makeArrayResult(astate_nulls, CurrentMemoryContext);
-		values[3] = Float8GetDatum(item->frequency);
-		values[4] = Float8GetDatum(item->base_frequency);
+		values[3] = Float4GetDatum(item->frequency);
+		values[4] = Float4GetDatum(item->base_frequency);
 
 		/* no NULLs in the tuple */
 		memset(nulls, 0, sizeof(nulls));
