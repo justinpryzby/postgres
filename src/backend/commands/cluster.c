@@ -109,6 +109,7 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 	ListCell   *lc;
 	ClusterParams params = {0};
 	bool		verbose = false;
+	bool		process_main = true;
 	Relation	rel = NULL;
 	Oid			indexOid = InvalidOid;
 	MemoryContext cluster_context;
@@ -119,7 +120,9 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 	{
 		DefElem    *opt = (DefElem *) lfirst(lc);
 
-		if (strcmp(opt->defname, "verbose") == 0)
+		if (strcmp(opt->defname, "process_main") == 0)
+			process_main = defGetBoolean(opt);
+		else if (strcmp(opt->defname, "verbose") == 0)
 			verbose = defGetBoolean(opt);
 		else
 			ereport(ERROR,
@@ -131,10 +134,14 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 
 	params.options = (verbose ? CLUOPT_VERBOSE : 0);
 
+	if (!process_main && stmt->relation == NULL)
+		elog(ERROR, "when process_main is specified, relation must be specified"); // XXX: elog
+
 	if (stmt->relation != NULL)
 	{
 		/* This is the single-relation case. */
 		Oid			tableOid;
+		char		*relname;
 
 		/*
 		 * Find, lock, and check permissions on the table.  We obtain
@@ -142,11 +149,20 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 		 * single-transaction case.
 		 */
 		tableOid = RangeVarGetRelidExtended(stmt->relation,
-											AccessExclusiveLock,
+											AccessExclusiveLock, // XXX
 											0,
 											RangeVarCallbackMaintainsTable,
 											NULL);
 		rel = table_open(tableOid, NoLock);
+
+		if (!process_main)
+		{
+			tableOid = rel->rd_rel->reltoastrelid;
+			table_close(rel, NoLock);
+			rel = table_open(tableOid, AccessExclusiveLock);
+		}
+
+		relname = RelationGetRelationName(rel);
 
 		/*
 		 * Reject clustering a remote temp table ... their local buffer
@@ -160,9 +176,10 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 		if (stmt->indexname == NULL)
 		{
 			ListCell   *index;
+			List		*indexlist = RelationGetIndexList(rel);
 
 			/* We need to find the index that has indisclustered set. */
-			foreach(index, RelationGetIndexList(rel))
+			foreach(index, indexlist)
 			{
 				indexOid = lfirst_oid(index);
 				if (get_index_isclustered(indexOid))
@@ -170,11 +187,20 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 				indexOid = InvalidOid;
 			}
 
+			/*
+			 * If not processing the main table (and only processing the toast
+			 * table), of which there ought to be exactly one, then use it
+			 * without requiring its index to be specified by name.
+			 */
+			if (!OidIsValid(indexOid) && !process_main &&
+					list_length(indexlist) == 1)
+				indexOid = linitial_oid(indexlist);
+
 			if (!OidIsValid(indexOid))
 				ereport(ERROR,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
 						 errmsg("there is no previously clustered index for table \"%s\"",
-								stmt->relation->relname)));
+								relname)));
 		}
 		else
 		{
@@ -188,7 +214,7 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 				ereport(ERROR,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
 						 errmsg("index \"%s\" for table \"%s\" does not exist",
-								stmt->indexname, stmt->relation->relname)));
+								stmt->indexname, relname)));
 		}
 
 		/* For non-partitioned tables, do what we came here to do. */
@@ -198,6 +224,11 @@ cluster(ParseState *pstate, ClusterStmt *stmt, bool isTopLevel)
 			/* cluster_rel closes the relation, but keeps lock */
 
 			return;
+		}
+		else
+		{
+			if (!process_main)
+				elog(ERROR, "when process_main is specified, relation may not be partitioned"); // XXX: elog
 		}
 	}
 
