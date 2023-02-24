@@ -7,9 +7,9 @@
  *	Large objects are stored in separate files named "blob_<oid>.dat",
  *	and there's a plain-text TOC file for them called "blobs.toc". If
  *	compression is used, each data file is individually compressed and the
- *	".gz" suffix is added to the filenames. The TOC files are never
- *	compressed by pg_dump, however they are accepted with the .gz suffix too,
- *	in case the user has manually compressed them with 'gzip'.
+ *	compressed suffix is added to the filenames. The TOC files are never
+ *	compressed by pg_dump, however they are accepted with the compressed
+ *	suffix, in case the user has manually compressed them.
  *
  *	NOTE: This format is identical to the files written in the tar file in
  *	the 'tar' format, except that we don't write the restore.sql file (TODO),
