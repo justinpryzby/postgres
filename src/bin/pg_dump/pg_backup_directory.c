@@ -9,9 +9,9 @@
  *	"blobs_<dumpID>.toc" (or just "blobs.toc" in archive versions before 16).
  *
  *	If compression is used, each data file is individually compressed and the
- *	".gz" suffix is added to the filenames. The TOC files are never
- *	compressed by pg_dump, however they are accepted with the .gz suffix too,
- *	in case the user has manually compressed them with 'gzip'.
+ *	compressed suffix is added to the filenames. The TOC files are never
+ *	compressed by pg_dump, however they are accepted with the compressed .gz suffix,
+ *	in case the user has manually compressed them.
  *
  *	NOTE: This format is identical to the files written in the tar file in
  *	the 'tar' format, except that we don't write the restore.sql file (TODO),

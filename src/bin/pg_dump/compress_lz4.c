@@ -240,7 +240,7 @@ EndCompressorLZ4(ArchiveHandle *AH, CompressorState *cs)
 	size_t		status;
 
 	/* Nothing needs to be done */
-	if (!state)
+	if (cs->readF)
 		return;
 
 	/*
@@ -268,8 +268,6 @@ EndCompressorLZ4(ArchiveHandle *AH, CompressorState *cs)
 
 	pg_free(state->buffer);
 	pg_free(state);
-
-	cs->private_data = NULL;
 }
 
 /*
@@ -682,7 +680,7 @@ LZ4Stream_close(CompressFileHandle *CFH)
 			else if (fwrite(state->buffer, 1, status, state->fp) != status)
 			{
 				errno = (errno) ? errno : ENOSPC;
-				WRITE_ERROR_EXIT;
+				return 1;
 			}
 
 			status = LZ4F_freeCompressionContext(state->ctx);
