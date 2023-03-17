@@ -2496,6 +2496,7 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 	}
 
 	/* not represented by the MCV */
+	// otherfreq1 = mcvfreq1 < 1.0 ? 1.0 - mcvfreq1 : 0;
 	otherfreq1 = 1.0 - mcvfreq1;
 
 	matchfreq2 = unmatchfreq2 = mcvfreq2 = 0.0;
@@ -2514,6 +2515,7 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 	}
 
 	/* not represented by the MCV */
+	// otherfreq2 = mcvfreq2 < 1.0 ? 1.0 - mcvfreq2 : 0;
 	otherfreq2 = 1.0 - mcvfreq2;
 
 	/*
@@ -2566,6 +2568,7 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 	totalsel1 = s;
 	totalsel1 += unmatchfreq1 * otherfreq2 / nd2;
 	totalsel1 += otherfreq1 * (otherfreq2 + unmatchfreq2) / nd2;
+	fprintf(stderr, "totalsel1 %f\n", totalsel1);
 
 //	if (nd2 > mcvb->nitems)
 //		totalsel1 += unmatchfreq1 * otherfreq2 / (nd2 - mcvb->nitems);
@@ -2576,6 +2579,7 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 	totalsel2 = s;
 	totalsel2 += unmatchfreq2 * otherfreq1 / nd1;
 	totalsel2 += otherfreq2 * (otherfreq1 + unmatchfreq1) / nd1;
+	fprintf(stderr, "totalsel2 %f\n", totalsel1);
 
 //	if (nd1 > mcva->nitems)
 //		totalsel2 += unmatchfreq2 * otherfreq1 / (nd1 - mcva->nitems);
@@ -2583,8 +2587,17 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 //		totalsel2 += otherfreq2 * (otherfreq1 + unmatchfreq1) /
 //			(nd1 - nmatches);
 
-	s = Min(totalsel1, totalsel2);
+	return Min(totalsel1, totalsel2);
 
+	if (totalsel1 > totalsel2)
+		return totalsel2;
+	else
+		return totalsel1;
+
+	// XXX
+	s = Min(totalsel1, totalsel2);
+	// s = totalsel2 < totalsel1 ? totalsel2 : totalsel1;
+	fprintf(stderr, "min %f\n", s);
 	return s;
 }
 

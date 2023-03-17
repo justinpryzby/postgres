@@ -2701,7 +2701,7 @@ statext_find_matching_mcv(PlannerInfo *root, RelOptInfo *rel,
 		 * that may help with considering additional dependencies between the
 		 * tables.
 		 *
-		 * Of course, those two heuristict are somewhat contradictory - smaller
+		 * Of course, those two heuristics are somewhat contradictory - smaller
 		 * stats are less likely to cover as many conditions as a larger one. We
 		 * consider the additional conditions first - if someone created such
 		 * statistics, there probably is a dependency worth considering.
