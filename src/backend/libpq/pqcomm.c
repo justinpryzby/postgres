@@ -103,7 +103,7 @@
 /*
  * Configuration options
  */
-int			Unix_socket_permissions;
+int			Unix_socket_permissions = 0777;
 char	   *Unix_socket_group;
 
 /* Where the Unix socket files are (list of palloc'd strings) */

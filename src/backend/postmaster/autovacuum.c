@@ -115,21 +115,21 @@
  * GUC parameters
  */
 bool		autovacuum_start_daemon = false;
-int			autovacuum_worker_slots;
-int			autovacuum_max_workers;
+int			autovacuum_worker_slots = 16;
+int			autovacuum_max_workers = 3;
 int			autovacuum_work_mem = -1;
-int			autovacuum_naptime;
-int			autovacuum_vac_thresh;
+int			autovacuum_naptime = 60;
+int			autovacuum_vac_thresh = 50;
 double		autovacuum_vac_scale;
-int			autovacuum_vac_ins_thresh;
+int			autovacuum_vac_ins_thresh = 1000;
 double		autovacuum_vac_ins_scale;
-int			autovacuum_anl_thresh;
+int			autovacuum_anl_thresh = 50;
 double		autovacuum_anl_scale;
-int			autovacuum_freeze_max_age;
-int			autovacuum_multixact_freeze_max_age;
+int			autovacuum_freeze_max_age = 200000000;
+int			autovacuum_multixact_freeze_max_age = 400000000;
 
 double		autovacuum_vac_cost_delay;
-int			autovacuum_vac_cost_limit;
+int			autovacuum_vac_cost_limit = -1;
 
 int			Log_autovacuum_min_duration = 600000;
 

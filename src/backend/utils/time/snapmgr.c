@@ -66,6 +66,7 @@
 #include "utils/syscache.h"
 
 
+
 /*
  * CurrentSnapshot points to the only snapshot taken in transaction-snapshot
  * mode, and to the latest one taken in a read-committed transaction.

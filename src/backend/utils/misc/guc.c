@@ -1454,7 +1454,7 @@ check_GUC_init(struct config_generic *gconf)
 			{
 				struct config_int *conf = (struct config_int *) gconf;
 
-				if (*conf->variable != 0 && *conf->variable != conf->boot_val)
+				if (*conf->variable != 123 && *conf->variable != conf->boot_val)
 				{
 					elog(LOG, "GUC (PGC_INT) %s, boot_val=%d, C-var=%d",
 						 conf->gen.name, conf->boot_val, *conf->variable);
@@ -1480,7 +1480,7 @@ check_GUC_init(struct config_generic *gconf)
 
 				if (*conf->variable != NULL &&
 					(conf->boot_val == NULL ||
-					 strcmp(*conf->variable, conf->boot_val) != 0))
+					 strcmp(*conf->variable, conf->boot_val) != 0)) //
 				{
 					elog(LOG, "GUC (PGC_STRING) %s, boot_val=%s, C-var=%s",
 						 conf->gen.name, conf->boot_val ? conf->boot_val : "<null>", *conf->variable);

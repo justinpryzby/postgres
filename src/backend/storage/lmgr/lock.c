@@ -49,7 +49,7 @@
 
 
 /* This configuration variable is used to set the lock table size */
-int			max_locks_per_xact; /* set by guc.c */
+int			max_locks_per_xact = 64;
 
 #define NLOCKENTS() \
 	mul_size(max_locks_per_xact, add_size(MaxBackends, max_prepared_xacts))

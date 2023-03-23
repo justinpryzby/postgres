@@ -41,7 +41,7 @@
 /*
  * Configuration options
  */
-int			Geqo_effort;
+int			Geqo_effort = 5;
 int			Geqo_pool_size;
 int			Geqo_generations;
 double		Geqo_selection_bias;

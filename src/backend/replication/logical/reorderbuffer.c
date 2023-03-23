@@ -209,7 +209,7 @@ typedef struct ReorderBufferDiskChange
  * resource management here, but it's not entirely clear what that would look
  * like.
  */
-int			logical_decoding_work_mem;
+int			logical_decoding_work_mem = 65536;
 static const Size max_changes_in_memory = 4096; /* XXX for restore only */
 
 /* GUC variable */

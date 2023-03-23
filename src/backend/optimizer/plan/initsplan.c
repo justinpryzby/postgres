@@ -36,8 +36,8 @@
 #include "utils/typcache.h"
 
 /* These parameters are set by GUC */
-int			from_collapse_limit;
-int			join_collapse_limit;
+int			from_collapse_limit = 8;
+int			join_collapse_limit = 8;
 
 
 /*

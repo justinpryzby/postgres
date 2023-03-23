@@ -222,7 +222,7 @@ char	   *ListenAddresses;
  * connections.  Note that pre-existing superuser and
  * pg_use_reserved_connections connections don't count against the limits.
  */
-int			SuperuserReservedConnections;
+int			SuperuserReservedConnections = 3;
 int			ReservedConnections;
 
 /* The socket(s) we're listening to. */

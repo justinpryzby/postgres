@@ -63,12 +63,12 @@
 /*
  * GUC parameters
  */
-int			vacuum_freeze_min_age;
-int			vacuum_freeze_table_age;
-int			vacuum_multixact_freeze_min_age;
-int			vacuum_multixact_freeze_table_age;
-int			vacuum_failsafe_age;
-int			vacuum_multixact_failsafe_age;
+int			vacuum_freeze_min_age = 50000000;
+int			vacuum_freeze_table_age = 150000000;
+int			vacuum_multixact_freeze_min_age = 5000000;
+int			vacuum_multixact_freeze_table_age = 150000000;
+int			vacuum_failsafe_age = 1600000000;
+int			vacuum_multixact_failsafe_age = 1600000000;
 
 /*
  * Variables for cost-based vacuum delay. The defaults differ between
