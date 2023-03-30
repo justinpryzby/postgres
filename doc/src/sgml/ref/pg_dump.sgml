@@ -687,8 +687,12 @@ PostgreSQL documentation
         as though it had been fed through <application>gzip</application>,
         <application>lz4</application>, or <application>zstd</application>;
         but the default is not to compress.
-        With zstd compression, <literal>long</literal> mode may improve the
-        compression ratio, at the cost of increased memory use.
+        With zstd compression, <literal>long</literal> and
+        <literal>workers</literal> options may be specified to enable long-distance
+        matching and threaded workers, respectively.
+        Long distance mode may improve the compression ratio, at the cost of
+        increased memory use.
+        Threaded workers allow leveraging multiple CPUs during compression.
        </para>
        <para>
         The tar archive format currently does not support compression at all.

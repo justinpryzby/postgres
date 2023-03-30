@@ -851,15 +851,6 @@ main(int argc, char **argv)
 		pg_fatal("%s", error_detail);
 
 	/*
-	 * Disable support for zstd workers for now - these are based on
-	 * threading, and it's unclear how it interacts with parallel dumps on
-	 * platforms where that relies on threads too (e.g. Windows).
-	 */
-	if (compression_spec.options & PG_COMPRESSION_OPTION_WORKERS)
-		pg_log_warning("compression option \"%s\" is not currently supported by pg_dump",
-					   "workers");
-
-	/*
 	 * If emitting an archive format, we always want to emit a DATABASE item,
 	 * in case --create is specified at pg_restore time.
 	 */
