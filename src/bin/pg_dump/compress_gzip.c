@@ -56,8 +56,9 @@ DeflateCompressorInit(CompressorState *cs)
 
 	/*
 	 * outsize is the buffer size we tell zlib it can output to.  We actually
-	 * allocate one extra byte because some routines want to append a trailing
-	 * zero byte to the zlib output.
+	 * allocate one extra byte because ReadDataFromArchiveGzip() appends a
+	 * trailing zero byte to the zlib output, to enable an optimization in
+	 * ExecuteSqlCommandBuf().
 	 */
 	gzipcs->outsize = DEFAULT_IO_BUFFER_SIZE;
 	gzipcs->outbuf = pg_malloc(gzipcs->outsize + 1);
