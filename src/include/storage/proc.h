@@ -487,7 +487,6 @@ extern void ProcReleaseLocks(bool isCommit);
 extern ProcWaitStatus ProcSleep(LOCALLOCK *locallock,
 								LockMethod lockMethodTable,
 								bool dontWait);
-extern void ProcWakeup(PGPROC *proc, ProcWaitStatus waitStatus);
 extern void ProcLockWakeup(LockMethod lockMethodTable, LOCK *lock);
 extern void CheckDeadLockAlert(void);
 extern bool IsWaitingForLock(void);
