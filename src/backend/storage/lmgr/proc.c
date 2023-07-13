@@ -1680,7 +1680,7 @@ ProcSleep(LOCALLOCK *locallock, LockMethod lockMethodTable, bool dontWait)
  * to twiddle the lock's request counts too --- see RemoveFromWaitQueue.
  * Hence, in practice the waitStatus parameter must be PROC_WAIT_STATUS_OK.
  */
-void
+static void
 ProcWakeup(PGPROC *proc, ProcWaitStatus waitStatus)
 {
 	if (dlist_node_is_detached(&proc->links))
