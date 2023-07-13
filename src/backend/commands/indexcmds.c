@@ -1571,14 +1571,15 @@ DefineIndex(Oid tableId,
 		return address;
 	}
 
-	/* save lockrelid and locktag for below, then close rel */
-	heaprelid = rel->rd_lockInfo.lockRelId;
-	SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
-	table_close(rel, NoLock);
-
 	if (!partitioned)
 	{
 		/* CREATE INDEX CONCURRENTLY on a nonpartitioned table */
+
+		/* save lockrelid and locktag for below, then close rel */
+		heaprelid = rel->rd_lockInfo.lockRelId;
+		SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
+		table_close(rel, NoLock);
+
 		DefineIndexConcurrentInternal(tableId, indexRelationId,
 									  indexInfo, heaplocktag, heaprelid);
 
@@ -1595,7 +1596,7 @@ DefineIndex(Oid tableId,
 	{
 		/*
 		 * For CIC on a partitioned table, finish by building indexes on
-		 * partitions
+		 * partitions.
 		 */
 
 		ListCell   *lc;
@@ -1603,6 +1604,8 @@ DefineIndex(Oid tableId,
 		List	   *tosetvalid = NIL;
 		MemoryContext cic_context,
 					old_context;
+
+		table_close(rel, NoLock);
 
 		/* Create special memory context for cross-transaction storage */
 		cic_context = AllocSetContextCreate(PortalContext,
@@ -1632,7 +1635,7 @@ DefineIndex(Oid tableId,
 		foreach(lc, childs)
 		{
 			Oid			indrelid = lfirst_oid(lc);
-			Oid			tabrelid;
+			Oid			childtableid;
 			char		relkind;
 
 			/*
@@ -1663,14 +1666,15 @@ DefineIndex(Oid tableId,
 				continue;
 			}
 
-			rel = table_open(tableId, ShareUpdateExclusiveLock);
+			childtableid = IndexGetRelation(indrelid, false);
+
+			rel = table_open(childtableid, ShareUpdateExclusiveLock);
 			heaprelid = rel->rd_lockInfo.lockRelId;
 			table_close(rel, ShareUpdateExclusiveLock);
 			SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
 
 			/* Process each partition in a separate transaction */
-			tabrelid = IndexGetRelation(indrelid, false);
-			DefineIndexConcurrentInternal(tabrelid, indrelid, indexInfo,
+			DefineIndexConcurrentInternal(childtableid, indrelid, indexInfo,
 										  heaplocktag, heaprelid);
 
 			PushActiveSnapshot(GetTransactionSnapshot());
