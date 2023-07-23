@@ -1614,8 +1614,24 @@ DefineIndex(Oid tableId,
 											ALLOCSET_DEFAULT_SIZES);
 
 		old_context = MemoryContextSwitchTo(cic_context);
-		childs = find_all_inheritors(indexRelationId, ShareLock, NULL);
+		childs = find_all_inheritors(indexRelationId, ShareUpdateExclusiveLock, NULL);
 		MemoryContextSwitchTo(old_context);
+
+		/* Get a session-level lock on each index. */
+		foreach(lc, childs)
+		{
+			Oid			indrelid = lfirst_oid(lc);
+			char		relkind = get_rel_relkind(indrelid);
+
+			if (!RELKIND_HAS_STORAGE(relkind))
+				continue;
+
+			rel = index_open(indrelid, ShareUpdateExclusiveLock);
+			heaprelid = rel->rd_lockInfo.lockRelId;
+			index_close(rel, ShareUpdateExclusiveLock);
+			SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
+			LockRelationIdForSession(&heaprelid, ShareUpdateExclusiveLock);
+		}
 
 		foreach(lc, childs)
 		{
@@ -1642,7 +1658,7 @@ DefineIndex(Oid tableId,
 					pgstat_progress_incr_param(PROGRESS_CREATEIDX_PARTITIONS_DONE, 1);
 
 				/*
-				 * Build up a list of all the intermediate partitioned tables
+				 * Build up a list of all the intermediate partitioned indexes
 				 * which will later need to be set valid.
 				 */
 				old_context = MemoryContextSwitchTo(cic_context);
@@ -1665,7 +1681,7 @@ DefineIndex(Oid tableId,
 			pgstat_progress_incr_param(PROGRESS_CREATEIDX_PARTITIONS_DONE, 1);
 		}
 
-		/* Set as valid all partitioned indexes, including the parent */
+		/* Set all partitioned indexes as valid, including the parent */
 		foreach(lc, tosetvalid)
 		{
 			Oid			indrelid = lfirst_oid(lc);
@@ -1675,7 +1691,24 @@ DefineIndex(Oid tableId,
 			index_set_state_flags(indrelid, INDEX_CREATE_SET_VALID);
 		}
 
+		/* Last thing to do is release the session-level locks */
+		foreach(lc, childs)
+		{
+			Oid			indrelid = lfirst_oid(lc);
+			char		relkind = get_rel_relkind(indrelid);
+
+			if (!RELKIND_HAS_STORAGE(relkind))
+				continue;
+
+			rel = index_open(indrelid, ShareUpdateExclusiveLock);
+			heaprelid = rel->rd_lockInfo.lockRelId;
+			index_close(rel, ShareUpdateExclusiveLock);
+			SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
+			UnlockRelationIdForSession(&heaprelid, ShareUpdateExclusiveLock);
+		}
+
 		MemoryContextDelete(cic_context);
+
 		pgstat_progress_end_command();
 		PopActiveSnapshot();
 		return address;
