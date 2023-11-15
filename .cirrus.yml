@@ -59,13 +59,15 @@ default_linux_task_template: &linux_task_template
   setup_additional_packages_script: |
     rm -f /etc/apt/apt.conf.d/docker-clean
     apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install build-essential ccache flex bison meson ninja-build git \
+    DEBIAN_FRONTEND=noninteractive apt-get -y --no-install-recommends install build-essential ccache flex bison meson ninja-build git locales \
       xsltproc docbook-xsl docbook-xml \
       openssl libssl-dev libxml2-utils libreadline-dev uuid-dev zlib1g-dev \
       clang mingw-w64 libz-mingw-w64-dev pkg-config libxslt1-dev liblz4-dev libzstd-dev libldap2-dev libsystemd-dev systemtap-sdt-dev \
       llvm-dev libicu-dev icu-devtools libpython3-dev libperl-dev tcl-dev libkrb5-dev libpam0g-dev libselinux1-dev \
       gcc-multilib
     apt-get autoclean
+    echo en_US.UTF-8 UTF-8 > /etc/locale.gen
+    locale-gen
 
   upload_caches: apt
 
