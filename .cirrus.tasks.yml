@@ -877,7 +877,8 @@ task:
     #   https://postgr.es/m/20220323002024.f2g6tivduzrktgfa%40alap3.anarazel.de
     ###
     headers_headerscheck_script: |
-      mkdir build-ninja; cd build-ninja
+      #mkdir build-ninja
+      cd build-ninja
       meson compile src/headerscheck
 
     headers_cpluspluscheck_script: |
