@@ -325,10 +325,10 @@ task:
     chown -R postgres:postgres ${CCACHE_DIR}
     echo '* - memlock 134217728' > /etc/security/limits.d/postgres.conf
     su postgres -c "ulimit -l -H && ulimit -l -S"
-  setup_core_files_script: |
-    mkdir -m 770 /tmp/cores
-    chown root:postgres /tmp/cores
-    sysctl kernel.core_pattern='/tmp/cores/%e-%s-%p.core'
+    # Can't change container's kernel.core_pattern. Postgres user can't write
+    # to / normally. Change that.
+    chown root:postgres /
+    chmod g+rwx /
 
   setup_hosts_file_script: |
     cat >> /etc/hosts <<-EOF
@@ -342,8 +342,16 @@ task:
     #DEBIAN_FRONTEND=noninteractive apt-get -y install ...
 
   matrix:
-    - name: Linux - Debian Bookworm - Autoconf
+    - name: Linux - Debian Trixie - Autoconf
       only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux-autoconf.*'
+
+      # Do not use a container for this
+      compute_engine_instance:
+        image_project: $IMAGE_PROJECT
+        image: family/$IMAGE_FAMILY
+        platform: $PLATFORM
+        cpu: $CPUS
+        disk: $DISK_SIZE
 
       env:
         SANITIZER_FLAGS: -fsanitize=address
@@ -379,7 +387,7 @@ task:
       on_failure:
         <<: *on_failure_ac
 
-    - name: Linux - Debian Bookworm - Meson
+    - name: Linux - Debian Trixie - Meson
       only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*linux-meson.*'
 
       env:

@@ -46,10 +46,10 @@ default_linux_task_template: &linux_task_template
     PLATFORM: linux
 
   <<: *cirrus_community_vm_template
-  compute_engine_instance:
+  container:
+    #image_project: debian-cloud-testing
     platform: linux
-    image_project: debian-cloud
-    image: family/debian-12 # bookworm
+    image: debian:trixie
 
   apt_cache:
     folder: /var/cache/apt
