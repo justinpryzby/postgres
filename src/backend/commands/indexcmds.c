@@ -1629,6 +1629,13 @@ DefineIndex(Oid tableId,
 			Oid			childtableid;
 			char		relkind;
 
+			childtableid = IndexGetRelation(indrelid, true);
+
+			/* Silently skip it if it was dropped concurrently */
+			// try_relation_open
+			if (!OidIsValid(childtableid))
+				continue;
+
 			/*
 			 * Pre-existing partitions which were ATTACHED were already
 			 * counted in the progress report.
@@ -1657,9 +1664,8 @@ DefineIndex(Oid tableId,
 				continue;
 			}
 
-			childtableid = IndexGetRelation(indrelid, false);
-
 			rel = table_open(childtableid, ShareUpdateExclusiveLock);
+
 			heaprelid = rel->rd_lockInfo.lockRelId;
 			table_close(rel, ShareUpdateExclusiveLock);
 			SET_LOCKTAG_RELATION(heaplocktag, heaprelid.dbId, heaprelid.relId);
