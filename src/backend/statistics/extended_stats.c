@@ -2804,7 +2804,7 @@ statext_is_supported_join_clause(PlannerInfo *root, Node *clause)
 	Oid	oprsel;
 	RestrictInfo   *rinfo;
 	OpExpr		   *opclause;
-	ListCell	   *lc;
+	int				left_relid, right_relid;
 
 	/*
 	 * evaluation as a restriction clause, either at scan node or forced
@@ -2819,10 +2819,6 @@ statext_is_supported_join_clause(PlannerInfo *root, Node *clause)
 	/* strip the RestrictInfo */
 	rinfo = (RestrictInfo *) clause;
 	clause = (Node *) rinfo->clause;
-
-	/* is it referencing multiple relations? */
-	if (bms_membership(rinfo->clause_relids) != BMS_MULTIPLE)
-		return false;
 
 	/* we only support simple operator clauses for now */
 	if (!is_opclause(clause))
@@ -2846,8 +2842,6 @@ statext_is_supported_join_clause(PlannerInfo *root, Node *clause)
 	 * which is still technically an opclause, but we can't match it to
 	 * extended statistics in a simple way.
 	 *
-	 * XXX This also means we require rinfo->clause_relids to have 2 rels.
-	 *
 	 * XXX Also check it's not expression on system attributes, which we
 	 * don't allow in extended statistics.
 	 *
@@ -2856,30 +2850,13 @@ statext_is_supported_join_clause(PlannerInfo *root, Node *clause)
 	 * or something like that. We could do "cartesian product" of the MCV
 	 * stats and restrict it using this condition.
 	 */
-	foreach (lc, opclause->args)
-	{
-		Bitmapset *varnos = NULL;
-		Node *expr = (Node *) lfirst(lc);
 
-		varnos = pull_varnos(root, expr);
+	if (!bms_get_singleton_member(rinfo->left_relids, &left_relid) ||
+		!bms_get_singleton_member(rinfo->right_relids, &right_relid))
+		return false;
 
-		/*
-		 * No argument should reference more than just one relation.
-		 *
-		 * This effectively means each side references just two relations.
-		 * If there's no relation on one side, it's a Const, and the other
-		 * side has to be either Const or Expr with a single rel. In which
-		 * case it can't be a join clause.
-		 */
-		if (bms_num_members(varnos) > 1)
-			return false;
-
-		/*
-		 * XXX Maybe check that both relations have extended statistics
-		 * (no point in considering the clause as useful without it). But
-		 * we'll do that check later anyway, so keep this cheap.
-		 */
-	}
+	if (left_relid == right_relid)
+		return false;
 
 	return true;
 }
