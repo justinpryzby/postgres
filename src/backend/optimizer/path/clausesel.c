@@ -215,8 +215,9 @@ clauselist_selectivity_ext(PlannerInfo *root,
 		statext_try_join_estimates(root, clauses, varRelid, jointype, sjinfo))
 	{
 		Assert(varRelid == 0);
+		Assert(sjinfo != NULL);
 		s1 *= statext_clauselist_join_selectivity(root, clauses,
-												  jointype, sjinfo,
+												  jointype,
 												  &estimatedclauses);
 	}
 

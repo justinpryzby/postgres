@@ -134,7 +134,6 @@ extern bool statext_try_join_estimates(PlannerInfo *root, List *clauses, int var
 									   JoinType jointype, SpecialJoinInfo *sjinfo);
 
 extern Selectivity statext_clauselist_join_selectivity(PlannerInfo *root, List *clauses,
-													   JoinType jointype, SpecialJoinInfo *sjinfo,
-													   Bitmapset **estimatedclauses);
+													   JoinType jointype, Bitmapset **estimatedclauses);
 
 #endif							/* STATISTICS_H */
