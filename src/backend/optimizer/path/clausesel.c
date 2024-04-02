@@ -204,14 +204,18 @@ clauselist_selectivity_ext(PlannerInfo *root,
 	 * do to detect when this makes sense, but we can check that there are
 	 * join clauses, and that at least some of the rels have stats.
 	 *
-	 * XXX Isn't this mutually exclusive with the preceding block which
-	 * calculates estimates for a single relation?
+	 * rel != NULL can't grantee the clause is not a join clause, for example
+	 * t1 left join t2 ON t1.a = 3, but it can grantee we can't use extended
+	 * statistics for estimation since it has only 1 relid.
+	 *
+	 * XXX: so we can grantee estimatedclauses == NULL now, so estimatedclauses
+	 * in statext_try_join_estimates is removed.
 	 */
-	if (use_extended_stats &&
-		statext_try_join_estimates(root, clauses, varRelid, jointype, sjinfo,
-						 estimatedclauses))
+	if (use_extended_stats && rel == NULL &&
+		statext_try_join_estimates(root, clauses, varRelid, jointype, sjinfo))
 	{
-		s1 *= statext_clauselist_join_selectivity(root, clauses, varRelid,
+		Assert(varRelid == 0);
+		s1 *= statext_clauselist_join_selectivity(root, clauses,
 												  jointype, sjinfo,
 												  &estimatedclauses);
 	}
