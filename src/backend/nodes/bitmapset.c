@@ -773,6 +773,24 @@ bms_num_members(const Bitmapset *a)
 }
 
 /*
+ * bms_nth_member - return the nth member, index starts with 0.
+ */
+int
+bms_nth_member(const Bitmapset *a, int i)
+{
+	int idx, res = -1;
+
+	for (idx = 0; idx <= i; idx++)
+	{
+		res = bms_next_member(a, res);
+
+		if (res < 0)
+			elog(ERROR, "no enough members for %d", i);
+	}
+	return res;
+}
+
+/*
  * bms_membership - does a set have zero, one, or multiple members?
  *
  * This is faster than making an exact count with bms_num_members().

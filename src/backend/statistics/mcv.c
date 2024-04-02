@@ -2214,8 +2214,7 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 
 	MCVList    *mcv1,
 			   *mcv2;
-	int			idx,
-				i,
+	int			i,
 				j;
 	Selectivity s = 0;
 
@@ -2306,25 +2305,14 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 	indexes2 = (int *) palloc(sizeof(int) * list_length(clauses));
 	reverse = (bool *) palloc(sizeof(bool) * list_length(clauses));
 
-	idx = 0;
 	foreach (lc, clauses)
 	{
-		Node	   *clause = (Node *) lfirst(lc);
+		RestrictInfo	*rinfo = (RestrictInfo *) lfirst(lc);
+		Node	   *clause = (Node *) rinfo->clause;
 		OpExpr	   *opexpr;
 		Node	   *expr1,
 				   *expr2;
-		Bitmapset  *relids1,
-				   *relids2;
-
-		/*
-		 * Strip the RestrictInfo node, get the actual clause.
-		 *
-		 * XXX Not sure if we need to care about removing other node types
-		 * too (e.g. RelabelType etc.). statext_is_supported_join_clause
-		 * matches this, but maybe we need to relax it?
-		 */
-		if (IsA(clause, RestrictInfo))
-			clause = (Node *) ((RestrictInfo *) clause)->clause;
+		int		idx = list_cell_number(clauses, lc);
 
 		opexpr = (OpExpr *) clause;
 
@@ -2338,12 +2326,8 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 		expr1 = linitial(opexpr->args);
 		expr2 = lsecond(opexpr->args);
 
-		/* determine order of clauses (rel1 op rel2) or (rel2 op rel1) */
-		relids1 = pull_varnos(root, expr1);
-		relids2 = pull_varnos(root, expr2);
-
-		if ((bms_singleton_member(relids1) == rel1->relid) &&
-			(bms_singleton_member(relids2) == rel2->relid))
+		if ((bms_singleton_member(rinfo->left_relids) == rel1->relid) &&
+			(bms_singleton_member(rinfo->right_relids) == rel2->relid))
 		{
 			Oid		collid;
 
@@ -2358,8 +2342,8 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 			exprs1 = lappend(exprs1, expr1);
 			exprs2 = lappend(exprs2, expr2);
 		}
-		else if ((bms_singleton_member(relids2) == rel1->relid) &&
-				 (bms_singleton_member(relids1) == rel2->relid))
+		else if ((bms_singleton_member(rinfo->right_relids) == rel1->relid) &&
+				 (bms_singleton_member(rinfo->left_relids) == rel2->relid))
 		{
 			Oid		collid;
 
@@ -2383,8 +2367,6 @@ mcv_combine_extended(PlannerInfo *root, RelOptInfo *rel1, RelOptInfo *rel2,
 
 		Assert((indexes2[idx] >= 0) &&
 			   (indexes2[idx] < bms_num_members(stat2->keys) + list_length(stat2->exprs)));
-
-		idx++;
 	}
 
 	/*

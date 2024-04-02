@@ -2960,11 +2960,11 @@ statext_try_join_estimates(PlannerInfo *root, List *clauses, int varRelid,
 }
 
 /*
- * Information about two joined relations, along with the join clauses between.
+ * Information about two joined relations, group by clauses by relids.
  */
 typedef struct JoinPairInfo
 {
-	Bitmapset  *rels;
+	Bitmapset  *relids;
 	List	   *clauses;
 } JoinPairInfo;
 
@@ -3027,9 +3027,9 @@ statext_build_join_pairs(PlannerInfo *root, List *clauses,
 		found = false;
 		for (i = 0; i < cnt; i++)
 		{
-			if (bms_is_subset(rinfo->clause_relids, info[i].rels))
+			if (bms_is_subset(rinfo->clause_relids, info[i].relids))
 			{
-				info[i].clauses = lappend(info[i].clauses, clause);
+				info[i].clauses = lappend(info[i].clauses, rinfo);
 				found = true;
 				break;
 			}
@@ -3037,14 +3037,17 @@ statext_build_join_pairs(PlannerInfo *root, List *clauses,
 
 		if (!found)
 		{
-			info[cnt].rels = rinfo->clause_relids;
-			info[cnt].clauses = lappend(info[cnt].clauses, clause);
+			info[cnt].relids = rinfo->clause_relids;
+			info[cnt].clauses = lappend(info[cnt].clauses, rinfo);
 			cnt++;
 		}
 	}
 
 	if (cnt == 0)
+	{
+		pfree(info);
 		return NULL;
+	}
 
 	*npairs = cnt;
 	return info;
@@ -3064,7 +3067,6 @@ static RelOptInfo *
 extract_relation_info(PlannerInfo *root, JoinPairInfo *info, int index,
 					  StatisticExtInfo **stat)
 {
-	int			k;
 	int			relid;
 	RelOptInfo *rel;
 	ListCell   *lc;
@@ -3074,16 +3076,7 @@ extract_relation_info(PlannerInfo *root, JoinPairInfo *info, int index,
 
 	Assert((index >= 0) && (index <= 1));
 
-	k = -1;
-	while (index >= 0)
-	{
-		k = bms_next_member(info->rels, k);
-		if (k < 0)
-			elog(ERROR, "failed to extract relid");
-
-		relid = k;
-		index--;
-	}
+	relid = bms_nth_member(info->relids, index);
 
 	rel = find_base_rel(root, relid);
 
@@ -3095,7 +3088,8 @@ extract_relation_info(PlannerInfo *root, JoinPairInfo *info, int index,
 	foreach (lc, info->clauses)
 	{
 		ListCell *lc2;
-		Node *clause = (Node *) lfirst(lc);
+		RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
+		Node *clause = (Node *) rinfo->clause;
 		OpExpr *opclause = (OpExpr *) clause;
 
 		/* only opclauses supported for now */
@@ -3135,7 +3129,8 @@ extract_relation_info(PlannerInfo *root, JoinPairInfo *info, int index,
 			 * compatible because we already checked it when building the
 			 * join pairs.
 			 */
-			varnos = pull_varnos(root, arg);
+			varnos = list_cell_number(opclause->args, lc2) == 0 ?
+				rinfo->left_relids : rinfo->right_relids;
 
 			if (relid == bms_singleton_member(varnos))
 				exprs = lappend(exprs, arg);
@@ -3376,7 +3371,8 @@ statext_clauselist_join_selectivity(PlannerInfo *root, List *clauses,
 		 */
 		foreach (lc, info->clauses)
 		{
-			Node *clause = (Node *) lfirst(lc);
+			RestrictInfo *rinfo = (RestrictInfo *) lfirst(lc);
+			Node *clause = (Node *) rinfo->clause;
 			ListCell *lc2;
 
 			listidx = -1;
@@ -3398,5 +3394,6 @@ statext_clauselist_join_selectivity(PlannerInfo *root, List *clauses,
 		}
 	}
 
+	pfree(info);
 	return s;
 }
