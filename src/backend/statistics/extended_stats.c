@@ -2925,7 +2925,7 @@ statext_try_join_estimates(PlannerInfo *root, List *clauses, int varRelid,
 	}
 
 	/* no join clauses found, don't try applying extended stats */
-	if (bms_num_members(relids) == 0)
+	if (bms_is_empty(relids))
 		return false;
 
 	/*
