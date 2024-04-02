@@ -133,7 +133,6 @@ extern StatisticExtInfo *statext_find_matching_mcv(PlannerInfo *root, RelOptInfo
 extern bool statext_try_join_estimates(PlannerInfo *root, List *clauses, int varRelid,
 									   JoinType jointype, SpecialJoinInfo *sjinfo);
 
-extern Selectivity statext_clauselist_join_selectivity(PlannerInfo *root, List *clauses,
-													   JoinType jointype, Bitmapset **estimatedclauses);
+extern Selectivity statext_clauselist_join_selectivity(PlannerInfo *root, List *clauses, Bitmapset **estimatedclauses);
 
 #endif							/* STATISTICS_H */
