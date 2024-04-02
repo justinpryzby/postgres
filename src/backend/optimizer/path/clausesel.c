@@ -132,6 +132,9 @@ clauselist_selectivity_ext(PlannerInfo *root,
 	int			listidx;
 	bool		single_clause_optimization = true;
 
+	if (clauses == NULL)
+		return 1.0;
+
 	/*
 	 * The optimization of skipping to clause_selectivity_ext for single
 	 * clauses means we can't improve join estimates with a single join
