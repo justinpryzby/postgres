@@ -10,7 +10,7 @@
  *
  *	If compression is used, each data file is individually compressed and the
  *	compressed suffix is added to the filenames. The TOC files are never
- *	compressed by pg_dump, however they are accepted with the compressed .gz suffix,
+ *	compressed by pg_dump, however they are accepted with the compressed suffix,
  *	in case the user has manually compressed them.
  *
  *	NOTE: This format is identical to the files written in the tar file in
