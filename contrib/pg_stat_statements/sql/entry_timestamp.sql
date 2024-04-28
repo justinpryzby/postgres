@@ -8,10 +8,10 @@ SET pg_stat_statements.track_planning = TRUE;
 SELECT 1 AS "STMTTS1";
 SELECT now() AS ref_ts \gset
 SELECT 1,2 AS "STMTTS2";
-SELECT stats_since >= :'ref_ts', count(*) FROM pg_stat_statements
+SELECT stats_since > :'ref_ts', count(*) FROM pg_stat_statements
 WHERE query LIKE '%STMTTS%'
-GROUP BY stats_since >= :'ref_ts'
-ORDER BY stats_since >= :'ref_ts';
+GROUP BY stats_since > :'ref_ts'
+ORDER BY stats_since > :'ref_ts';
 
 SELECT now() AS ref_ts \gset
 SELECT
@@ -23,10 +23,10 @@ SELECT
     WHERE min_exec_time + max_exec_time = 0
   ) as minmax_exec_zero,
   count(*) FILTER (
-    WHERE minmax_stats_since >= :'ref_ts'
+    WHERE minmax_stats_since > :'ref_ts'
   ) as minmax_stats_since_after_ref,
   count(*) FILTER (
-    WHERE stats_since >= :'ref_ts'
+    WHERE stats_since > :'ref_ts'
   ) as stats_since_after_ref
 FROM pg_stat_statements
 WHERE query LIKE '%STMTTS%';
@@ -46,10 +46,10 @@ SELECT
     WHERE min_exec_time + max_exec_time = 0
   ) as minmax_exec_zero,
   count(*) FILTER (
-    WHERE minmax_stats_since >= :'ref_ts'
+    WHERE minmax_stats_since > :'ref_ts'
   ) as minmax_stats_since_after_ref,
   count(*) FILTER (
-    WHERE stats_since >= :'ref_ts'
+    WHERE stats_since > :'ref_ts'
   ) as stats_since_after_ref
 FROM pg_stat_statements
 WHERE query LIKE '%STMTTS%';
@@ -102,10 +102,10 @@ SELECT
     WHERE min_exec_time + max_exec_time = 0
   ) as minmax_exec_zero,
   count(*) FILTER (
-    WHERE minmax_stats_since >= :'ref_ts'
+    WHERE minmax_stats_since > :'ref_ts'
   ) as minmax_ts_after_ref,
   count(*) FILTER (
-    WHERE stats_since >= :'ref_ts'
+    WHERE stats_since > :'ref_ts'
   ) as stats_since_after_ref
 FROM pg_stat_statements
 WHERE query LIKE '%STMTTS%';

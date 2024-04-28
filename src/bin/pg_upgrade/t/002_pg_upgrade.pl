@@ -32,7 +32,7 @@ sub generate_db
 
 	$dbname .= $suffix;
 	$node->command_ok(
-		[ 'createdb', $dbname ],
+		[ 'createdb', "$dbname" ],
 		"created database with ASCII characters from $from_char to $to_char");
 }
 
