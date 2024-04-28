@@ -749,7 +749,7 @@ task:
     #XXX
 
   container:
-    #XXX
+    #image: $CONTAINER_REPO/linux_debian_bookworm_ci:latest
     image: $CONTAINER_REPO/linux_debian_bullseye_ci:latest
     cpu: $CPUS
 
@@ -796,7 +796,7 @@ task:
     #- mkdir -p build/tmp_install
     #- rm -fr build/tmp_install
     #- --destdir since 0.57
-    - find build/tmp_install -ls || true
+    #- find build/tmp_install -ls || true
     - DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson install --no-rebuild -C build
     - DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson test install_test_files -C build
     #- cd build; DESTDIR=$CIRRUS_WORKING_DIR/build/tmp_install meson introspect --targets
@@ -804,6 +804,11 @@ task:
     - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/test/regress/*.dll
     - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/tools/pg_bsd_indent/pg_bsd_indent.exe
     - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/interfaces/ecpg/test/pg_regress_ecpg.exe
+    - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/test/modules/test_json_parser/test_json_parser_incremental.exe
+    - cp -vt build/tmp_install/usr/local/pgsql/bin build/src/test/modules/test_json_parser/test_json_parser_perf.exe
+    - cp -rv build/src/interfaces/libpq/test build/tmp_install/usr/local/pgsql/libpq-test
+    - cp -rv build/src/interfaces/ecpg/test build/tmp_install/usr/local/pgsql/ecpg-test
+
     - find build/tmp_install
 
   always:
@@ -870,9 +875,21 @@ task:
     - cp -rvt build/src/test/regress build/tmp_install/usr/local/pgsql/bin/*.dll
     # Copy stuff expected by the install script:
     - cp -rvt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/*.dll
-    # indent and ecpg think that they're special..
-    - cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/pg_regress_ecpg.exe
-    - cp -rvt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/pg_bsd_indent.exe
+    # indent/ecpg/json think that they're special..
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/pg_regress_ecpg.exe
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/compat_informix
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/compat_oracle
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/connect
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/pgtypeslib
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/preproc
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/sql
+    #- cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/bin/thread
+    - cp -rvt build/src/interfaces/ecpg/test        build/tmp_install/usr/local/pgsql/ecpg-test/*
+    - cp -vt build/src/interfaces/libpq/test       build/tmp_install/usr/local/pgsql/libpq-test/*.exe
+    - cp -vt build/tmp_install/usr/local/pgsql/lib build/tmp_install/usr/local/pgsql/bin/pg_bsd_indent.exe
+    - cp -vt src/test/modules/test_json_parser build/tmp_install/usr/local/pgsql/bin/test_json_parser_incremental.exe
+    - cp -vt src/test/modules/test_json_parser build/tmp_install/usr/local/pgsql/bin/test_json_parser_perf.exe
+
     # Copy stuff expected by install-test-modules:
     - sh -c 'for a in build/src/test/modules/*; do if test -d $a; then cp -rv build/tmp_install/usr/local/pgsql/lib/*.dll "$a"; fi; done'
     - sh src/tools/ci/windows-reinstall
@@ -880,9 +897,9 @@ task:
 
   check_world_script: |
     SET PATH=c:\Program Files\Meson;%PATH%
-    REM meson test %MTEST_ARGS% --num-processes %TEST_JOBS% tmp_install regress/regress pg_bsd_indent/001_pg_bsd_indent ecpg/ecpg
     meson test %MTEST_ARGS% --num-processes %TEST_JOBS% --suite setup
-    meson test %MTEST_ARGS% --num-processes %TEST_JOBS% tmp_install regress/regress
+    meson test %MTEST_ARGS% --num-processes %TEST_JOBS% regress/regress pg_bsd_indent/001_pg_bsd_indent ecpg/ecpg test_json_parser/001_test_json_parser_incremental test_json_parser/002_inline test_json_parser/003_test_semantic test_json_parser/004_test_parser_perf test_json_parser/004_test_parser_perf libpq/002_api libpq/001_uri pg_stat_statements/regress pg_upgrade/002_pg_upgrade
+    meson test %MTEST_ARGS% --num-processes %TEST_JOBS% regress/regress
 
   on_failure:
     <<: *on_failure_meson
