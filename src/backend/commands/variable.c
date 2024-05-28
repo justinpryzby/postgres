@@ -1255,8 +1255,17 @@ check_preload_libraries(char **newval, void **extra, GucSource source,
 	/*
 	 * issue warnings only during an interactive SET, from ALTER
 	 * ROLE/DATABASE/SYSTEM.
+	 * IsUnderPostmaster is a hack to allow warning under ALTER SYSTEM but
+	 * not during startup.  Both use PGC_S_FILE.
 	 */
-	if (source != PGC_S_TEST)
+	//if (source != PGC_S_TEST &&
+		//(source != PGC_S_FILE || !IsUnderPostmaster))
+
+	/*
+	 * Do not issue warnings while applying GUCs during startup.  That would
+	 * issue a FATAL error message, and the warnings would be redundant.
+	 */
+	if (!IsUnderPostmaster)
 		return true;
 
 	/* Need a modifiable copy of string */
@@ -1282,6 +1291,8 @@ check_preload_libraries(char **newval, void **extra, GucSource source,
 			filename = expanded;
 		}
 
+		filename = expand_dynamic_library_name(filename);
+
 		/*
 		 * stat()/access() only check that the library exists, not that it has
 		 * the correct magic number or even a library.  But error messages
@@ -1296,7 +1307,7 @@ check_preload_libraries(char **newval, void **extra, GucSource source,
 			ereport(WARNING,
 					errcode_for_file_access(),
 					errmsg("could not access file \"%s\"", filename),
-					errdetail("The server will currently fail to start with this setting."),
+					errdetail("The server might fail to start with this setting."),
 					errhint("If the server is shut down, it will be necessary to manually edit the %s file to allow it to start again.",
 							"postgresql.auto.conf"));
 		else
@@ -1304,7 +1315,7 @@ check_preload_libraries(char **newval, void **extra, GucSource source,
 			ereport(WARNING,
 					errcode_for_file_access(),
 					errmsg("could not access file \"%s\"", filename),
-					errdetail("New sessions will currently fail to connect with the new setting."));
+					errdetail("New sessions will fail to connect with the new setting."));
 	}
 
 	list_free_deep(elemlist);
