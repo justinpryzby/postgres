@@ -45,7 +45,7 @@ env:
 on_failure_ac: &on_failure_ac
   log_artifacts:
     paths:
-      - "**/*.log"
+      - "**/*log"
       - "**/*.diffs"
       - "**/regress_log_*"
     type: text/plain
@@ -69,7 +69,7 @@ on_failure_meson: &on_failure_meson
 
 ccache: &ccache
   folder: $CCACHE_DIR
-  fingerprint_script: echo ccache/$CIRRUS_TASK_NAME
+  fingerprint_script: sh -c 'echo ccache/$CIRRUS_TASK_NAME'
   reupload_on_changes: true
 
 # To avoid unnecessarily spinning up a lot of VMs / containers for entirely
@@ -598,11 +598,21 @@ task:
   env:
     TEST_JOBS: 8 # wild guess, data based value welcome
 
+    #CC: C:\ProgramData\chocolatey\bin\ccache.exe cl.exe
     CC: c:\msys64\ucrt64\bin\ccache.exe cl.exe
+    #-p:CLToolPath=c:\ProgramData\chocolatey\bin
+    #-p:EnforceProcessCountAcrossBuilds=true
+    #-p:TrackFileAccess=false
+    #-p:UseMultiToolTask=true
+
     CCACHE_DIR: $CIRRUS_WORKING_DIR/.ccache
     CCACHE_MAXSIZE: "1G"
     CCACHE_SLOPPINESS: pch_defines,time_macros
     CCACHE_DEPEND: 1
+    CCACHE_LOGFILE: $CIRRUS_WORKING_DIR/build/meson-logs/ccache.log.txt
+    #CCACHE_DEBUG: 1
+    #CCACHE_DEBUGDIR: ""
+    #include_file_mtime,include_file_ctime,system_headers,locale,file_stat_matches,file_stat_matches_ctime
 
     # Cirrus defaults to SetErrorMode(SEM_NOGPFAULTERRORBOX | ...). That
     # prevents crash reporting from working unless binaries do SetErrorMode()
@@ -616,8 +626,9 @@ task:
 
   <<: *windows_task_template
 
-  setup_additional_packages_script: |
-    REM choco install -y --no-progress ...
+  setup_additional_packages_script:
+    - choco install -y --no-progress ccache --version 4.10.0
+    #- cp c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.10-windows-x86_64\ccache.exe \ProgramData\chocolatey\bin\cl.exe
 
   ccache_cache:
     *ccache
@@ -634,11 +645,14 @@ task:
     vcvarsall x64
     mkdir subprojects
     meson wrap install --allow-insecure zstd
-    meson setup build --backend ninja --buildtype debug -Dc_link_args=/DEBUG:FASTLINK -Dcassert=true -Dinjection_points=true -Db_pch=true -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=%TAR% -Dc_args="/Z7" -D zstd=enabled -D zstd:multi_thread=enabled --force-fallback-for=zstd
+    set CC=c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.10-windows-x86_64\ccache.exe cl.exe
+    REM -Db_pch=false
+    meson setup build --backend ninja --buildtype debug -Dc_link_args=/DEBUG:FASTLINK -Dcassert=true -Dinjection_points=true -Db_pch=true -Dextra_lib_dirs=c:\openssl\1.1\lib -Dextra_include_dirs=c:\openssl\1.1\include -DTAR=%TAR% -Dc_args="/Z7 /MDd" -D zstd=enabled -D zstd:multi_thread=enabled --force-fallback-for=zstd
 
   build_script: |
     vcvarsall x64
-
+    REM SET PATH=c:\python\Scripts;%PATH%
+    REM SET PATH=c:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build;%PATH%
     REM disable options which would disable compression
     SET CCACHE_NOCOMPRESS=
     SET CCACHE_HARDLINK=
