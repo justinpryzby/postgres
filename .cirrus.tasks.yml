@@ -536,11 +536,13 @@ task:
   env:
     TEST_JOBS: 8 # wild guess, data based value welcome
 
-    CC: ccache.exe cl.exe
+    #CC: C:\ProgramData\chocolatey\bin\ccache.exe cl.exe
+    CC: c:\ProgramData\chocolatey\lib\ccache\tools\ccache-4.10-windows-x86_64\ccache.exe cl.exe
     CCACHE_DIR: $CIRRUS_WORKING_DIR/.ccache
     CCACHE_MAXSIZE: "500M"
     CCACHE_SLOPPINESS: pch_defines,time_macros
     CCACHE_DEPEND: 1
+    CCACHE_STATSLOG: $CCACHE_DIR.stats.log
 
     # Cirrus defaults to SetErrorMode(SEM_NOGPFAULTERRORBOX | ...). That
     # prevents crash reporting from working unless binaries do SetErrorMode()
@@ -555,6 +557,15 @@ task:
 
   depends_on: SanityCheck
   only_if: $CIRRUS_CHANGE_MESSAGE !=~ '.*\nci-os-only:.*' || $CIRRUS_CHANGE_MESSAGE =~ '.*\nci-os-only:[^\n]*windows.*'
+
+  sysinfo2_script: |
+    cd C:\Program Files (x86)
+    find . -xdev -name 'ccache*' -ls
+  sysinfo3_script: |
+    cd c:\msys64\usr\bin
+    dir
+    paccache --help
+    paccache --version
 
   setup_additional_packages_script: |
     REM choco install -y --no-progress ...
@@ -579,6 +590,9 @@ task:
     REM Since pipes lose the exit status of the preceding command, rerun the compilation
     REM without the pipe, exiting now if it fails, to avoid trying to run checks
     ninja -C build > nul
+
+    ccache --show-log-stats -v
+    ccache --show-stats -v
 
   always:
     upload_caches: [ccache]
@@ -639,6 +653,8 @@ task:
     %BASH% -c "gcc --version"
     %BASH% -c "where perl"
     %BASH% -c "perl --version"
+    %BASH% -c "where ccache"
+    %BASH% -c "ccache --version"
 
   # disable -Dnls as the number of files it creates cause a noticable slowdown
   configure_script: |
