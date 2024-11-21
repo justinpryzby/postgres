@@ -27,7 +27,7 @@
 #include "utils/syscache.h"
 #include "utils/varlena.h"
 
-static bool plpgsql_extra_checks_check_hook(char **newvalue, void **extra, GucSource source);
+static bool plpgsql_extra_checks_check_hook(char **newvalue, void **extra, GucSource source, bool is_test);
 static void plpgsql_extra_warnings_assign_hook(const char *newvalue, void *extra);
 static void plpgsql_extra_errors_assign_hook(const char *newvalue, void *extra);
 
@@ -57,7 +57,7 @@ PLpgSQL_plugin **plpgsql_plugin_ptr = NULL;
 
 
 static bool
-plpgsql_extra_checks_check_hook(char **newvalue, void **extra, GucSource source)
+plpgsql_extra_checks_check_hook(char **newvalue, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawstring;
 	List	   *elemlist;

@@ -3574,7 +3574,7 @@ assign_transaction_timeout(int newval, void *extra)
  * GUC check_hook for restrict_nonsystem_relation_kind
  */
 bool
-check_restrict_nonsystem_relation_kind(char **newval, void **extra, GucSource source)
+check_restrict_nonsystem_relation_kind(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawstring;
 	List	   *elemlist;

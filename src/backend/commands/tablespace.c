@@ -1088,7 +1088,7 @@ AlterTableSpaceOptions(AlterTableSpaceOptionsStmt *stmt)
 
 /* check_hook: validate new default_tablespace */
 bool
-check_default_tablespace(char **newval, void **extra, GucSource source)
+check_default_tablespace(char **newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * If we aren't inside a transaction, or connected to a database, we
@@ -1101,10 +1101,10 @@ check_default_tablespace(char **newval, void **extra, GucSource source)
 			!OidIsValid(get_tablespace_oid(*newval, true)))
 		{
 			/*
-			 * When source == PGC_S_TEST, don't throw a hard error for a
+			 * When is_test, don't throw a hard error for a
 			 * nonexistent tablespace, only a NOTICE.  See comments in guc.h.
 			 */
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
@@ -1195,7 +1195,7 @@ typedef struct
 
 /* check_hook: validate new temp_tablespaces */
 bool
-check_temp_tablespaces(char **newval, void **extra, GucSource source)
+check_temp_tablespaces(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawname;
 	List	   *namelist;
@@ -1245,13 +1245,13 @@ check_temp_tablespaces(char **newval, void **extra, GucSource source)
 
 			/*
 			 * In an interactive SET command, we ereport for bad info.  When
-			 * source == PGC_S_TEST, don't throw a hard error for a
+			 * testing, don't throw a hard error for a
 			 * nonexistent tablespace, only a NOTICE.  See comments in guc.h.
 			 */
-			curoid = get_tablespace_oid(curname, source <= PGC_S_TEST);
+			curoid = get_tablespace_oid(curname, is_test);
 			if (curoid == InvalidOid)
 			{
-				if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+				if (is_test)
 					ereport(NOTICE,
 							(errcode(ERRCODE_UNDEFINED_OBJECT),
 							 errmsg("tablespace \"%s\" does not exist",
@@ -1275,7 +1275,7 @@ check_temp_tablespaces(char **newval, void **extra, GucSource source)
 										ACL_CREATE);
 			if (aclresult != ACLCHECK_OK)
 			{
-				if (source >= PGC_S_INTERACTIVE)
+				if (!is_test)
 					aclcheck_error(aclresult, OBJECT_TABLESPACE, curname);
 				continue;
 			}

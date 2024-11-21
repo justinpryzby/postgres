@@ -4690,7 +4690,7 @@ check_wal_buffers(int *newval, void **extra, GucSource source)
  * GUC check_hook for wal_consistency_checking
  */
 bool
-check_wal_consistency_checking(char **newval, void **extra, GucSource source)
+check_wal_consistency_checking(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawstring;
 	List	   *elemlist;

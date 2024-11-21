@@ -2511,7 +2511,7 @@ InitGrantRoleOptions(GrantRoleOptions *popt)
  * GUC check_hook for createrole_self_grant
  */
 bool
-check_createrole_self_grant(char **newval, void **extra, GucSource source)
+check_createrole_self_grant(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawstring;
 	List	   *elemlist;

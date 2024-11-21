@@ -988,7 +988,7 @@ SyncRepQueueIsOrderedByLSN(int mode)
  */
 
 bool
-check_synchronous_standby_names(char **newval, void **extra, GucSource source)
+check_synchronous_standby_names(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (*newval != NULL && (*newval)[0] != '\0')
 	{

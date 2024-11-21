@@ -43,7 +43,7 @@ static char *archive_directory = NULL;
 
 static bool basic_archive_configured(ArchiveModuleState *state);
 static bool basic_archive_file(ArchiveModuleState *state, const char *file, const char *path);
-static bool check_archive_directory(char **newval, void **extra, GucSource source);
+static bool check_archive_directory(char **newval, void **extra, GucSource source, bool is_test);
 static bool compare_files(const char *file1, const char *file2);
 
 static const ArchiveModuleCallbacks basic_archive_callbacks = {
@@ -90,7 +90,7 @@ _PG_archive_module_init(void)
  * Checks that the provided archive directory exists.
  */
 static bool
-check_archive_directory(char **newval, void **extra, GucSource source)
+check_archive_directory(char **newval, void **extra, GucSource source, bool is_test)
 {
 	struct stat st;
 

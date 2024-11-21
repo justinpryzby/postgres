@@ -92,15 +92,6 @@ typedef enum
  * dividing line between "interactive" and "non-interactive" sources for
  * error reporting purposes.
  *
- * PGC_S_TEST is used when testing values to be used later.  For example,
- * ALTER DATABASE/ROLE tests proposed per-database or per-user defaults this
- * way, and CREATE FUNCTION tests proposed function SET clauses this way.
- * This is an interactive case, but it needs its own source value because
- * some assign hooks need to make different validity checks in this case.
- * In particular, references to nonexistent database objects generally
- * shouldn't throw hard errors in this case, at most NOTICEs, since the
- * objects might exist by the time the setting is used for real.
- *
  * When setting the value of a non-compile-time-constant PGC_INTERNAL option,
  * source == PGC_S_DYNAMIC_DEFAULT should typically be used so that the value
  * will show as "default" in pg_settings.  If there is a specific reason not
@@ -122,8 +113,6 @@ typedef enum
 	PGC_S_CLIENT,				/* from client connection request */
 	PGC_S_OVERRIDE,				/* special case to forcibly set default */
 	PGC_S_INTERACTIVE,			/* dividing line for error reporting */
-	PGC_S_TEST,					/* test per-database or per-user setting */
-	PGC_S_TEST_FUNCTION,			/* function SET */
 	PGC_S_SESSION,				/* SET command */
 } GucSource;
 
@@ -184,8 +173,8 @@ struct config_enum_entry
 typedef bool (*GucBoolCheckHook) (bool *newval, void **extra, GucSource source);
 typedef bool (*GucIntCheckHook) (int *newval, void **extra, GucSource source);
 typedef bool (*GucRealCheckHook) (double *newval, void **extra, GucSource source);
-typedef bool (*GucStringCheckHook) (char **newval, void **extra, GucSource source);
-typedef bool (*GucEnumCheckHook) (int *newval, void **extra, GucSource source);
+typedef bool (*GucStringCheckHook) (char **newval, void **extra, GucSource source, bool is_test);
+typedef bool (*GucEnumCheckHook) (int *newval, void **extra, GucSource source, bool is_test);
 
 typedef void (*GucBoolAssignHook) (bool newval, void *extra);
 typedef void (*GucIntAssignHook) (int newval, void *extra);
@@ -440,9 +429,10 @@ extern void TransformGUCArray(ArrayType *array, List **names,
 							  List **values);
 extern void ProcessGUCArray(ArrayType *array,
 							GucContext context, GucSource source, GucAction action);
-extern ArrayType *GUCArrayAdd(ArrayType *array, const char *name, const char *value, int source);
-extern ArrayType *GUCArrayDelete(ArrayType *array, const char *name, int source);
-extern ArrayType *GUCArrayReset(ArrayType *array, int source);
+// TODO: change these for an obvious API break
+extern ArrayType *GUCArrayAdd(ArrayType *array, const char *name, const char *value, bool is_test);
+extern ArrayType *GUCArrayDelete(ArrayType *array, const char *name, bool is_test);
+extern ArrayType *GUCArrayReset(ArrayType *array, bool is_test);
 
 extern void *guc_malloc(int elevel, size_t size);
 extern pg_nodiscard void *guc_realloc(int elevel, void *old, size_t size);

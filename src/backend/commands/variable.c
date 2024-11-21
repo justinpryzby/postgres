@@ -49,7 +49,7 @@
  * check_datestyle: GUC check_hook for datestyle
  */
 bool
-check_datestyle(char **newval, void **extra, GucSource source)
+check_datestyle(char **newval, void **extra, GucSource source, bool is_test)
 {
 	int			newDateStyle = DateStyle;
 	int			newDateOrder = DateOrder;
@@ -154,7 +154,7 @@ check_datestyle(char **newval, void **extra, GucSource source)
 				ok = false;
 				break;
 			}
-			if (!check_datestyle(&subval, &subextra, source))
+			if (!check_datestyle(&subval, &subextra, source, is_test))
 			{
 				guc_free(subval);
 				ok = false;
@@ -258,7 +258,7 @@ assign_datestyle(const char *newval, void *extra)
  * check_timezone: GUC check_hook for timezone
  */
 bool
-check_timezone(char **newval, void **extra, GucSource source)
+check_timezone(char **newval, void **extra, GucSource source, bool is_test)
 {
 	pg_tz	   *new_tz;
 	long		gmtoffset;
@@ -415,7 +415,7 @@ show_timezone(void)
  * check_log_timezone: GUC check_hook for log_timezone
  */
 bool
-check_log_timezone(char **newval, void **extra, GucSource source)
+check_log_timezone(char **newval, void **extra, GucSource source, bool is_test)
 {
 	pg_tz	   *new_tz;
 
@@ -484,7 +484,7 @@ show_log_timezone(void)
  * GUC check_hook for timezone_abbreviations
  */
 bool
-check_timezone_abbreviations(char **newval, void **extra, GucSource source)
+check_timezone_abbreviations(char **newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * The boot_val for timezone_abbreviations is NULL.  When we see that we
@@ -583,7 +583,7 @@ check_transaction_read_only(bool *newval, void **extra, GucSource source)
  * or if restoring state in a parallel worker.
  */
 bool
-check_transaction_isolation(int *newval, void **extra, GucSource source)
+check_transaction_isolation(int *newval, void **extra, GucSource source, bool is_test)
 {
 	int			newXactIsoLevel = *newval;
 
@@ -685,7 +685,7 @@ show_random_seed(void)
  */
 
 bool
-check_client_encoding(char **newval, void **extra, GucSource source)
+check_client_encoding(char **newval, void **extra, GucSource source, bool is_test)
 {
 	int			encoding;
 	const char *canonical_name;
@@ -812,7 +812,7 @@ typedef struct
 } role_auth_extra;
 
 bool
-check_session_authorization(char **newval, void **extra, GucSource source)
+check_session_authorization(char **newval, void **extra, GucSource source, bool is_test)
 {
 	HeapTuple	roleTup;
 	Form_pg_authid roleform;
@@ -848,7 +848,7 @@ check_session_authorization(char **newval, void **extra, GucSource source)
 		}
 
 		/*
-		 * When source == PGC_S_TEST, we don't throw a hard error for a
+		 * When testing, we don't throw a hard error for a
 		 * nonexistent user name or insufficient privileges, only a NOTICE.
 		 * See comments in guc.h.
 		 */
@@ -857,7 +857,7 @@ check_session_authorization(char **newval, void **extra, GucSource source)
 		roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(*newval));
 		if (!HeapTupleIsValid(roleTup))
 		{
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
@@ -882,7 +882,7 @@ check_session_authorization(char **newval, void **extra, GucSource source)
 		if (roleid != GetAuthenticatedUserId() &&
 			!superuser_arg(GetAuthenticatedUserId()))
 		{
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -930,7 +930,7 @@ assign_session_authorization(const char *newval, void *extra)
  */
 
 bool
-check_role(char **newval, void **extra, GucSource source)
+check_role(char **newval, void **extra, GucSource source, bool is_test)
 {
 	HeapTuple	roleTup;
 	Oid			roleid;
@@ -967,7 +967,7 @@ check_role(char **newval, void **extra, GucSource source)
 		}
 
 		/*
-		 * When source == PGC_S_TEST, we don't throw a hard error for a
+		 * When testing, we don't throw a hard error for a
 		 * nonexistent user name or insufficient privileges, only a NOTICE.
 		 * See comments in guc.h.
 		 */
@@ -976,7 +976,7 @@ check_role(char **newval, void **extra, GucSource source)
 		roleTup = SearchSysCache1(AUTHNAME, PointerGetDatum(*newval));
 		if (!HeapTupleIsValid(roleTup))
 		{
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
@@ -996,7 +996,7 @@ check_role(char **newval, void **extra, GucSource source)
 		/* Verify that session user is allowed to become this role */
 		if (!member_can_set_role(GetSessionUserId(), roleid))
 		{
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
@@ -1056,7 +1056,7 @@ show_role(void)
  */
 
 bool
-check_canonical_path(char **newval, void **extra, GucSource source)
+check_canonical_path(char **newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * Since canonicalize_path never enlarges the string, we can just modify
@@ -1077,7 +1077,7 @@ check_canonical_path(char **newval, void **extra, GucSource source)
  * GUC check_hook for application_name
  */
 bool
-check_application_name(char **newval, void **extra, GucSource source)
+check_application_name(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *clean;
 	char	   *ret;
@@ -1115,7 +1115,7 @@ assign_application_name(const char *newval, void *extra)
  * GUC check_hook for cluster_name
  */
 bool
-check_cluster_name(char **newval, void **extra, GucSource source)
+check_cluster_name(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *clean;
 	char	   *ret;

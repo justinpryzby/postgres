@@ -37,7 +37,7 @@ extern void ReassignOwnedObjects(ReassignOwnedStmt *stmt);
 extern List *roleSpecsToIds(List *memberNames);
 
 extern bool check_createrole_self_grant(char **newval, void **extra,
-										GucSource source);
+										GucSource source, bool is_test);
 extern void assign_createrole_self_grant(const char *newval, void *extra);
 
 #endif							/* USER_H */

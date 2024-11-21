@@ -376,7 +376,7 @@ check_locale(int category, const char *locale, char **canonname)
  * This will have been locked down by an earlier call to pg_perm_setlocale.
  */
 bool
-check_locale_monetary(char **newval, void **extra, GucSource source)
+check_locale_monetary(char **newval, void **extra, GucSource source, bool is_test)
 {
 	return check_locale(LC_MONETARY, *newval, NULL);
 }
@@ -388,7 +388,7 @@ assign_locale_monetary(const char *newval, void *extra)
 }
 
 bool
-check_locale_numeric(char **newval, void **extra, GucSource source)
+check_locale_numeric(char **newval, void **extra, GucSource source, bool is_test)
 {
 	return check_locale(LC_NUMERIC, *newval, NULL);
 }
@@ -400,7 +400,7 @@ assign_locale_numeric(const char *newval, void *extra)
 }
 
 bool
-check_locale_time(char **newval, void **extra, GucSource source)
+check_locale_time(char **newval, void **extra, GucSource source, bool is_test)
 {
 	return check_locale(LC_TIME, *newval, NULL);
 }
@@ -422,7 +422,7 @@ assign_locale_time(const char *newval, void *extra)
  * during startup, until we can read the proper value from postgresql.conf.
  */
 bool
-check_locale_messages(char **newval, void **extra, GucSource source)
+check_locale_messages(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (**newval == '\0')
 	{

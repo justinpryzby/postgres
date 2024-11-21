@@ -4749,7 +4749,7 @@ RecoveryRequiresIntParameter(const char *param_name, int currValue, int minValue
  * GUC check_hook for primary_slot_name
  */
 bool
-check_primary_slot_name(char **newval, void **extra, GucSource source)
+check_primary_slot_name(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (*newval && strcmp(*newval, "") != 0 &&
 		!ReplicationSlotValidateName(*newval, WARNING))
@@ -4790,7 +4790,7 @@ error_multiple_recovery_targets(void)
  * GUC check_hook for recovery_target
  */
 bool
-check_recovery_target(char **newval, void **extra, GucSource source)
+check_recovery_target(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (strcmp(*newval, "immediate") != 0 && strcmp(*newval, "") != 0)
 	{
@@ -4820,7 +4820,7 @@ assign_recovery_target(const char *newval, void *extra)
  * GUC check_hook for recovery_target_lsn
  */
 bool
-check_recovery_target_lsn(char **newval, void **extra, GucSource source)
+check_recovery_target_lsn(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (strcmp(*newval, "") != 0)
 	{
@@ -4862,7 +4862,7 @@ assign_recovery_target_lsn(const char *newval, void *extra)
  * GUC check_hook for recovery_target_name
  */
 bool
-check_recovery_target_name(char **newval, void **extra, GucSource source)
+check_recovery_target_name(char **newval, void **extra, GucSource source, bool is_test)
 {
 	/* Use the value of newval directly */
 	if (strlen(*newval) >= MAXFNAMELEN)
@@ -4903,7 +4903,7 @@ assign_recovery_target_name(const char *newval, void *extra)
  * and parse it again when we need to use it.
  */
 bool
-check_recovery_target_time(char **newval, void **extra, GucSource source)
+check_recovery_target_time(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (strcmp(*newval, "") != 0)
 	{
@@ -4974,7 +4974,7 @@ assign_recovery_target_time(const char *newval, void *extra)
  * GUC check_hook for recovery_target_timeline
  */
 bool
-check_recovery_target_timeline(char **newval, void **extra, GucSource source)
+check_recovery_target_timeline(char **newval, void **extra, GucSource source, bool is_test)
 {
 	RecoveryTargetTimeLineGoal rttg;
 	RecoveryTargetTimeLineGoal *myextra;
@@ -5020,7 +5020,7 @@ assign_recovery_target_timeline(const char *newval, void *extra)
  * GUC check_hook for recovery_target_xid
  */
 bool
-check_recovery_target_xid(char **newval, void **extra, GucSource source)
+check_recovery_target_xid(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (strcmp(*newval, "") != 0)
 	{

@@ -4654,7 +4654,7 @@ ResetTempTableNamespace(void)
 
 /* check_hook: validate new search_path value */
 bool
-check_search_path(char **newval, void **extra, GucSource source)
+check_search_path(char **newval, void **extra, GucSource source, bool is_test)
 {
 	Oid			roleid = InvalidOid;
 	const char *searchPath = *newval;

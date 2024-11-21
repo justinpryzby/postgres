@@ -2164,7 +2164,7 @@ DebugFileOpen(void)
  * single palloc() chunk.
  */
 bool
-check_backtrace_functions(char **newval, void **extra, GucSource source)
+check_backtrace_functions(char **newval, void **extra, GucSource source, bool is_test)
 {
 	int			newvallen = strlen(*newval);
 	char	   *someval;
@@ -2232,7 +2232,7 @@ assign_backtrace_functions(const char *newval, void *extra)
  * GUC check_hook for log_destination
  */
 bool
-check_log_destination(char **newval, void **extra, GucSource source)
+check_log_destination(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawstring;
 	List	   *elemlist;

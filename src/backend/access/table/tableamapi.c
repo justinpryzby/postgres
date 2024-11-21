@@ -102,7 +102,7 @@ GetTableAmRoutine(Oid amhandler)
 
 /* check_hook: validate new default_table_access_method */
 bool
-check_default_table_access_method(char **newval, void **extra, GucSource source)
+check_default_table_access_method(char **newval, void **extra, GucSource source, bool is_test)
 {
 	if (**newval == '\0')
 	{
@@ -128,11 +128,11 @@ check_default_table_access_method(char **newval, void **extra, GucSource source)
 		if (!OidIsValid(get_table_am_oid(*newval, true)))
 		{
 			/*
-			 * When source == PGC_S_TEST, don't throw a hard error for a
+			 * When testing, don't throw a hard error for a
 			 * nonexistent table access method, only a NOTICE. See comments in
 			 * guc.h.
 			 */
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (is_test)
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),

@@ -250,7 +250,7 @@ static void reapply_stacked_values(struct config_generic *variable,
 								   GucContext curscontext, GucSource cursource,
 								   Oid cursrole);
 static bool validate_option_array_item(const char *name, const char *value,
-									   bool skipIfNoPermissions, int source);
+									   bool skipIfNoPermissions, int source); // , bool is_test);
 static void write_auto_conf_file(int fd, const char *filename, ConfigVariable *head);
 static void replace_auto_config_value(ConfigVariable **head_p, ConfigVariable **tail_p,
 									  const char *name, const char *value);
@@ -266,9 +266,9 @@ static bool call_int_check_hook(struct config_int *conf, int *newval,
 static bool call_real_check_hook(struct config_real *conf, double *newval,
 								 void **extra, GucSource source, int elevel);
 static bool call_string_check_hook(struct config_string *conf, char **newval,
-								   void **extra, GucSource source, int elevel);
+								   void **extra, GucSource source, int elevel, bool is_test);
 static bool call_enum_check_hook(struct config_enum *conf, int *newval,
-								 void **extra, GucSource source, int elevel);
+								 void **extra, GucSource source, int elevel, bool is_test);
 
 
 /*
@@ -1723,7 +1723,7 @@ InitializeOneGUCOption(struct config_generic *gconf)
 					newval = NULL;
 
 				if (!call_string_check_hook(conf, &newval, &extra,
-											PGC_S_DEFAULT, LOG))
+											PGC_S_DEFAULT, LOG, false))
 					elog(FATAL, "failed to initialize %s to \"%s\"",
 						 conf->gen.name, newval ? newval : "");
 				if (conf->assign_hook)
@@ -1739,7 +1739,7 @@ InitializeOneGUCOption(struct config_generic *gconf)
 				void	   *extra = NULL;
 
 				if (!call_enum_check_hook(conf, &newval, &extra,
-										  PGC_S_DEFAULT, LOG))
+										  PGC_S_DEFAULT, LOG, false))
 					elog(FATAL, "failed to initialize %s to %d",
 						 conf->gen.name, newval);
 				if (conf->assign_hook)
@@ -3255,7 +3255,7 @@ parse_and_validate_value(struct config_generic *record,
 										true);
 
 				if (!call_string_check_hook(conf, &newval->stringval, newextra,
-											source, elevel))
+											source, elevel, false)) // XXX: why?
 				{
 					guc_free(newval->stringval);
 					newval->stringval = NULL;
@@ -3287,7 +3287,7 @@ parse_and_validate_value(struct config_generic *record,
 				}
 
 				if (!call_enum_check_hook(conf, &newval->enumval, newextra,
-										  source, elevel))
+										  source, elevel, false))
 					return false;
 			}
 			break;
@@ -3685,6 +3685,7 @@ set_config_with_handle(const char *name, config_handle *handle,
 	 * trying to find out if the value is potentially good, not actually use
 	 * it. Also keep going if makeDefault is true, since we may want to set
 	 * the reset/stacked values even if we can't set the variable itself.
+	 *
 	 */
 	if (record->source > source)
 	{
@@ -4025,7 +4026,7 @@ set_config_with_handle(const char *name, config_handle *handle,
 						newval = NULL;
 
 					if (!call_string_check_hook(conf, &newval, &newextra,
-												source, elevel))
+												source, elevel, false))
 					{
 						guc_free(newval);
 						return 0;
@@ -4183,7 +4184,7 @@ set_config_with_handle(const char *name, config_handle *handle,
 				{
 					newval = conf->boot_val;
 					if (!call_enum_check_hook(conf, &newval, &newextra,
-											  source, elevel))
+											  source, elevel, false))
 						return 0;
 				}
 				else
@@ -6485,7 +6486,7 @@ ProcessGUCArray(ArrayType *array,
  * to indicate the current table entry is NULL.
  */
 ArrayType *
-GUCArrayAdd(ArrayType *array, const char *name, const char *value, int source)
+GUCArrayAdd(ArrayType *array, const char *name, const char *value, bool is_test)
 {
 	struct config_generic *record;
 	Datum		datum;
@@ -6496,7 +6497,7 @@ GUCArrayAdd(ArrayType *array, const char *name, const char *value, int source)
 	Assert(value);
 
 	/* test if the option is valid and we're allowed to set it */
-	(void) validate_option_array_item(name, value, false, source);
+	(void) validate_option_array_item(name, value, false, is_test);
 
 	/* normalize name (converts obsolete GUC names to modern spellings) */
 	record = find_option(name, false, true, WARNING);
@@ -6563,7 +6564,7 @@ GUCArrayAdd(ArrayType *array, const char *name, const char *value, int source)
  * is NULL then a null should be stored.
  */
 ArrayType *
-GUCArrayDelete(ArrayType *array, const char *name, int source)
+GUCArrayDelete(ArrayType *array, const char *name, bool is_test)
 {
 	struct config_generic *record;
 	ArrayType  *newarray;
@@ -6573,7 +6574,7 @@ GUCArrayDelete(ArrayType *array, const char *name, int source)
 	Assert(name);
 
 	/* test if the option is valid and we're allowed to set it */
-	(void) validate_option_array_item(name, NULL, false, source);
+	(void) validate_option_array_item(name, NULL, false, is_test);
 
 	/* normalize name (converts obsolete GUC names to modern spellings) */
 	record = find_option(name, false, true, WARNING);
@@ -6633,7 +6634,7 @@ GUCArrayDelete(ArrayType *array, const char *name, int source)
  * those that are PGC_USERSET or we have permission to set
  */
 ArrayType *
-GUCArrayReset(ArrayType *array, int source)
+GUCArrayReset(ArrayType *array, bool is_test)
 {
 	ArrayType  *newarray;
 	int			i;
@@ -6671,7 +6672,7 @@ GUCArrayReset(ArrayType *array, int source)
 		*eqsgn = '\0';
 
 		/* skip if we have permission to delete it */
-		if (validate_option_array_item(val, NULL, true, source))
+		if (validate_option_array_item(val, NULL, true, is_test))
 			continue;
 
 		/* else add it to the output array */
@@ -6898,7 +6899,7 @@ call_real_check_hook(struct config_real *conf, double *newval, void **extra,
 
 static bool
 call_string_check_hook(struct config_string *conf, char **newval, void **extra,
-					   GucSource source, int elevel)
+					   GucSource source, int elevel, bool is_test)
 {
 	volatile bool result = true;
 
@@ -6919,7 +6920,7 @@ call_string_check_hook(struct config_string *conf, char **newval, void **extra,
 		GUC_check_errdetail_string = NULL;
 		GUC_check_errhint_string = NULL;
 
-		if (!conf->check_hook(newval, extra, source))
+		if (!conf->check_hook(newval, extra, source, is_test))
 		{
 			ereport(elevel,
 					(errcode(GUC_check_errcode_value),
@@ -6948,7 +6949,7 @@ call_string_check_hook(struct config_string *conf, char **newval, void **extra,
 
 static bool
 call_enum_check_hook(struct config_enum *conf, int *newval, void **extra,
-					 GucSource source, int elevel)
+					 GucSource source, int elevel, bool is_test)
 {
 	/* Quick success if no hook */
 	if (!conf->check_hook)
@@ -6960,7 +6961,7 @@ call_enum_check_hook(struct config_enum *conf, int *newval, void **extra,
 	GUC_check_errdetail_string = NULL;
 	GUC_check_errhint_string = NULL;
 
-	if (!conf->check_hook(newval, extra, source))
+	if (!conf->check_hook(newval, extra, source, is_test))
 	{
 		ereport(elevel,
 				(errcode(GUC_check_errcode_value),

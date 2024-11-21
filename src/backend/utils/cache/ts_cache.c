@@ -599,7 +599,7 @@ getTSCurrentConfig(bool emitError)
 
 /* GUC check_hook for default_text_search_config */
 bool
-check_default_text_search_config(char **newval, void **extra, GucSource source)
+check_default_text_search_config(char **newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * If we aren't inside a transaction, or connected to a database, we
@@ -623,20 +623,20 @@ check_default_text_search_config(char **newval, void **extra, GucSource source)
 			cfgId = InvalidOid; /* bad name list syntax */
 
 		/*
-		 * When source == PGC_S_TEST, don't throw a hard error for a
+		 * When testing, don't throw a hard error for a
 		 * nonexistent configuration, only a NOTICE.  See comments in guc.h.
 		 */
 		if (!OidIsValid(cfgId))
 		{
-			if (source == PGC_S_TEST || source == PGC_S_TEST_FUNCTION)
+			if (source < PGC_S_INTERACTIVE) // XXX
 			{
 				ereport(NOTICE,
 						(errcode(ERRCODE_UNDEFINED_OBJECT),
 						 errmsg("text search configuration \"%s\" does not exist", *newval)));
 				return true;
 			}
-			else
-				return false;
+
+			return false;
 		}
 
 		/*

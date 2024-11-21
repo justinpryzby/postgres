@@ -660,7 +660,6 @@ const char *const GucSource_Names[] =
 	[PGC_S_CLIENT] = "client",
 	[PGC_S_OVERRIDE] = "override",
 	[PGC_S_INTERACTIVE] = "interactive",
-	[PGC_S_TEST] = "test",
 	[PGC_S_SESSION] = "session",
 };
 

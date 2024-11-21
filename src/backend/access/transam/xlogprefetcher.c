@@ -1076,7 +1076,7 @@ XLogPrefetcherReadRecord(XLogPrefetcher *prefetcher, char **errmsg)
 }
 
 bool
-check_recovery_prefetch(int *new_value, void **extra, GucSource source)
+check_recovery_prefetch(int *new_value, void **extra, GucSource source, bool is_test)
 {
 #ifndef USE_PREFETCH
 	if (*new_value == RECOVERY_PREFETCH_ON)

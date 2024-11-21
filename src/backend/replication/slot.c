@@ -2510,7 +2510,7 @@ validate_sync_standby_slots(char *rawname, List **elemlist)
  * GUC check_hook for synchronized_standby_slots
  */
 bool
-check_synchronized_standby_slots(char **newval, void **extra, GucSource source)
+check_synchronized_standby_slots(char **newval, void **extra, GucSource source, bool is_test)
 {
 	char	   *rawname;
 	char	   *ptr;

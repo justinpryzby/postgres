@@ -232,8 +232,8 @@ parse_subscription_options(ParseState *pstate, List *stmt_options,
 
 			/* Test if the given value is valid for synchronous_commit GUC. */
 			(void) set_config_option("synchronous_commit", opts->synchronous_commit,
-									 PGC_BACKEND, PGC_S_TEST, GUC_ACTION_SET,
-									 false, 0, false);
+									 PGC_BACKEND, PGC_S_INTERACTIVE, GUC_ACTION_SET,
+									 false, 0, false); //
 		}
 		else if (IsSet(supported_opts, SUBOPT_REFRESH) &&
 				 strcmp(defel->defname, "refresh") == 0)
