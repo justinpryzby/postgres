@@ -818,7 +818,7 @@ CLOGShmemInit(void)
  * GUC check_hook for transaction_buffers
  */
 bool
-check_transaction_buffers(int *newval, void **extra, GucSource source)
+check_transaction_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("transaction_buffers", newval);
 }

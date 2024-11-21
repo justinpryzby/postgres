@@ -1232,7 +1232,7 @@ check_default_with_oids(bool *newval, void **extra, GucSource source)
 }
 
 bool
-check_effective_io_concurrency(int *newval, void **extra, GucSource source)
+check_effective_io_concurrency(int *newval, void **extra, GucSource source, bool is_test)
 {
 #ifndef USE_PREFETCH
 	if (*newval != 0)
@@ -1246,7 +1246,7 @@ check_effective_io_concurrency(int *newval, void **extra, GucSource source)
 }
 
 bool
-check_maintenance_io_concurrency(int *newval, void **extra, GucSource source)
+check_maintenance_io_concurrency(int *newval, void **extra, GucSource source, bool is_test)
 {
 #ifndef USE_PREFETCH
 	if (*newval != 0)

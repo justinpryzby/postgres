@@ -122,7 +122,7 @@ static bool vac_tid_reaped(ItemPointer itemptr, void *state);
  */
 bool
 check_vacuum_buffer_usage_limit(int *newval, void **extra,
-								GucSource source)
+								GucSource source, bool is_test)
 {
 	/* Value upper and lower hard limits are inclusive */
 	if (*newval == 0 || (*newval >= MIN_BAS_VAC_RING_SIZE_KB &&

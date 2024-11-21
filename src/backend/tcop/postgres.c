@@ -3505,7 +3505,7 @@ ProcessInterrupts(void)
  * GUC check_hook for client_connection_check_interval
  */
 bool
-check_client_connection_check_interval(int *newval, void **extra, GucSource source)
+check_client_connection_check_interval(int *newval, void **extra, GucSource source, bool is_test)
 {
 	if (!WaitEventSetCanReportClosed() && *newval != 0)
 	{

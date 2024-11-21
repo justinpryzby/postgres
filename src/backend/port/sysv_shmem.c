@@ -575,7 +575,7 @@ GetHugePageSize(Size *hugepagesize, int *mmap_flags)
  * GUC check_hook for huge_page_size
  */
 bool
-check_huge_page_size(int *newval, void **extra, GucSource source)
+check_huge_page_size(int *newval, void **extra, GucSource source, bool is_test)
 {
 #if !(defined(MAP_HUGE_MASK) && defined(MAP_HUGE_SHIFT))
 	/* Recent enough Linux only, for now.  See GetHugePageSize(). */

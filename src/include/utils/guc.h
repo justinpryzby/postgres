@@ -181,7 +181,7 @@ struct config_enum_entry
  * Signatures for per-variable check/assign/show hook functions
  */
 typedef bool (*GucBoolCheckHook) (bool *newval, void **extra, GucSource source);
-typedef bool (*GucIntCheckHook) (int *newval, void **extra, GucSource source);
+typedef bool (*GucIntCheckHook) (int *newval, void **extra, GucSource source, bool is_test);
 typedef bool (*GucRealCheckHook) (double *newval, void **extra, GucSource source);
 typedef bool (*GucStringCheckHook) (char **newval, void **extra, GucSource source, bool is_test);
 typedef bool (*GucEnumCheckHook) (int *newval, void **extra, GucSource source, bool is_test);

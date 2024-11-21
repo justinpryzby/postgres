@@ -251,7 +251,7 @@ SUBTRANSShmemInit(void)
  * GUC check_hook for subtransaction_buffers
  */
 bool
-check_subtrans_buffers(int *newval, void **extra, GucSource source)
+check_subtrans_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("subtransaction_buffers", newval);
 }

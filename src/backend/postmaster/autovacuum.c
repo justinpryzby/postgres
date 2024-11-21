@@ -3339,7 +3339,7 @@ AutoVacuumShmemInit(void)
  * GUC check_hook for autovacuum_work_mem
  */
 bool
-check_autovacuum_work_mem(int *newval, void **extra, GucSource source)
+check_autovacuum_work_mem(int *newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * -1 indicates fallback.

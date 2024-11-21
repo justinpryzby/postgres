@@ -2202,7 +2202,7 @@ assign_checkpoint_completion_target(double newval, void *extra)
 }
 
 bool
-check_wal_segment_size(int *newval, void **extra, GucSource source)
+check_wal_segment_size(int *newval, void **extra, GucSource source, bool is_test)
 {
 	if (!IsValidWalSegSize(*newval))
 	{
@@ -2220,7 +2220,7 @@ check_wal_segment_size(int *newval, void **extra, GucSource source)
  * binary upgrade. See start_postmaster() in pg_upgrade for more details.
  */
 bool
-check_max_slot_wal_keep_size(int *newval, void **extra, GucSource source)
+check_max_slot_wal_keep_size(int *newval, void **extra, GucSource source, bool is_test)
 {
 	if (IsBinaryUpgrade && *newval != -1)
 	{
@@ -4655,7 +4655,7 @@ XLOGChooseNumBuffers(void)
  * GUC check_hook for wal_buffers
  */
 bool
-check_wal_buffers(int *newval, void **extra, GucSource source)
+check_wal_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	/*
 	 * -1 indicates a request for auto-tune.

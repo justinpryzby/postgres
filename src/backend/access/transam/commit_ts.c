@@ -575,7 +575,7 @@ CommitTsShmemInit(void)
  * GUC check_hook for commit_timestamp_buffers
  */
 bool
-check_commit_ts_buffers(int *newval, void **extra, GucSource source)
+check_commit_ts_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("commit_timestamp_buffers", newval);
 }

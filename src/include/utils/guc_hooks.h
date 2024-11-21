@@ -39,9 +39,9 @@ extern bool check_application_name(char **newval, void **extra,
 extern void assign_application_name(const char *newval, void *extra);
 extern const char *show_archive_command(void);
 extern bool check_autovacuum_work_mem(int *newval, void **extra,
-									  GucSource source);
+									  GucSource source, bool is_test);
 extern bool check_vacuum_buffer_usage_limit(int *newval, void **extra,
-											GucSource source);
+											GucSource source, bool is_test);
 extern bool check_backtrace_functions(char **newval, void **extra,
 									  GucSource source, bool is_test);
 extern void assign_backtrace_functions(const char *newval, void *extra);
@@ -49,12 +49,12 @@ extern bool check_bonjour(bool *newval, void **extra, GucSource source);
 extern bool check_canonical_path(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_checkpoint_completion_target(double newval, void *extra);
 extern bool check_client_connection_check_interval(int *newval, void **extra,
-												   GucSource source);
+												   GucSource source, bool is_test);
 extern bool check_client_encoding(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_client_encoding(const char *newval, void *extra);
 extern bool check_cluster_name(char **newval, void **extra, GucSource source, bool is_test);
 extern bool check_commit_ts_buffers(int *newval, void **extra,
-									GucSource source);
+									GucSource source, bool is_test);
 extern const char *show_data_directory_mode(void);
 extern bool check_datestyle(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_datestyle(const char *newval, void *extra);
@@ -69,8 +69,8 @@ extern void assign_default_text_search_config(const char *newval, void *extra);
 extern bool check_default_with_oids(bool *newval, void **extra,
 									GucSource source);
 extern bool check_effective_io_concurrency(int *newval, void **extra,
-										   GucSource source);
-extern bool check_huge_page_size(int *newval, void **extra, GucSource source);
+										   GucSource source, bool is_test);
+extern bool check_huge_page_size(int *newval, void **extra, GucSource source, bool is_test);
 extern const char *show_in_hot_standby(void);
 extern bool check_locale_messages(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_locale_messages(const char *newval, void *extra);
@@ -89,18 +89,18 @@ extern bool check_log_timezone(char **newval, void **extra, GucSource source, bo
 extern void assign_log_timezone(const char *newval, void *extra);
 extern const char *show_log_timezone(void);
 extern bool check_maintenance_io_concurrency(int *newval, void **extra,
-											 GucSource source);
+											 GucSource source, bool is_test);
 extern void assign_maintenance_io_concurrency(int newval, void *extra);
 extern bool check_max_slot_wal_keep_size(int *newval, void **extra,
-										 GucSource source);
+										 GucSource source, bool is_test);
 extern void assign_max_wal_size(int newval, void *extra);
-extern bool check_max_stack_depth(int *newval, void **extra, GucSource source);
+extern bool check_max_stack_depth(int *newval, void **extra, GucSource source, bool is_test);
 extern void assign_max_stack_depth(int newval, void *extra);
 extern bool check_multixact_member_buffers(int *newval, void **extra,
-										   GucSource source);
+										   GucSource source, bool is_test);
 extern bool check_multixact_offset_buffers(int *newval, void **extra,
-										   GucSource source);
-extern bool check_notify_buffers(int *newval, void **extra, GucSource source);
+										   GucSource source, bool is_test);
+extern bool check_notify_buffers(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_primary_slot_name(char **newval, void **extra,
 									GucSource source, bool is_test);
 extern bool check_random_seed(double *newval, void **extra, GucSource source);
@@ -135,7 +135,7 @@ extern bool check_restrict_nonsystem_relation_kind(char **newval, void **extra,
 extern void assign_restrict_nonsystem_relation_kind(const char *newval, void *extra);
 extern bool check_search_path(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_search_path(const char *newval, void *extra);
-extern bool check_serial_buffers(int *newval, void **extra, GucSource source);
+extern bool check_serial_buffers(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_session_authorization(char **newval, void **extra, GucSource source, bool is_test);
 extern void assign_session_authorization(const char *newval, void *extra);
 extern void assign_session_replication_role(int newval, void *extra);
@@ -143,7 +143,7 @@ extern void assign_stats_fetch_consistency(int newval, void *extra);
 extern bool check_ssl(bool *newval, void **extra, GucSource source);
 extern bool check_stage_log_stats(bool *newval, void **extra, GucSource source);
 extern bool check_subtrans_buffers(int *newval, void **extra,
-								   GucSource source);
+								   GucSource source, bool is_test);
 extern bool check_synchronous_standby_names(char **newval, void **extra,
 											GucSource source, bool is_test);
 extern void assign_synchronous_standby_names(const char *newval, void *extra);
@@ -158,7 +158,7 @@ extern void assign_tcp_keepalives_interval(int newval, void *extra);
 extern const char *show_tcp_keepalives_interval(void);
 extern void assign_tcp_user_timeout(int newval, void *extra);
 extern const char *show_tcp_user_timeout(void);
-extern bool check_temp_buffers(int *newval, void **extra, GucSource source);
+extern bool check_temp_buffers(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_temp_tablespaces(char **newval, void **extra, GucSource source,
 								   bool is_test);
 extern void assign_temp_tablespaces(const char *newval, void *extra);
@@ -168,17 +168,17 @@ extern const char *show_timezone(void);
 extern bool check_timezone_abbreviations(char **newval, void **extra,
 										 GucSource source, bool is_test);
 extern void assign_timezone_abbreviations(const char *newval, void *extra);
-extern bool check_transaction_buffers(int *newval, void **extra, GucSource source);
+extern bool check_transaction_buffers(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_transaction_deferrable(bool *newval, void **extra, GucSource source);
 extern bool check_transaction_isolation(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_transaction_read_only(bool *newval, void **extra, GucSource source);
 extern void assign_transaction_timeout(int newval, void *extra);
 extern const char *show_unix_socket_permissions(void);
-extern bool check_wal_buffers(int *newval, void **extra, GucSource source);
+extern bool check_wal_buffers(int *newval, void **extra, GucSource source, bool is_test);
 extern bool check_wal_consistency_checking(char **newval, void **extra,
 										   GucSource source, bool is_test);
 extern void assign_wal_consistency_checking(const char *newval, void *extra);
-extern bool check_wal_segment_size(int *newval, void **extra, GucSource source);
+extern bool check_wal_segment_size(int *newval, void **extra, GucSource source, bool is_test);
 extern void assign_wal_sync_method(int new_wal_sync_method, void *extra);
 extern bool check_synchronized_standby_slots(char **newval, void **extra,
 											 GucSource source, bool is_test);

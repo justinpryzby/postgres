@@ -2011,7 +2011,7 @@ MultiXactShmemInit(void)
  * GUC check_hook for multixact_offset_buffers
  */
 bool
-check_multixact_offset_buffers(int *newval, void **extra, GucSource source)
+check_multixact_offset_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("multixact_offset_buffers", newval);
 }
@@ -2020,7 +2020,7 @@ check_multixact_offset_buffers(int *newval, void **extra, GucSource source)
  * GUC check_hook for multixact_member_buffers
  */
 bool
-check_multixact_member_buffers(int *newval, void **extra, GucSource source)
+check_multixact_member_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("multixact_member_buffers", newval);
 }

@@ -844,7 +844,7 @@ SerialInit(void)
  * GUC check_hook for serializable_buffers
  */
 bool
-check_serial_buffers(int *newval, void **extra, GucSource source)
+check_serial_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("serializable_buffers", newval);
 }

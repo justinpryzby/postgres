@@ -262,7 +262,7 @@ static void do_serialize(char **destptr, Size *maxbytes,
 static bool call_bool_check_hook(struct config_bool *conf, bool *newval,
 								 void **extra, GucSource source, int elevel);
 static bool call_int_check_hook(struct config_int *conf, int *newval,
-								void **extra, GucSource source, int elevel);
+								void **extra, GucSource source, int elevel, bool is_test);
 static bool call_real_check_hook(struct config_real *conf, double *newval,
 								 void **extra, GucSource source, int elevel);
 static bool call_string_check_hook(struct config_string *conf, char **newval,
@@ -1683,7 +1683,7 @@ InitializeOneGUCOption(struct config_generic *gconf)
 				Assert(newval >= conf->min);
 				Assert(newval <= conf->max);
 				if (!call_int_check_hook(conf, &newval, &extra,
-										 PGC_S_DEFAULT, LOG))
+										 PGC_S_DEFAULT, LOG, false))
 					elog(FATAL, "failed to initialize %s to %d",
 						 conf->gen.name, newval);
 				if (conf->assign_hook)
@@ -3188,7 +3188,7 @@ parse_and_validate_value(struct config_generic *record,
 				}
 
 				if (!call_int_check_hook(conf, &newval->intval, newextra,
-										 source, elevel))
+										 source, elevel, true))
 					return false;
 			}
 			break;
@@ -3818,7 +3818,7 @@ set_config_with_handle(const char *name, config_handle *handle,
 				{
 					newval = conf->boot_val;
 					if (!call_int_check_hook(conf, &newval, &newextra,
-											 source, elevel))
+											 source, elevel, false))
 						return 0;
 				}
 				else
@@ -6831,7 +6831,7 @@ call_bool_check_hook(struct config_bool *conf, bool *newval, void **extra,
 
 static bool
 call_int_check_hook(struct config_int *conf, int *newval, void **extra,
-					GucSource source, int elevel)
+					GucSource source, int elevel, bool is_test)
 {
 	/* Quick success if no hook */
 	if (!conf->check_hook)
@@ -6843,7 +6843,7 @@ call_int_check_hook(struct config_int *conf, int *newval, void **extra,
 	GUC_check_errdetail_string = NULL;
 	GUC_check_errhint_string = NULL;
 
-	if (!conf->check_hook(newval, extra, source))
+	if (!conf->check_hook(newval, extra, source, is_test))
 	{
 		ereport(elevel,
 				(errcode(GUC_check_errcode_value),

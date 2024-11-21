@@ -2391,7 +2391,7 @@ ClearPendingActionsAndNotifies(void)
  * GUC check_hook for notify_buffers
  */
 bool
-check_notify_buffers(int *newval, void **extra, GucSource source)
+check_notify_buffers(int *newval, void **extra, GucSource source, bool is_test)
 {
 	return check_slru_buffers("notify_buffers", newval);
 }

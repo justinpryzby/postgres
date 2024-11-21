@@ -139,7 +139,7 @@ stack_is_too_deep(void)
 
 /* GUC check hook for max_stack_depth */
 bool
-check_max_stack_depth(int *newval, void **extra, GucSource source)
+check_max_stack_depth(int *newval, void **extra, GucSource source, bool is_test)
 {
 	ssize_t		newval_bytes = *newval * (ssize_t) 1024;
 	ssize_t		stack_rlimit = get_stack_depth_rlimit();
