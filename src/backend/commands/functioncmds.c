@@ -671,11 +671,10 @@ update_proconfig_value(ArrayType *a, List *set_items)
 		{
 			char	   *valuestr = ExtractSetVariableArgs(sstmt);
 
-			/* istest=true changes various errors to warnings while defining the function */
 			if (valuestr)
-				a = GUCArrayAdd(a, sstmt->name, valuestr, true);
+				a = GUCArrayAdd(a, sstmt->name, valuestr, PGC_S_TEST_FUNCTION);
 			else				/* RESET */
-				a = GUCArrayDelete(a, sstmt->name, true);
+				a = GUCArrayDelete(a, sstmt->name, PGC_S_TEST_FUNCTION);
 		}
 	}
 
