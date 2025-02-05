@@ -598,7 +598,7 @@ task:
   env:
     TEST_JOBS: 8 # wild guess, data based value welcome
 
-    CC: C:\ProgramData\chocolatey\bin\ccache.exe cl.exe
+    CC: C:/ProgramData/chocolatey/bin/ccache.exe cl.exe
     #CC: c:\msys64\ucrt64\bin\ccache.exe cl.exe
     #-p:CLToolPath=c:\ProgramData\chocolatey\bin
     #-p:EnforceProcessCountAcrossBuilds=true
@@ -626,6 +626,10 @@ task:
     INSTALL_TESTS: 1
 
   <<: *windows_task_template
+
+  ls_dir_script:
+    - dir c:\msys64\ucrt64\bin\
+    - dir C:\ProgramData\chocolatey\bin\
 
   setup_additional_packages_script:
     #- choco install -y --no-progress ccache --version 4.10.0 --prerelease
