@@ -3076,7 +3076,6 @@ Name        | mat_view_heap_psql
 Type        | materialized view
 Owner       | regress_display_role
 Persistence | permanent
-Size        | 0 bytes
 Description | 
 -[ RECORD 2 ]---------------------
 Schema      | tableam_display
@@ -3084,7 +3083,6 @@ Name        | tbl_heap
 Type        | table
 Owner       | regress_display_role
 Persistence | permanent
-Size        | 0 bytes
 Description | 
 -[ RECORD 3 ]---------------------
 Schema      | tableam_display
@@ -3092,7 +3090,6 @@ Name        | tbl_heap_psql
 Type        | table
 Owner       | regress_display_role
 Persistence | permanent
-Size        | 0 bytes
 Description | 
 -[ RECORD 4 ]---------------------
 Schema      | tableam_display
@@ -3100,7 +3097,6 @@ Name        | view_heap_psql
 Type        | view
 Owner       | regress_display_role
 Persistence | permanent
-Size        | 0 bytes
 Description | 
 
 RESET ROLE;
